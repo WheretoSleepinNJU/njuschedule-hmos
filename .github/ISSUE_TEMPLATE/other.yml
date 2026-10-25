@@ -1,0 +1,30 @@
+name: 其他反馈
+description: 不属于 Bug 或新功能建议的其他内容
+title: '[Other]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        如果 Bug 反馈和功能建议模板都不适用，可以使用这个模板。
+
+        提交前请先搜索 [Issues](https://github.com/WheretoSleepinNJU/njuschedule-hmos/issues)，并阅读
+        [CONTRIBUTING.md](https://github.com/WheretoSleepinNJU/njuschedule-hmos/blob/main/CONTRIBUTING.md)。
+        安全漏洞请按 [SECURITY.md](https://github.com/WheretoSleepinNJU/njuschedule-hmos/blob/main/SECURITY.md) 私下报告。
+
+  - type: textarea
+    id: content
+    attributes:
+      label: 内容
+      description: 请说明你想反馈或讨论的内容。
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已经搜索过 Issues，没有发现重复内容。
+          required: true
+        - label: 我已删除账号、真实课表、姓名、设备序列号等个人敏感信息。
+          required: true

@@ -1,48 +1,134 @@
-name: Bug 报告
-description: 反馈可复现的功能问题（请勿包含账号、课表或个人数据）
-title: "[Bug] "
-labels: ["bug"]
+name: Bug 反馈
+description: 反馈可复现的功能问题（请勿包含账号、真实课表或个人数据）
+title: '[Bug]: '
+labels: ['bug']
 body:
   - type: markdown
     attributes:
       value: |
-        感谢反馈！提交前请确认：已搜索现有 Issue、使用最新版本、问题可复现。
-        **请勿粘贴真实账号密码、课表、姓名、设备序列号等个人信息。**
+        感谢反馈！提交前请确认：
+
+        - 已搜索 [Issues](https://github.com/WheretoSleepinNJU/njuschedule-hmos/issues)，没有重复问题；
+        - 已更新到最新版本后仍能复现；
+        - 已阅读 [CONTRIBUTING.md](https://github.com/WheretoSleepinNJU/njuschedule-hmos/blob/main/CONTRIBUTING.md)。
+
+        **请勿粘贴账号密码、真实课表、姓名、设备序列号等个人信息。**
+        安全漏洞请按 [SECURITY.md](https://github.com/WheretoSleepinNJU/njuschedule-hmos/blob/main/SECURITY.md) 私下报告，不要提交公开 Issue。
+
+  - type: dropdown
+    id: channel
+    attributes:
+      label: 应用来源
+      description: 你从哪里安装的版本？
+      options:
+        - 华为应用市场正式版
+        - AppGallery 邀请测试
+        - GitHub Release
+        - 自行编译
+    validations:
+      required: true
+
   - type: input
     id: version
     attributes:
       label: 应用版本
-      description: 设置 → 关于 → 版本
-      placeholder: v0.1.0
+      description: 在「设置 → 关于」查看版本号
+      placeholder: 例如 0.1.4 (1000104)
     validations:
       required: true
+
+  - type: dropdown
+    id: device-type
+    attributes:
+      label: 设备类型
+      options:
+        - 手机
+        - 平板
+        - PC / 2in1
+    validations:
+      required: true
+
   - type: input
     id: device
     attributes:
-      label: 设备与系统
-      placeholder: HUAWEI Pura 70 Pro+，HarmonyOS 26
+      label: 设备型号与系统版本
+      description: 例如 HUAWEI Pura 70 Pro+，HarmonyOS 26
+      placeholder: 设备型号，HarmonyOS 版本
     validations:
       required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 问题模块
+      options:
+        - 课表
+        - 课程
+        - 教务导入
+        - 分享 / 导入码
+        - 讲座
+        - 桌面小组件
+        - 设置 / 外观
+        - 关于 / 隐私政策
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 简要说明发生了什么，以及你期望的结果。
+    validations:
+      required: true
+
   - type: textarea
     id: steps
     attributes:
       label: 复现步骤
-      description: 请使用 Demo 数据描述操作路径
+      description: 请尽量使用 Demo 数据描述操作路径。
       placeholder: |
         1. 打开「课表」
-        2. ...
+        2. 点击「...」
+        3. ...
     validations:
       required: true
-  - type: textarea
-    id: expected
-    attributes:
-      label: 期望结果
-    validations:
-      required: true
+
   - type: textarea
     id: actual
     attributes:
-      label: 实际结果与日志
-      description: 可附截图；请先打码个人课程/账号信息
+      label: 实际结果
+      description: 请描述实际出现的错误、崩溃或异常表现。
     validations:
       required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 补充日志（可选）
+      description: 如果方便，可提供 `hdc hilog` 相关日志；请先删除个人信息和真实课程数据。
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏（可选）
+      description: 截图请先打码真实课程、姓名与账号信息。
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已经搜索过 Issues，没有发现重复问题。
+          required: true
+        - label: 我正在使用最新版本，问题仍然存在。
+          required: true
+        - label: 我已删除账号、真实课表、姓名、设备序列号等个人敏感信息。
+          required: true
+        - label: 这不是安全漏洞；安全漏洞会按 SECURITY.md 私下报告。
+          required: true

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用说明与常见问题
+    url: https://github.com/WheretoSleepinNJU/njuschedule-hmos/blob/main/README.md
+    about: 安装、导入、分享与常见问题请先阅读 README 和 CONTRIBUTING。
+  - name: 安全问题私下报告
+    url: https://github.com/WheretoSleepinNJU/njuschedule-hmos/blob/main/SECURITY.md
+    about: 请不要在公开 Issue 中披露安全漏洞、账号或个人信息。
