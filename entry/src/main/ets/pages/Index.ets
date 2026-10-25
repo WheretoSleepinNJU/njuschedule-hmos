@@ -11,13 +11,16 @@ import {
   HdsNavigation,
   HdsNavigationTitleMode,
   HdsNavigationTitle,
+  HdsNavigationMenuContentOptions,
   HdsTabs,
   HdsTabsController,
   HdsAnimationMode,
+  IconStyleMode,
   hdsMaterial,
   ScrollEffectType
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { CourseEditParam } from '../common/RouteParams';
 import { AppState } from '../app/AppState';
 import { AppStore } from '../app/AppStore';
 import { TabBarAutoHide } from '../common/ui/TabBarAutoHide';
@@ -26,7 +29,6 @@ import { CourseTableRepository } from '../data/CourseTableRepository';
 import { CourseTable } from '../data/models/Models';
 import { BreakpointName, resolveBreakpoint } from '../common/design/Breakpoints';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../common/design/Tokens';
-import { CourseDetailPage } from '../features/courses/CourseDetailPage';
 import { CourseEditPage } from '../features/courses/CourseEditPage';
 import { CoursesView } from '../features/courses/CoursesView';
 import { ImportView } from '../features/import/ImportView';
@@ -56,6 +58,8 @@ struct Index {
   private settingsScroller: Scroller = new Scroller();
   private pageStack: NavPathStack = new NavPathStack();
   private tabLabels: string[] = ['课表', '课程', '设置'];
+  /** 「课程」Tab 标题栏 + 菜单是否展开。 */
+  @Local coursesMenuOpen: boolean = false;
 
   /** V2 全局 Store。 */
   @Local store: AppStore = AppStore.connect();
@@ -151,6 +155,50 @@ struct Index {
     }
   }
 
+  /** 「课程」Tab 标题栏右上角 +：打开教务导入 / 添加课程小菜单。 */
+  private courseMenuContent(): HdsNavigationMenuContentOptions {
+    return {
+      value: [{
+        content: {
+          icon: $r('sys.symbol.plus'),
+          type: IconStyleMode.NORMAL,
+          action: () => {
+            this.coursesMenuOpen = !this.coursesMenuOpen;
+          }
+        }
+      }]
+    };
+  }
+
+  private openImport(): void {
+    this.coursesMenuOpen = false;
+    this.pageStack.pushPathByName('import', null);
+  }
+
+  private openCreateCourse(): void {
+    this.coursesMenuOpen = false;
+    this.pageStack.pushPathByName('course-edit', new CourseEditParam(this.store.tableId, 0));
+  }
+
+  private courseMenuItems(): MenuElement[] {
+    return [
+      {
+        value: '教务导入',
+        icon: $r('sys.symbol.book_pages'),
+        action: () => {
+          this.openImport();
+        }
+      },
+      {
+        value: '添加课程',
+        icon: $r('sys.symbol.plus'),
+        action: () => {
+          this.openCreateCourse();
+        }
+      }
+    ];
+  }
+
   private async loadTableName(): Promise<void> {
     if (this.store.tableId <= 0) {
       return;
@@ -197,9 +245,7 @@ struct Index {
 
   @Builder
   private destinationBuilder(name: string) {
-    if (name === 'course-detail') {
-      CourseDetailPage({ pageStack: this.pageStack })
-    } else if (name === 'course-edit') {
+    if (name === 'course-edit') {
       CourseEditPage({ pageStack: this.pageStack })
     } else if (name === 'tables') {
       ManageTablesPage({pageStack: this.pageStack})
@@ -290,6 +336,7 @@ struct Index {
         })
         .onChange((index: number) => {
           this.activeTabIndex = index;
+          this.coursesMenuOpen = false;
           // 切 Tab 时恢复悬浮页签（避免在别的页面保持收起状态）
           TabBarAutoHide.resetAndShow();
           // 标题栏模糊只绑定当前 Tab 的滚动容器
@@ -306,6 +353,7 @@ struct Index {
         avoidLayoutSafeArea: true,
         content: {
           title: this.titleContent(),
+          menu: this.activeTabIndex === 1 ? this.courseMenuContent() : undefined
         },
         style: {
           // 与 hydrotoolkit 相同：静止透明，内容滚到标题栏下方时渐变模糊
@@ -337,6 +385,23 @@ struct Index {
           .hitTestBehavior(HitTestMode.Default)
           .onClick(() => {
             AppState.setWeekPickerOpen(true);
+          })
+      }
+
+      // 课程页标题栏 + 的展开菜单：透明锚点定位在标题栏右上角下方。
+      if (this.activeTabIndex === 1) {
+        Row()
+          .width(1)
+          .height(1)
+          .position({
+            x: Math.max(0, this.getUIContext().px2vp(this.store.windowWidth) - 32),
+            y: this.contentTopSpace() - 2
+          })
+          .bindMenu(this.coursesMenuOpen, this.courseMenuItems(), {
+            placement: Placement.BottomRight,
+            onDisappear: () => {
+              this.coursesMenuOpen = false;
+            }
           })
       }
     }

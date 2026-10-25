@@ -40,6 +40,8 @@ export class FontSize {
 export class HdsMetrics {
   static readonly TitleBarHeight: number = 56;
   static readonly TitleBarBreathing: number = 8;
+  /** HDS IconStyleMode.NORMAL 的标题栏图标默认尺寸（24vp）。 */
+  static readonly TitleBarIconSize: number = 24;
 
   static contentTopInset(insetVp: number): number {
     return insetVp + HdsMetrics.TitleBarHeight + HdsMetrics.TitleBarBreathing;

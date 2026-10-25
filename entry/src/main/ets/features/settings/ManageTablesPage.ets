@@ -7,10 +7,14 @@
  * - 删除（CourseTableRepository.delete 级联删除课程，AlertDialog 二次确认）
  * - 切换当前课表（AppPreferences.setTableId + AppState.setCurrentTable，返回时外壳自动刷新）
  */
-import { HdsNavDestination } from '@kit.UIDesignKit';
+import {
+  HdsNavDestination,
+  HdsNavigationMenuContentOptions,
+  HdsNavigationTitleBarOptions,
+  IconStyleMode
+} from '@kit.UIDesignKit';
 import { AppPreferences } from '../../app/AppPreferences';
 import { AppState } from '../../app/AppState';
-import { LegacyConfig } from '../../common/Constants';
 import { Colors, FontSize, HdsMetrics, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { AppCard } from '../../common/ui/AppCard';
@@ -186,10 +190,6 @@ export struct ManageTablesPage {
     await this.loadTables();
   }
 
-  private createDefaultTable(): void {
-    this.createTable(LegacyConfig.DEFAULT_CLASS_TABLE);
-  }
-
   private async switchTable(table: CourseTable): Promise<void> {
     if (table.id === this.store.tableId) {
       return;
@@ -260,6 +260,21 @@ export struct ManageTablesPage {
     }
   }
 
+  private titleBarOptions(): HdsNavigationTitleBarOptions {
+    const menu: HdsNavigationMenuContentOptions = {
+      value: [{
+        content: {
+          icon: $r('sys.symbol.plus'),
+          type: IconStyleMode.NORMAL,
+          action: () => {
+            this.openCreateDialog();
+          }
+        }
+      }]
+    };
+    return hdsSubPageTitleBar('课表管理', '', menu);
+  }
+
   build() {
     HdsNavDestination() {
       Column() {
@@ -285,33 +300,12 @@ export struct ManageTablesPage {
             } else if (this.tables.length === 0) {
               EmptyState({
                 title: '还没有课表',
-                description: '新建一张课表后即可添加课程',
-                actionText: '新建默认课表',
-                onAction: () => {
-                  this.createDefaultTable();
-                }
+                description: '点击右上角「+」新建课表后即可添加课程'
               })
             } else {
               ForEach(this.tables, (table: CourseTable) => {
                 this.tableCard(table)
               }, (table: CourseTable) => table.id.toString())
-
-              AppCard({ contentPadding: 0 }) {
-                Row({ space: Spacing.Sm }) {
-                  SymbolGlyph($r('sys.symbol.plus'))
-                    .fontSize(18)
-                    .fontColor([this.store.accentDisplay])
-                  Text('新建课表')
-                    .fontSize(FontSize.Body)
-                    .fontColor(this.store.accentDisplay)
-                }
-                .width('100%')
-                .height(52)
-                .justifyContent(FlexAlign.Center)
-                .onClick(() => {
-                  this.openCreateDialog();
-                })
-              }
             }
           }
           .width('100%')
@@ -336,7 +330,7 @@ export struct ManageTablesPage {
       .height('100%')
       .backgroundColor(Colors.Background)
     }
-    .titleBar(hdsSubPageTitleBar('课表管理'))
+    .titleBar(this.titleBarOptions())
     .bindToScrollable([this.scroller])
   }
 }

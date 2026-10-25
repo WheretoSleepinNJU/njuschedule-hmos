@@ -2,10 +2,10 @@
  * 「课程」Tab 页：列出当前课表的全部课程。
  *
  * 行为基准：旧版课表里同名课程是多个 Course 行（每个时段一行），这里按课程名
- * 合并成一张卡片，显示教师 / 地点 / 周次摘要，点卡片进详情。
+ * 合并成一张卡片，显示教师 / 地点 / 周次摘要；点卡片打开与课表页相同的课程详情半模态。
  *
  * 数据刷新：
- * - `store.dataRevision`：增删改 / 导入后自增，列表重载（详情页写入）；
+ * - `store.dataRevision`：增删改 / 导入后自增，列表重载（编辑页写入）；
  * - `store.tableId`：切换课表后重载；
  * - `tableId` prop 可选：外壳若显式指定课表则优先用它，否则用全局当前课表。
  *
@@ -16,14 +16,17 @@ import { Course } from '../../data/models/Models';
 import { TabBarAutoHide } from '../../common/ui/TabBarAutoHide';
 import { ArrayDataSource } from '../../common/ui/ArrayDataSource';
 import { CourseRepository } from '../../data/CourseRepository';
+import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { ColorPool } from '../../data/ColorPool';
-import { LegacyConstant } from '../../common/Constants';
-import { CourseDetailParam, CourseEditParam } from '../../common/RouteParams';
+import { ClassPeriod, LegacyConstant } from '../../common/Constants';
+import { CourseEditParam } from '../../common/RouteParams';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { AppStore } from '../../app/AppStore';
 import { EmptyState } from '../../common/ui/EmptyState';
+import { Feedback } from '../../common/ui/Feedback';
 import { StatusBadge, BadgeTone } from '../../common/ui/StatusBadge';
 import { WeeksFormat } from '../timetable/WeeksFormat';
+import { CourseSessionsSheetContent, DetailSheetContent } from '../timetable/TimetableSheets';
 import { CourseFormat, CourseGroup } from './CourseFormat';
 
 @ComponentV2
@@ -42,6 +45,15 @@ export struct CoursesView {
   private groupsSource: ArrayDataSource<CourseGroup> = new ArrayDataSource<CourseGroup>();
   @Local loaded: boolean = false;
   @Local loadError: string = '';
+  /** 课程详情半模态（与课表页复用同一个 DetailSheetContent）。 */
+  @Local detailShown: boolean = false;
+  @Local detailCourse: Course = new Course();
+  /** 同一课程多个时段的独立半模态（类似自由时间课程列表）。 */
+  @Local sessionsShown: boolean = false;
+  @Local sessionCourses: Course[] = [];
+  @Local sessionCourseName: string = '';
+  @Local periods: ClassPeriod[] = [];
+  @Local pool: number[] = [];
   /** 课程 Tab 是否激活：切回时重新读取配色池。 */
   @Param active: boolean = true;
 
@@ -79,6 +91,8 @@ export struct CoursesView {
     const tableId: number = AppState.effectiveTableId(this.tableId);
     try {
       const pool: number[] = await ColorPool.get();
+      this.pool = pool;
+      this.periods = await CourseTableRepository.getClassTimeList(tableId);
       const courses: Course[] = await CourseRepository.getAll(tableId);
       this.groups = CourseFormat.group(courses, pool);
       this.groupsSource.setData(this.groups);
@@ -99,47 +113,82 @@ export struct CoursesView {
     return this.pageStack;
   }
 
-  private openDetail(courseId: number): void {
-    this.navStack().pushPathByName('course-detail', new CourseDetailParam(courseId));
-  }
-
-  private openCreate(): void {
-    this.navStack().pushPathByName('course-edit', new CourseEditParam(AppState.effectiveTableId(this.tableId), 0));
-  }
-
-  private openImport(): void {
-    this.navStack().pushPathByName('import', null);
-  }
-
-  /** 顶部动作区：添加课程 / 教务导入。 */
-  @Builder
-  actionsRow() {
-    Row() {
-      Row({ space: Spacing.Md }) {
-      // 教务导入是主操作（主题色），添加课程为次操作
-      Button('教务导入')
-        .fontSize(FontSize.BodySm)
-        .fontColor(this.store.accentOn)
-        .backgroundColor(this.store.accentDisplay)
-        .height(40)
-        .layoutWeight(1)
-        .onClick(() => {
-          this.openImport();
-        })
-      Button('添加课程')
-        .fontSize(FontSize.BodySm)
-        .fontColor(Colors.TextPrimary)
-        .backgroundColor(Colors.SurfaceHigh)
-        .height(40)
-        .layoutWeight(1)
-        .onClick(() => {
-          this.openCreate();
-        })
-      }
-      .width('100%')
+  private openDetail(group: CourseGroup): void {
+    if (group.sessions.length === 0) {
+      return;
     }
-    .width('100%')
-    .justifyContent(FlexAlign.Center)
+    if (group.sessions.length > 1) {
+      this.sessionCourses = group.sessions;
+      this.sessionCourseName = group.name;
+      this.sessionsShown = true;
+      return;
+    }
+    this.detailCourse = group.sessions[0];
+    this.detailShown = true;
+  }
+
+  /** 从「该课程有多个时段」里点某个时段，打开原来的课程详情半模态。 */
+  private openSessionDetail(course: Course): void {
+    this.detailCourse = course;
+    this.detailShown = true;
+  }
+
+  private openEdit(course: Course): void {
+    this.sessionsShown = false;
+    this.detailShown = false;
+    // CourseEditPage 保存成功后自行 bumpDataRevision，列表由 @Monitor 刷新。
+    this.navStack().pushPathByName('course-edit', new CourseEditParam(course.tableId, course.id));
+  }
+
+  private confirmDelete(course: Course): void {
+    Feedback.confirmDanger(this.getUIContext(), '删除课程', `确定删除「${course.name}」吗？删除后不可恢复。`, '删除', () => {
+      this.deleteCourse(course);
+    });
+  }
+
+  private async deleteCourse(course: Course): Promise<void> {
+    try {
+      await CourseRepository.delete(course.id);
+      this.sessionsShown = false;
+      this.detailShown = false;
+      AppState.bumpDataRevision();
+      await this.reload();
+    } catch (err) {
+      console.error(`[Courses] delete failed: ${JSON.stringify(err)}`);
+    }
+  }
+
+  @Builder
+  private sessionsSheetContent() {
+    CourseSessionsSheetContent({
+      courseName: this.sessionCourseName,
+      sessions: this.sessionCourses,
+      pool: this.pool,
+      onOpenSession: (course: Course) => {
+        this.openSessionDetail(course);
+      },
+      onClose: () => {
+        this.sessionsShown = false;
+      }
+    })
+  }
+
+  @Builder
+  private detailSheetContent() {
+    DetailSheetContent({
+      course: this.detailCourse,
+      periods: this.periods,
+      pool: this.pool,
+      onClose: () => {
+        this.detailShown = false;
+      },
+      onEdit: (course: Course) => {
+        this.openEdit(course);
+      },
+      onDelete: (course: Course) => {
+        this.confirmDelete(course);
+      }
+    })
   }
 
   /** 一门课（可能含多个时段）的卡片。 */
@@ -187,7 +236,7 @@ export struct CoursesView {
     .borderRadius(Radius.Lg)
     .border({ width: 1, color: Colors.OutlineLight })
     .onClick(() => {
-      this.openDetail(group.courseId);
+      this.openDetail(group);
     })
   }
 
@@ -235,15 +284,7 @@ export struct CoursesView {
   emptyContent() {
     EmptyState({
       title: '还没有课程',
-      description: '从教务系统导入当前学期的课程，或手动添加',
-      actionText: '教务导入',
-      onAction: () => {
-        this.openImport();
-      },
-      secondaryText: '添加课程',
-      onSecondary: () => {
-        this.openCreate();
-      }
+      description: '点击右上角「+」从教务导入或添加课程'
     })
   }
 
@@ -311,22 +352,6 @@ export struct CoursesView {
         })
       } else {
         List({ space: Spacing.Md, scroller: this.scroller }) {
-          ListItem() {
-            Row() {
-              Row() {
-                this.actionsRow()
-              }
-              .width('100%')
-              .constraintSize({ maxWidth: 720 })
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.Center)
-            .padding({
-              left: Spacing.Lg,
-              right: Spacing.Lg,
-              top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md
-            })
-          }
           LazyForEach(this.groupsSource, (group: CourseGroup) => {
             ListItem() {
               Row() {
@@ -349,6 +374,7 @@ export struct CoursesView {
         }
         .width('100%')
         .layoutWeight(1)
+        .padding({ top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md })
         .cachedCount(2)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
@@ -360,9 +386,43 @@ export struct CoursesView {
           TabBarAutoHide.resetAndShow();
         })
       }
+
+      // 独立锚点：多时段列表半模态；详情半模态仍挂在根 Column 上。
+      Stack() {
+      }
+      .width(0)
+      .height(0)
+      .bindSheet($$this.sessionsShown, this.sessionsSheetContent(), {
+        height: SheetSize.FIT_CONTENT,
+        dragBar: true,
+        showClose: false,
+        preferType: SheetType.BOTTOM,
+        maskColor: Colors.Scrim,
+        onDisappear: () => {
+          this.sessionsShown = false;
+        },
+        onWillDismiss: (action: DismissSheetAction) => {
+          action.dismiss();
+        },
+        backgroundColor: Colors.Background
+      })
     }
     .width('100%')
     .height('100%')
     .backgroundColor(Colors.Background)
+    .bindSheet($$this.detailShown, this.detailSheetContent(), {
+      height: SheetSize.FIT_CONTENT,
+      dragBar: true,
+      showClose: false,
+      preferType: SheetType.BOTTOM,
+      maskColor: Colors.Scrim,
+      onDisappear: () => {
+        this.detailShown = false;
+      },
+      onWillDismiss: (action: DismissSheetAction) => {
+        action.dismiss();
+      },
+      backgroundColor: Colors.Background
+    })
   }
 }

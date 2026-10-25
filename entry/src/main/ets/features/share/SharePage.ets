@@ -4,7 +4,12 @@
  * 编解码格式见 `data/ShareCodec.ets`，与旧 Flutter 项目
  * `lib/Pages/Share/qr_payload_codec.dart` 完全一致，保证跨端可扫。
  */
-import { HdsNavDestination, HdsNavigationMenuContentOptions, HdsNavigationTitleBarOptions } from '@kit.UIDesignKit';
+import {
+  HdsNavDestination,
+  HdsNavigationMenuContentOptions,
+  HdsNavigationTitleBarOptions,
+  IconStyleMode
+} from '@kit.UIDesignKit';
 import { common } from '@kit.AbilityKit';
 import { generateBarcode, scanBarcode, scanCore } from '@kit.ScanKit';
 import { image } from '@kit.ImageKit';
@@ -38,6 +43,13 @@ export struct SharePage {
   @Local qrFrames: string[] = [];
   @Local qrIndex: number = 0;
   @Local busy: boolean = true;
+  /** 正在生成下一张二维码，避免快速切换导致旧结果覆盖新帧。 */
+  @Local rendering: boolean = false;
+  /** 已有二维码时原地重新生成，不隐藏旧图。
+   */
+  @Local regenerating: boolean = false;
+  /** 标题栏四点菜单是否展开。 */
+  @Local actionsMenuOpen: boolean = false;
   @Local errorText: string = '';
   /** 是否正在系统扫码界面。 */
   @Local scanning: boolean = false;
@@ -49,9 +61,11 @@ export struct SharePage {
   }
 
   private async load(): Promise<void> {
-    this.busy = true;
+    // 重新生成时保留现有二维码，仅在新图生成成功后替换，避免整页闪屏。
+    const hasExistingQr: boolean = this.pixelMap !== undefined;
+    this.busy = !hasExistingQr;
+    this.regenerating = hasExistingQr;
     this.errorText = '';
-    this.pixelMap = undefined;
     try {
       const table: CourseTable | null = await CourseTableRepository.getById(this.store.tableId);
       if (table === null) {
@@ -72,34 +86,50 @@ export struct SharePage {
       this.errorText = `生成分享码失败：${message}`;
     } finally {
       this.busy = false;
+      this.regenerating = false;
     }
   }
 
-  private async renderQr(content: string): Promise<void> {
+  private async createQr(content: string): Promise<image.PixelMap | undefined> {
     const options: generateBarcode.CreateOptions = {
       scanType: scanCore.ScanType.QR_CODE,
       width: 720,
       height: 720
     };
     try {
-      this.pixelMap = await generateBarcode.createBarcode(content, options);
+      return await generateBarcode.createBarcode(content, options);
     } catch (err) {
       // 模拟器不支持 Scan Kit 码图生成，真机可用；分享码本身仍可复制使用。
       const error: BusinessError = err as BusinessError;
       console.warn(`[Share] barcode generation unavailable: ${error.code} ${error.message}`);
+      return undefined;
     }
   }
 
-  /** 切换二维码帧（多帧分享码）。 */
+  private async renderQr(content: string): Promise<void> {
+    const pixelMap: image.PixelMap | undefined = await this.createQr(content);
+    if (pixelMap !== undefined) {
+      this.pixelMap = pixelMap;
+    }
+  }
+
+  /** 切换二维码帧（多帧分享码）；保留旧码图直到新码图生成完成，避免闪烁。 */
   private async gotoFrame(next: boolean): Promise<void> {
     const total: number = this.qrFrames.length;
-    if (total <= 1) {
+    if (total <= 1 || this.rendering) {
       return;
     }
     const index: number = (this.qrIndex + (next ? 1 : total - 1)) % total;
     this.qrIndex = index;
-    this.pixelMap = undefined;
-    await this.renderQr(this.qrFrames[index]);
+    this.rendering = true;
+    try {
+      const pixelMap: image.PixelMap | undefined = await this.createQr(this.qrFrames[index]);
+      if (pixelMap !== undefined && this.qrIndex === index) {
+        this.pixelMap = pixelMap;
+      }
+    } finally {
+      this.rendering = false;
+    }
   }
 
   private async copyCode(): Promise<void> {
@@ -205,10 +235,10 @@ export struct SharePage {
     const menu: HdsNavigationMenuContentOptions = {
       value: [{
         content: {
-          icon: $r('sys.symbol.line_viewfinder'),
-          label: '扫码导入',
+          icon: $r('sys.symbol.dot_grid_2x2'),
+          type: IconStyleMode.NORMAL,
           action: () => {
-            this.startScan();
+            this.actionsMenuOpen = !this.actionsMenuOpen;
           }
         }
       }]
@@ -216,33 +246,100 @@ export struct SharePage {
     return hdsSubPageTitleBar('分享课表', '二维码 / 分享码与旧版南哪课表互通', menu);
   }
 
+  private actionMenuItems(): MenuElement[] {
+    return [
+      {
+        value: '扫一扫',
+        icon: $r('sys.symbol.line_viewfinder'),
+        action: () => {
+          this.actionsMenuOpen = false;
+          this.startScan();
+        }
+      },
+      {
+        value: '复制分享码',
+        icon: $r('sys.symbol.text_clipboard'),
+        enabled: !this.busy && !this.regenerating && this.code !== '',
+        action: () => {
+          this.actionsMenuOpen = false;
+          this.copyCode();
+        }
+      },
+      {
+        value: '重新生成',
+        icon: $r('sys.symbol.arrow_clockwise'),
+        enabled: !this.busy && !this.regenerating,
+        action: () => {
+          this.actionsMenuOpen = false;
+          this.load();
+        }
+      }
+    ];
+  }
+
   @Builder
   private qrCard() {
     Column({ space: Spacing.Md }) {
-      if (this.busy) {
-        LoadingProgress()
-          .width(36)
-          .height(36)
-          .color(this.store.accentDisplay)
-          .margin({ top: Spacing.Xxl, bottom: Spacing.Xxl })
-      } else if (this.pixelMap !== undefined) {
-        Image(this.pixelMap)
-          .width(260)
-          .height(260)
-          .objectFit(ImageFit.Contain)
-          .borderRadius(Radius.Md)
-          .backgroundColor('#FFFFFF')
-          .onClick(() => {
-            this.gotoFrame(true);
-          })
+      // 固定二维码占位，加载/失败/成功都保持同一尺寸，避免切换帧时布局跳动。
+      Stack() {
+        if (this.busy) {
+          LoadingProgress()
+            .width(36)
+            .height(36)
+            .color(this.store.accentDisplay)
+        } else if (this.pixelMap !== undefined) {
+          Image(this.pixelMap)
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Contain)
+            .onClick(() => {
+              this.gotoFrame(true);
+            })
+        } else {
+          Column({ space: Spacing.Sm }) {
+            SymbolGlyph($r('sys.symbol.qrcode'))
+              .fontSize(48)
+              .fontColor([Colors.TextTertiary])
+            Text('二维码生成失败')
+              .fontSize(FontSize.BodySm)
+              .fontColor(Colors.TextTertiary)
+            Text('可以复制分享码，发给使用呢喃课表或旧版南哪课表的同学导入')
+              .fontSize(FontSize.Caption)
+              .fontColor(Colors.TextTertiary)
+              .textAlign(TextAlign.Center)
+          }
+          .padding(Spacing.Md)
+          .justifyContent(FlexAlign.Center)
+        }
+        if (this.regenerating) {
+          Row({ space: Spacing.Sm }) {
+            LoadingProgress()
+              .width(18)
+              .height(18)
+              .color(this.store.accentDisplay)
+            Text('重新生成中…')
+              .fontSize(FontSize.Caption)
+              .fontColor(Colors.TextSecondary)
+          }
+          .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Sm, bottom: Spacing.Sm })
+          .backgroundColor(Colors.SurfaceTranslucent)
+          .borderRadius(Radius.Round)
+        }
+      }
+      .width(260)
+      .height(260)
+      .backgroundColor('#FFFFFF')
+      .borderRadius(Radius.Md)
+      .clip(true)
 
-        if (this.qrFrames.length > 1) {
+      if (this.pixelMap !== undefined && this.qrFrames.length > 1) {
           Row({ space: Spacing.Md }) {
             Button('上一张')
               .height(32)
               .fontSize(FontSize.Caption)
               .backgroundColor(Colors.SurfaceHigh)
               .fontColor(Colors.TextPrimary)
+              .enabled(!this.rendering)
               .onClick(() => {
                 this.gotoFrame(false);
               })
@@ -254,6 +351,7 @@ export struct SharePage {
               .fontSize(FontSize.Caption)
               .backgroundColor(Colors.SurfaceHigh)
               .fontColor(Colors.TextPrimary)
+              .enabled(!this.rendering)
               .onClick(() => {
                 this.gotoFrame(true);
               })
@@ -263,21 +361,6 @@ export struct SharePage {
             .fontColor(Colors.TextTertiary)
             .textAlign(TextAlign.Center)
             .lineHeight(18)
-        }
-      } else {
-        Column({ space: Spacing.Sm }) {
-          SymbolGlyph($r('sys.symbol.qrcode'))
-            .fontSize(48)
-            .fontColor([Colors.TextTertiary])
-          Text('二维码生成失败')
-            .fontSize(FontSize.BodySm)
-            .fontColor(Colors.TextTertiary)
-          Text('可以复制分享码，发给使用呢喃课表或旧版南哪课表的同学导入')
-            .fontSize(FontSize.Caption)
-            .fontColor(Colors.TextTertiary)
-            .textAlign(TextAlign.Center)
-        }
-        .padding({ top: Spacing.Xxl, bottom: Spacing.Xxl })
       }
 
       Text(this.tableName)
@@ -305,47 +388,41 @@ export struct SharePage {
 
   build() {
     HdsNavDestination() {
-      Column() {
-      Scroll(this.subScroller) {
-        Column({ space: Spacing.Lg }) {
-          this.qrCard()
-
-          Column({ space: Spacing.Sm }) {
-            Button('复制分享码')
-              .width('100%')
-              .height(44)
-              .fontSize(FontSize.Body)
-              .backgroundColor(this.store.accentDisplay)
-              .fontColor(this.store.accentOn)
-              .enabled(!this.busy && this.code !== '')
-              .onClick(() => {
-                this.copyCode();
-              })
-            Button('重新生成')
-              .width('100%')
-              .height(44)
-              .fontSize(FontSize.Body)
-              .backgroundColor(Colors.SurfaceHigh)
-              .fontColor(Colors.TextPrimary)
-              .enabled(!this.busy)
-              .onClick(() => {
-                this.load();
-              })
+      Stack() {
+        Scroll(this.subScroller) {
+          Column({ space: Spacing.Lg }) {
+            this.qrCard()
           }
+          .width('100%')
+          .padding({
+            left: Spacing.Lg,
+            right: Spacing.Lg,
+            top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
+            bottom: Spacing.Xxl
+          })
         }
+        .scrollable(ScrollDirection.Vertical)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+        .align(Alignment.TopStart)
         .width('100%')
-        .padding({
-          left: Spacing.Lg,
-          right: Spacing.Lg,
-          top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-          bottom: Spacing.Xxl
+        .height('100%')
+
+        // 标题栏四点菜单的锚点：透明零尺寸，菜单从右上角展开。
+        Stack() {
+        }
+        .width(1)
+        .height(1)
+        .position({
+          x: Math.max(0, this.getUIContext().px2vp(this.store.windowWidth) - 32),
+          y: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) - 4
         })
-      }
-      .scrollable(ScrollDirection.Vertical)
-      .scrollBar(BarState.Off)
-      .align(Alignment.TopStart)
-      .layoutWeight(1)
-      .width('100%')
+        .bindMenu(this.actionsMenuOpen, this.actionMenuItems(), {
+          placement: Placement.BottomRight,
+          onDisappear: () => {
+            this.actionsMenuOpen = false;
+          }
+        })
       }
       .width('100%')
       .height('100%')
