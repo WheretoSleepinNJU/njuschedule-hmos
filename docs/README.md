@@ -40,14 +40,14 @@ devecocli ui screenshot --device <serial> --path /tmp/shot.png
 参考 Kazumi 的版本管理方式：**单一版本源 + 语义化版本 + 发布 tag**。
 
 - 版本唯一来源：`AppScope/app.json5` 的 `versionName` / `versionCode`；
-- `versionName` 使用语义化版本，如 `0.1.4`；
+- `versionName` 使用语义化版本，如 `0.1.5`；
 - `versionCode` 由语义版本编码，保证单调递增：
   `1_000_000 + major*10000 + minor*100 + patch`
-  （`0.1.4` → `1000104`；前导 `1_000_000` 为兼容已发布版本的基数）；
+  （`0.1.5` → `1000105`；前导 `1_000_000` 为兼容已发布版本的基数）；
 - 发布流程：
   1. 更新 `AppScope/app.json5`；
   2. 更新 `CHANGELOG.md` 对应版本记录；
-  3. 提交并打 tag（如 `v0.1.4`）推送；
+  3. 提交并打 tag（如 `v0.1.5`）推送；
   4. 用签名 HAP 构建 release。
 
 不要只改 `versionName` 不改 `versionCode`，否则 HarmonyOS 无法覆盖安装升级。

@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.njuschedulenext.jesse",
     "vendor": "njuschedulenext",
-    "versionCode": 1000104,
-    "versionName": "0.1.4",
+    "versionCode": 1000105,
+    "versionName": "0.1.5",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }

@@ -19,7 +19,7 @@ import { SectionHeader } from '../../common/ui/SectionHeader';
 import { SettingsRowDivider } from './SettingsCommon';
 import { THIRD_PARTY_LICENSES, ThirdPartyLicense } from './ThirdPartyLicenseData';
 
-const FALLBACK_VERSION: string = '0.1.4';
+const FALLBACK_VERSION: string = '0.1.5';
 const ROUTE_LICENSE_DETAIL: string = 'license-detail';
 
 /** 系统能力（非第三方开源库，遵循 HarmonyOS SDK 许可协议）。 */
