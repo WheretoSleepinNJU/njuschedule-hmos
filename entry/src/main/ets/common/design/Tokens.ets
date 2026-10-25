@@ -59,8 +59,8 @@ export class Colors {
   static readonly Background: Resource = $r('app.color.app_bg');
   static readonly AppBar: Resource = $r('app.color.app_appbar');
   static readonly Surface: Resource = $r('app.color.app_surface');
-  /** 浮动按钮固定白底（深浅色下均为白色）。 */
-  static readonly FloatingWhite: Resource = $r('app.color.app_floating_white');
+  /** 浮动按钮底板（跟随系统深浅色）。 */
+  static readonly Floating: Resource = $r('app.color.app_floating');
   static readonly SurfaceHigh: Resource = $r('app.color.app_surface_high');
   static readonly SurfacePressed: Resource = $r('app.color.app_surface_pressed');
   /** 半透明表面（用于浮在内容上的条/卡片，配合背景模糊）。 */

@@ -75,6 +75,8 @@ export class AppState {
     if (store.themeModeIndex === 0 && store.isDark !== dark) {
       store.isDark = dark;
       store.recomputeAccent();
+      // 跟随系统时，系统深浅色变化也要刷新桌面卡片（强调色在深色下会提亮）。
+      WidgetData.write();
     }
   }
 

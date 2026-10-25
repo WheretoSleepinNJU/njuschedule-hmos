@@ -94,7 +94,7 @@ export struct FreeCourseEntryButton {
   }
 }
 
-/** 划离本周时出现的「回到本周」按钮：固定白底 + 强调色 Home 图标。 */
+/** 划离本周时出现的「回到本周」按钮：浮动底板 + 强调色 Home 图标（深浅色自适应）。 */
 @ComponentV2
 export struct BackToCurrentWeekButton {
   @Local store: AppStore = AppStore.connect();
@@ -109,7 +109,7 @@ export struct BackToCurrentWeekButton {
     }
     .width(52)
     .height(52)
-    .backgroundColor(Colors.FloatingWhite)
+    .backgroundColor(Colors.Floating)
     .shadow({ radius: 8, color: '#33000000', offsetY: 2 })
     .accessibilityText('回到本周')
     .onClick(() => {

@@ -8,7 +8,7 @@
  *
  * 这样即使主应用长时间未打开，卡片侧也能在周期更新时自己算（见 EntryFormAbility）。
  */
-import { formBindingData, formProvider } from '@kit.FormKit';
+import { formBindingData, formInfo, formProvider } from '@kit.FormKit';
 import { AppContext } from '../app/AppContext';
 import { AppPreferences } from '../app/AppPreferences';
 import { WidgetDataProvider } from '../widget/WidgetDataProvider';
@@ -45,7 +45,23 @@ export class WidgetData {
     } catch (err) {
       return;
     }
-    if (!Array.isArray(ids) || ids.length === 0) {
+    if (!Array.isArray(ids)) {
+      ids = [];
+    }
+    // prefs 里的 formId 可能来自旧安装/已移除卡片；向系统查询当前仍在桌面的卡片并合并，
+    // 保证主题色、深浅色或课程配色变化能立即推送到当前实际存在的卡片。
+    try {
+      const running: formInfo.RunningFormInfo[] = await formProvider.getPublishedRunningFormInfos();
+      for (let i = 0; i < running.length; i++) {
+        const formId: string = running[i].formId;
+        if (formId !== '' && ids.indexOf(formId) < 0) {
+          ids.push(formId);
+        }
+      }
+    } catch (err) {
+      console.warn(`[WidgetData] query running forms failed: ${JSON.stringify(err)}`);
+    }
+    if (ids.length === 0) {
       return;
     }
     const json: string = await AppPreferences.getString(WidgetData.DATA_KEY, '');

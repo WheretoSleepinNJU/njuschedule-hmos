@@ -30,6 +30,8 @@ export default class EntryFormAbility extends FormExtensionAbility {
   }
 
   onUpdateForm(formId: string): void {
+    // 卡片从桌面恢复时 onAddForm 可能不再触发，补登记保证主应用能主动刷新。
+    this.registerForm(formId);
     this.pushForm(formId);
   }
 
