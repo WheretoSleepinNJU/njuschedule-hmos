@@ -41,7 +41,7 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     '4.0.2+67',
     'Apache License 2.0',
     1,
-    'https://github.com/idealclover/NJU-Class-Shedule-Flutter',
+    'https://github.com/WheretoSleepinNJU/NJU-Class-Shedule-Flutter',
     'Copyright idealclover',
     '数据模型与 SQLite schema、周次/偏好逻辑、教务导入配置 schoolList.json 与解析脚本 api/tools/*.js、分享码编码格式、讲座数据接口',
     `                                 Apache License

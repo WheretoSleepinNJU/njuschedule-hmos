@@ -88,7 +88,7 @@ export class LegacyUrl {
   static readonly ANDROID: string = 'https://pay.idealclover.cn/android_new/1';
   static readonly OHOS: string = 'https://pay.idealclover.cn/ohos_new/1';
 
-  static readonly OPEN_SOURCE: string = 'https://github.com/idealclover/NJU-Class-Shedule-Flutter';
+  static readonly OPEN_SOURCE: string = 'https://github.com/WheretoSleepinNJU/NJU-Class-Shedule-Flutter';
   static readonly BLOG: string = 'https://idealclover.top';
   static readonly UPDATE_ROOT: string = 'https://cdn.idealclover.cn/Projects/wheretosleepinnju/production';
 }

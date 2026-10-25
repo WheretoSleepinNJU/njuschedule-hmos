@@ -2,7 +2,7 @@
 
 本应用「呢喃课表」是上游项目「南哪课表」(wheretosleepinnju) 的 HarmonyOS / ArkTS 原生重写实现。
 
-- 上游 Flutter 项目：https://github.com/idealclover/NJU-Class-Shedule-Flutter （Apache License 2.0）
+- 上游 Flutter 项目：https://github.com/WheretoSleepinNJU/NJU-Class-Shedule-Flutter （Apache License 2.0）
 - 上游 Flutter 项目作者：idealclover（https://idealclover.top）
 - HarmonyOS / ArkTS 重写开发者：JesseLee
 
@@ -12,4 +12,4 @@ UI 使用 ArkTS / ArkUI 原生重写。
 
 本仓库按 Apache License 2.0 发布，详见 LICENSE。
 
-本仓库：https://github.com/JesseLee-CN/njuschedule-hmos
+本仓库：https://github.com/WheretoSleepinNJU/njuschedule-hmos

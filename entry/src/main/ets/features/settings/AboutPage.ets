@@ -26,11 +26,11 @@ const DEVELOPER_UPSTREAM: string = 'idealclover';
 const DEVELOPER_REWRITE: string = 'JesseLee-CN';
 
 /** GitHub 仓库链接。 */
-const REPO_URL: string = 'https://github.com/JesseLee-CN/njuschedule-hmos';
+const REPO_URL: string = 'https://github.com/WheretoSleepinNJU/njuschedule-hmos';
 const LINK_SOURCE_CODE: string = REPO_URL;
 const LINK_PROJECT_HOME: string = REPO_URL;
-const LINK_ISSUES: string = 'https://github.com/JesseLee-CN/njuschedule-hmos/issues';
-const LINK_CONTRIBUTING: string = 'https://github.com/JesseLee-CN/njuschedule-hmos/blob/main/CONTRIBUTING.md';
+const LINK_ISSUES: string = 'https://github.com/WheretoSleepinNJU/njuschedule-hmos/issues';
+const LINK_CONTRIBUTING: string = 'https://github.com/WheretoSleepinNJU/njuschedule-hmos/blob/main/CONTRIBUTING.md';
 
 @ComponentV2
 export struct AboutPage {

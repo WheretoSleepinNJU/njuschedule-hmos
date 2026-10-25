@@ -8,11 +8,11 @@
 
 </div>
 
-> 本应用不是南京大学官方应用，与学校及教务系统无隶属关系。上游 Flutter 项目：[idealclover/NJU-Class-Shedule-Flutter](https://github.com/idealclover/NJU-Class-Shedule-Flutter)（Apache-2.0）。
+> 本应用不是南京大学官方应用，与学校及教务系统无隶属关系。上游 Flutter 项目：[WheretoSleepinNJU/NJU-Class-Shedule-Flutter](https://github.com/WheretoSleepinNJU/NJU-Class-Shedule-Flutter)（Apache-2.0）。
 >
-> **仓库**：https://github.com/JesseLee-CN/njuschedule-hmos
+> **仓库**：https://github.com/WheretoSleepinNJU/njuschedule-hmos
 >
-> **问题反馈**：https://github.com/JesseLee-CN/njuschedule-hmos/issues
+> **问题反馈**：https://github.com/WheretoSleepinNJU/njuschedule-hmos/issues
 >
 > 正在招募有兴趣设计图标的同学，请联系JesseLee3923@outlook.com
 

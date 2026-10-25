@@ -15,7 +15,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/JesseLee-CN/njuschedule-hmos.git
+git clone https://github.com/WheretoSleepinNJU/njuschedule-hmos.git
 cd njuschedule-hmos
 
 # 构建（未签名 HAP）

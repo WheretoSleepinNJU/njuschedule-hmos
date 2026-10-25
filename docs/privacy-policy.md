@@ -114,9 +114,9 @@
 
 ## 十二、如何联系我们
 
-如您对本政策、个人信息处理或本应用的使用规则有疑问、意见、投诉或权利请求，可通过华为应用市场本应用详情页公示的开发者联系方式与我们联系；也可通过 GitHub 仓库的 Issue 渠道反馈：https://github.com/JesseLee-CN/njuschedule-hmos/issues 。我们将在收到后十五个工作日内答复。
+如您对本政策、个人信息处理或本应用的使用规则有疑问、意见、投诉或权利请求，可通过华为应用市场本应用详情页公示的开发者联系方式与我们联系；也可通过 GitHub 仓库的 Issue 渠道反馈：https://github.com/WheretoSleepinNJU/njuschedule-hmos/issues 。我们将在收到后十五个工作日内答复。
 
-本应用与其源代码仓库：https://github.com/JesseLee-CN/njuschedule-hmos。
+本应用与其源代码仓库：https://github.com/WheretoSleepinNJU/njuschedule-hmos。
 
 ## 十三、生效日期与版本
 

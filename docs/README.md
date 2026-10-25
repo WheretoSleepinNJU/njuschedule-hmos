@@ -2,7 +2,7 @@
 
 > 面向仓库贡献者与维护者的速查页。完整的移植调研、开发过程与历史设计文档已归档，**不随开源仓库发布**。
 > 更多约定见根目录 [AGENTS.md](../AGENTS.md) 与 [CONTRIBUTING.md](../CONTRIBUTING.md)。
-> 仓库：[https://github.com/JesseLee-CN/njuschedule-hmos](https://github.com/JesseLee-CN/njuschedule-hmos)　|　问题反馈：[Issues](https://github.com/JesseLee-CN/njuschedule-hmos/issues)
+> 仓库：[https://github.com/WheretoSleepinNJU/njuschedule-hmos](https://github.com/WheretoSleepinNJU/njuschedule-hmos)　|　问题反馈：[Issues](https://github.com/WheretoSleepinNJU/njuschedule-hmos/issues)
 
 ## 1. 项目速览
 

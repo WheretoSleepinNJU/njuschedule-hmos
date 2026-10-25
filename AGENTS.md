@@ -23,7 +23,7 @@
 ## 1. 项目定位
 
 - 用 ArkTS / ArkUI 原生重写的南京大学课程表 App「呢喃课表」，目标设备 phone / tablet / 2in1。
-- 上游行为基准：[idealclover/NJU-Class-Shedule-Flutter](https://github.com/idealclover/NJU-Class-Shedule-Flutter)（只读参考）。
+- 上游行为基准：[WheretoSleepinNJU/NJU-Class-Shedule-Flutter](https://github.com/WheretoSleepinNJU/NJU-Class-Shedule-Flutter)（只读参考）。
   功能范围、教务导入流程、数据模型以它为准；UI 按 HarmonyOS 规范重做，不逐像素复刻。
 - `bundleName` 保持 `com.njuschedulenext.jesse`（不改包名，避免破坏升级与本地数据）。
 - 仅 ArkTS 原生实现，不做 Flutter / WebView 壳。
