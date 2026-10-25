@@ -352,6 +352,13 @@ export struct CoursesView {
         })
       } else {
         List({ space: Spacing.Md, scroller: this.scroller }) {
+          // 顶部留白必须位于滚动内容内（而不是 List 的 padding），
+          // 否则 HDS bindToScrollable 的标题栏动态模糊不会随滚动触发。
+          ListItem() {
+            Row()
+              .width('100%')
+              .height(HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md)
+          }
           LazyForEach(this.groupsSource, (group: CourseGroup) => {
             ListItem() {
               Row() {
@@ -374,7 +381,6 @@ export struct CoursesView {
         }
         .width('100%')
         .layoutWeight(1)
-        .padding({ top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md })
         .cachedCount(2)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
