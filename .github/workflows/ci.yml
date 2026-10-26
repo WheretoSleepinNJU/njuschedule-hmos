@@ -55,6 +55,9 @@ jobs:
       - name: Configure SDK environment
         run: echo "DEVECO_SDK_HOME=$HOS_SDK_HOME" >> "$GITHUB_ENV"
 
+      - name: Run repository tests
+        run: node --test test/*.test.cjs
+
       - name: Install ohpm dependencies
         run: ohpm install --all
 

@@ -42,10 +42,20 @@ devecocli ui screenshot --device <serial> --path /tmp/shot.png
 - 使用 `ErBWs/setup-ohos@v2` 安装固定版本 HarmonyOS CLI；
 - `ohpm install --all`；
 - `hvigorw assembleHap` 构建 release 未签名 HAP；
+- `node --test` 校验版本号、CHANGELOG、导入配置与脚本；
 - `codelinter` 静态检查；
 - 上传 HAP 与 `SHA256SUMS` artifact。
 
 CI **只构建未签名 HAP**，不接触发布证书；正式签名仍在本机完成。
+
+## 2.0.1 Tag Release
+
+推送 `v*` tag 时，`.github/workflows/release.yml` 会：
+
+- 校验 tag 与 `AppScope/app.json5` 的版本一致；
+- 跑仓库测试、构建 release 未签名 HAP、执行静态检查；
+- 从 `CHANGELOG.md` 提取对应版本作为 Release 说明；
+- 自动创建 GitHub Release，并上传 `njuschedule-hmos-<version>-unsigned.hap` 与 `SHA256SUMS`。
 
 ## 2.1 版本与发布
 
