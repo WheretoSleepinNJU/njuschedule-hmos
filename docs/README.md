@@ -70,7 +70,8 @@ CI **只构建未签名 HAP**，不接触发布证书；正式签名仍在本机
   1. 更新 `AppScope/app.json5`；
   2. 更新 `CHANGELOG.md` 对应版本记录；
   3. 提交并打 tag（如 `v0.1.6`）推送；
-  4. 用签名 HAP 构建 release。
+  4. tag 会触发 Release workflow，自动构建未签名 HAP、生成 SHA256SUMS 并发布 GitHub Release；
+  5. 签名 `.app` 仍在本机生成后手动上传 AGC。
 
 不要只改 `versionName` 不改 `versionCode`，否则 HarmonyOS 无法覆盖安装升级。
 
