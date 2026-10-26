@@ -35,6 +35,18 @@ devecocli ui screenshot --device <serial> --path /tmp/shot.png
 
 真机安装需要签名。仓库**不携带签名材料**：`build-profile.json5` 的 `signingConfigs` 保持为空；本机签名配置放在 `external-signing-config.json`（已 gitignore，示例见 `external-signing-config.example.json`），由根 `hvigorfile.ts` 条件注入。**任何证书、keystore、口令、Profile 都不要提交。**
 
+## 2.0 CI
+
+`.github/workflows/ci.yml` 在 push / PR 时执行：
+
+- 使用 `ErBWs/setup-ohos@v2` 安装固定版本 HarmonyOS CLI；
+- `ohpm install --all`；
+- `hvigorw assembleHap` 构建 release 未签名 HAP；
+- `codelinter` 静态检查；
+- 上传 HAP 与 `SHA256SUMS` artifact。
+
+CI **只构建未签名 HAP**，不接触发布证书；正式签名仍在本机完成。
+
 ## 2.1 版本与发布
 
 参考 Kazumi 的版本管理方式：**单一版本源 + 语义化版本 + 发布 tag**。

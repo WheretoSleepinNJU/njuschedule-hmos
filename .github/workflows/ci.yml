@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - public-main
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OHOS_CLI_VERSION: '26.0.0.821'
+
+jobs:
+  build:
+    name: Build & check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev jq
+
+      - name: Setup HarmonyOS CLI
+        uses: ErBWs/setup-ohos@v2
+        with:
+          version: ${{ env.OHOS_CLI_VERSION }}
+          cache: true
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configure SDK environment
+        run: echo "DEVECO_SDK_HOME=$HOS_SDK_HOME" >> "$GITHUB_ENV"
+
+      - name: Install ohpm dependencies
+        run: ohpm install --all
+
+      - name: Build release HAP (unsigned)
+        run: hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon
+
+      - name: Static check
+        run: codelinter -c code-linter.json5 entry/src/main/ets -e error
+
+      - name: Generate checksum
+        run: |
+          sha256sum entry/build/default/outputs/default/entry-default-unsigned.hap > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload unsigned HAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: nju-schedule-unsigned
+          path: |
+            entry/build/default/outputs/default/entry-default-unsigned.hap
+            SHA256SUMS
+          if-no-files-found: error
