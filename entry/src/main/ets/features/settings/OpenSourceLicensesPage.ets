@@ -17,7 +17,7 @@ import { openUrl } from '../../common/ui/OpenLink';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
 import { THIRD_PARTY_LICENSES, ThirdPartyLicense } from './ThirdPartyLicenseData';
 
-const FALLBACK_VERSION: string = '0.1.6';
+const FALLBACK_VERSION: string = '0.2.0';
 
 
 @ComponentV2

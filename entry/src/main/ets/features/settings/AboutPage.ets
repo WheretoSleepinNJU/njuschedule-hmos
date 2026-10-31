@@ -16,7 +16,7 @@ import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
 
 /** 包信息读不到时的兜底版本号（与 AppScope/app.json5 的 versionName 保持一致）。 */
-const FALLBACK_VERSION: string = '0.1.6';
+const FALLBACK_VERSION: string = '0.2.0';
 const ROUTE_PRIVACY: string = 'privacy';
 const ROUTE_LICENSES: string = 'licenses';
 const ROUTE_ACKNOWLEDGEMENTS: string = 'acknowledgements';

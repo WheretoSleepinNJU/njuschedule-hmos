@@ -62,14 +62,14 @@ CI **只构建未签名 HAP**，不接触发布证书；正式签名仍在本机
 参考 Kazumi 的版本管理方式：**单一版本源 + 语义化版本 + 发布 tag**。
 
 - 版本唯一来源：`AppScope/app.json5` 的 `versionName` / `versionCode`；
-- `versionName` 使用语义化版本，如 `0.1.6`；
+- `versionName` 使用语义化版本，如 `0.2.0`；
 - `versionCode` 由语义版本编码，保证单调递增：
   `1_000_000 + major*10000 + minor*100 + patch`
-  （`0.1.6` → `1000106`；前导 `1_000_000` 为兼容已发布版本的基数）；
+  （`0.2.0` → `1000200`；前导 `1_000_000` 为兼容已发布版本的基数）；
 - 发布流程：
   1. 更新 `AppScope/app.json5`；
   2. 更新 `CHANGELOG.md` 对应版本记录；
-  3. 提交并打 tag（如 `v0.1.6`）推送；
+  3. 提交并打 tag（如 `v0.2.0`）推送；
   4. tag 会触发 Release workflow，自动构建未签名 HAP、生成 SHA256SUMS 并发布 GitHub Release；
   5. 签名 `.app` 仍在本机生成后手动上传 AGC。
 
