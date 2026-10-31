@@ -4,7 +4,7 @@
  * - `courseId > 0` 为编辑（按行 id 读库并回填），`courseId = 0` 为新增；
  * - 新增时 `importType = LegacyConstant.ADD_MANUALLY` 且 `courseId = -1`，
  *   由 `CourseRepository.insert` 自动分配同门课共享的 `course_id`；
- * - 保存成功后 `AppState.bumpDataRevision()` 通知课程列表 / 课表页重载，然后 pop。
+ * - 保存成功后 await `AppState.bumpDataRevision()`，等小组件同步完成再 pop。
  *
  * 校验：课程名必填；节次落在 1-13 节内；周次非空（自定义周次至少一周）；
  * 自定义色值必须为 `#RRGGBB`。
@@ -416,12 +416,16 @@ export struct CourseEditPage {
     }
     this.saving = true;
     try {
+      let affected: number = 1;
       if (editing) {
-        await CourseRepository.update(course);
+        affected = await CourseRepository.update(course);
+        if (affected <= 0) {
+          throw new Error(`课程 ${course.id} 不存在，更新 0 行`);
+        }
       } else {
         await CourseRepository.insert(course);
       }
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       this.navStack().pop();
     } catch (err) {
       this.formError = editing ? '保存失败，请重试' : '添加失败，请重试';

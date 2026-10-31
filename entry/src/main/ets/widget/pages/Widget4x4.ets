@@ -37,6 +37,7 @@ interface W4x4Payload {
   week: W4x4Course[];
   weekTotals: number[];
   weekDates: string[];
+  showWeekend: boolean;
   periods: W4x4Period[];
   mode: string;
   accent: string;
@@ -44,7 +45,6 @@ interface W4x4Payload {
 
 const ROW_HEIGHT: number = 48;
 const TIME_WIDTH: number = 42;
-const DAYS: number[] = [1, 2, 3, 4, 5];
 
 @Entry
 @ComponentV2
@@ -60,6 +60,16 @@ struct Widget4x4 {
     } catch (err) {
       return undefined;
     }
+  }
+
+  private days(): number[] {
+    const payload: W4x4Payload | undefined = this.payload();
+    const last: number = payload !== undefined && payload.showWeekend === true ? 7 : 5;
+    const result: number[] = [];
+    for (let day = 1; day <= last; day++) {
+      result.push(day);
+    }
+    return result;
   }
 
   private weekCourses(): W4x4Course[] {
@@ -130,7 +140,13 @@ struct Widget4x4 {
     if (day === 4) {
       return '四';
     }
-    return '五';
+    if (day === 5) {
+      return '五';
+    }
+    if (day === 6) {
+      return '六';
+    }
+    return '日';
   }
 
   private gridLine(): string {
@@ -255,7 +271,7 @@ struct Widget4x4 {
 
       ForEach(this.coursesOfDay(day), (course: W4x4Course) => {
         this.courseBlock(course)
-      }, (course: W4x4Course, index: number) => `week-${day}-${index}-${course.name}`)
+      }, (course: W4x4Course, index: number) => `week-${day}-${index}-${course.name}-${course.place}-${course.teacher}-${course.start}-${course.count}-${course.period}-${course.color}-${course.done}`)
     }
     .layoutWeight(1)
     .height(this.periods().length * ROW_HEIGHT)
@@ -287,7 +303,7 @@ struct Widget4x4 {
       Row() {
         Column()
           .width(TIME_WIDTH)
-        ForEach(DAYS, (day: number) => {
+        ForEach(this.days(), (day: number) => {
           Column({ space: 1 }) {
             Text(this.dayLabel(day))
               .fontSize(13)
@@ -309,7 +325,7 @@ struct Widget4x4 {
         ListItem() {
           Row() {
             this.timeAxis()
-            ForEach(DAYS, (day: number) => {
+            ForEach(this.days(), (day: number) => {
               this.dayColumn(day)
             }, (day: number) => `day-${day}`)
           }

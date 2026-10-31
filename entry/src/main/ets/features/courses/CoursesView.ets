@@ -136,7 +136,7 @@ export struct CoursesView {
   private openEdit(course: Course): void {
     this.sessionsShown = false;
     this.detailShown = false;
-    // CourseEditPage 保存成功后自行 bumpDataRevision，列表由 @Monitor 刷新。
+    // CourseEditPage 保存成功后 await bumpDataRevision，列表由 @Monitor 刷新。
     this.navStack().pushPathByName('course-edit', new CourseEditParam(course.tableId, course.id));
   }
 
@@ -151,7 +151,7 @@ export struct CoursesView {
       await CourseRepository.delete(course.id);
       this.sessionsShown = false;
       this.detailShown = false;
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       await this.reload();
     } catch (err) {
       console.error(`[Courses] delete failed: ${JSON.stringify(err)}`);

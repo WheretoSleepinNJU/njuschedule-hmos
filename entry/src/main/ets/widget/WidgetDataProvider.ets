@@ -6,7 +6,7 @@
  * - 直接读本模块的 preferences（tableId / weekIndex / lastWeekMonday / colorPool）
  * - 直接读 course.db（与主应用同一份 RDB，同一模块目录）
  * - 周次按 lastWeekMonday 现场折算，跨周/跨天都能正确
- * 读库失败（例如 App 从未打开、库表不存在）时回退到主应用写入的快照。
+ * 主应用数据变化时由 WidgetData 直接计算并 updateForm；FormExtension 负责生命周期与边界触发。
  */
 import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import { preferences, relationalStore } from '@kit.ArkData';
@@ -15,6 +15,7 @@ import { LegacyConstant } from '../common/Constants';
 import { Course } from '../data/models/Models';
 import { CourseColorPalettes } from '../data/CourseColorPalettes';
 import { ScheduleModel } from '../data/ScheduleModel';
+import { WidgetPreferences } from './WidgetPreferences';
 
 export class WidgetCardCourse {
   name: string = '';
@@ -74,8 +75,10 @@ export class WidgetCardPayload {
   tableName: string = '';
   /** 4x4 周视图时间轴。 */
   periods: WidgetPeriod[] = [];
-  /** 4x4 周视图周一~周五的日期（M/D）。 */
+  /** 4x4 周视图日期（M/D）；开启周末时包含周六、周日。 */
   weekDates: string[] = [];
+  /** 4x4 是否显示周末（与主课表「显示周末」设置一致）。 */
+  showWeekend: boolean = false;
   /** 周一到周日每天实际课程数（用于「+N」）。 */
   weekTotals: number[] = [];
   /** 今天之后第一个有课的日期（供 2x2/2x4「接下来」区块，与今天并存、可滚动查看）。 */
@@ -126,32 +129,17 @@ class WidgetCourseColors {
   }
 }
 
-const STORE_NAME: string = 'nju_schedule_next';
-const SNAPSHOT_KEY: string = 'widgetData';
 const TABLE_COURSE: string = 'Course';
 const TABLE_TABLES: string = 'CourseTable';
 
 export class WidgetDataProvider {
   static async buildJson(context: common.Context): Promise<string> {
-    let store: preferences.Preferences | undefined = undefined;
     try {
-      store = await preferences.getPreferences(context, { name: STORE_NAME });
+      const store: preferences.Preferences = await WidgetPreferences.fresh(context);
       const payload: WidgetCardPayload = await WidgetDataProvider.compute(context, store);
       return JSON.stringify(payload);
     } catch (err) {
-      console.warn(`[WidgetDataProvider] compute failed, fallback to snapshot: ${JSON.stringify(err)}`);
-      return await WidgetDataProvider.snapshot(store);
-    }
-  }
-
-  private static async snapshot(store: preferences.Preferences | undefined): Promise<string> {
-    if (store === undefined) {
-      return '';
-    }
-    try {
-      const data: preferences.ValueType = await store.get(SNAPSHOT_KEY, '');
-      return typeof data === 'string' ? data : '';
-    } catch (err) {
+      console.warn(`[WidgetDataProvider] compute failed: ${JSON.stringify(err)}`);
       return '';
     }
   }
@@ -174,7 +162,9 @@ export class WidgetDataProvider {
     const periods: ClassPeriodLike[] = await WidgetDataProvider.readPeriods(context, tableId);
     const colors: WidgetCourseColors = await WidgetDataProvider.readCourseColors(store);
     payload.periods = WidgetDataProvider.buildPeriods(periods);
-    payload.weekDates = WidgetDataProvider.buildWeekDates(now);
+    const showWeekendRaw: preferences.ValueType = await store.get('showWeekend', false);
+    payload.showWeekend = typeof showWeekendRaw === 'boolean' ? showWeekendRaw : false;
+    payload.weekDates = WidgetDataProvider.buildWeekDates(now, payload.showWeekend);
 
     const schedule: ScheduleModel = new ScheduleModel(courses, currentWeek);
     schedule.init();
@@ -195,7 +185,8 @@ export class WidgetDataProvider {
     WidgetDataProvider.fillNextCourseDay(payload, courses, periods, colors, currentWeek, today, now);
 
     // 4x4 周视图数据。
-    payload.week = WidgetDataProvider.buildWeek(schedule, currentWeek, today, nowMinutes, colors);
+    payload.week = WidgetDataProvider.buildWeek(schedule, currentWeek, today, nowMinutes, colors,
+      payload.showWeekend);
     payload.weekTotals = WidgetDataProvider.buildWeekTotals(schedule, currentWeek);
 
     // 外观与主题色：与主应用设置保持一致（卡片渲染进程无法读 AppStorage，只能通过 payload 下发）。
@@ -316,9 +307,9 @@ export class WidgetDataProvider {
     payload.nextFound = false;
   }
 
-  /** 4x4 卡片：本周周一~周五，每天最多 3 门（按节次排序）。 */
+  /** 4x4 卡片：本周工作日；开启周末时包含周六、周日。 */
   private static buildWeek(schedule: ScheduleModel, currentWeek: number, today: number, nowMinutes: number,
-    colors: WidgetCourseColors): WidgetWeekCourse[] {
+    colors: WidgetCourseColors, showWeekend: boolean): WidgetWeekCourse[] {
     const result: WidgetWeekCourse[] = [];
     const byDay: Course[][] = [];
     for (let d = 1; d <= 7; d++) {
@@ -343,7 +334,8 @@ export class WidgetDataProvider {
       }
       byDay[course.weekTime - 1].push(course);
     }
-    for (let d = 1; d <= 5; d++) {
+    const dayEnd: number = showWeekend ? 7 : 5;
+    for (let d = 1; d <= dayEnd; d++) {
       const dayCourses: Course[] = byDay[d - 1];
       for (let k = 0; k < dayCourses.length; k++) {
         const course: Course = dayCourses[k];
@@ -372,11 +364,12 @@ export class WidgetDataProvider {
     return result;
   }
 
-  /** 当前周周一~周五的日期，格式 M/D。 */
-  private static buildWeekDates(now: Date): string[] {
+  /** 当前周日期，格式 M/D；按需包含周末。 */
+  private static buildWeekDates(now: Date, showWeekend: boolean): string[] {
     const monday: Date = WidgetDataProvider.mondayOf(now);
     const dates: string[] = [];
-    for (let i = 0; i < 5; i++) {
+    const dayCount: number = showWeekend ? 7 : 5;
+    for (let i = 0; i < dayCount; i++) {
       const day: Date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
       dates.push(`${day.getMonth() + 1}/${day.getDate()}`);
     }

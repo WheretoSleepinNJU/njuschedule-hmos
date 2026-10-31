@@ -249,7 +249,7 @@ export struct LecturesPage {
       course.info = lecture.info;
       course.courseId = -1;
       await CourseRepository.insert(course);
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       LectureApi.addCount(lecture.id);
       lecture.count += 1;
       this.joinedTitles = this.joinedTitles.concat([lecture.title]);
@@ -286,7 +286,7 @@ export struct LecturesPage {
         return;
       }
       await CourseRepository.delete(target.id);
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       this.joinedTitles = this.joinedTitles.filter((title: string) => title !== lecture.title);
       Feedback.toast(this.getUIContext(), '已取消加入');
     } catch (err) {

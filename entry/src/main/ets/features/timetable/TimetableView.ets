@@ -337,7 +337,6 @@ export struct TimetableView {
   private openCreate(): void {
     this.pageStack.pushPathByName('course-edit', new CourseEditParam(this.store.tableId, 0),
       (popInfo: PopInfo) => {
-        AppState.bumpDataRevision();
         this.reload();
       });
   }
@@ -347,7 +346,6 @@ export struct TimetableView {
     this.multiShown = false;
     this.pageStack.pushPathByName('course-edit', new CourseEditParam(this.store.tableId, course.id),
       (popInfo: PopInfo) => {
-        AppState.bumpDataRevision();
         this.reload();
       });
   }
@@ -373,7 +371,7 @@ export struct TimetableView {
       await CourseRepository.delete(course.id);
       this.detailShown = false;
       this.multiShown = false;
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       await this.reload();
     } catch (err) {
       console.error(`[Timetable] 删除失败: ${JSON.stringify(err)}`);

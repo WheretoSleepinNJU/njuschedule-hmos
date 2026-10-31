@@ -104,7 +104,7 @@ export struct MoreSettingsPage {
     try {
       await ColorPool.setPalette(id);
       this.selectedPaletteId = id;
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       Feedback.toast(this.getUIContext(), `已切换配色池：${CourseColorPalettes.get(id).name}`);
     } catch (err) {
       console.error(`[MoreSettings] switch palette failed: ${JSON.stringify(err)}`);
@@ -165,7 +165,7 @@ export struct MoreSettingsPage {
   private async resetCourseColors(): Promise<void> {
     try {
       await ColorPool.shuffle();
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       Feedback.toast(this.getUIContext(), '已重置课程配色');
     } catch (err) {
       console.error(`[MoreSettings] 重置配色失败: ${JSON.stringify(err)}`);

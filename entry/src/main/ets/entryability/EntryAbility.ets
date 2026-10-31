@@ -153,5 +153,9 @@ export default class EntryAbility extends UIAbility {
   onBackground(): void {
     // Ability has back to background
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+    // 用户从应用回到桌面时补推一次最新卡片数据。
+    WidgetData.write().catch((err: Error) => {
+      hilog.warn(DOMAIN, 'testTag', 'widget background reload failed: %{public}s', JSON.stringify(err));
+    });
   }
 }

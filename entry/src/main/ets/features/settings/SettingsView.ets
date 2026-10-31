@@ -122,7 +122,7 @@ export struct SettingsView {
     const changed: boolean = target !== this.store.weekIndex;
     try {
       await WeekUtil.setNowWeek(target);
-      AppState.setCurrentWeek(target);
+      await AppState.setCurrentWeek(target);
       if (changed) {
         Feedback.toast(this.getUIContext(), `当前周已设为第 ${target} 周`);
       }
@@ -143,6 +143,7 @@ export struct SettingsView {
   private async setShowWeekend(value: boolean): Promise<void> {
     AppState.setShowWeekend(value);
     await this.putBoolPref(PrefKeys.ShowWeekend, value);
+    await AppState.bumpDataRevision();
   }
 
   private async setShowClassTime(value: boolean): Promise<void> {
@@ -356,7 +357,7 @@ export struct SettingsView {
   private async clearCourses(): Promise<void> {
     try {
       await CourseRepository.deleteByTable(AppState.effectiveTableId(this.tableId));
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       this.courseCount = 0;
       Feedback.toast(this.getUIContext(), '已清空当前课表课程');
     } catch (err) {

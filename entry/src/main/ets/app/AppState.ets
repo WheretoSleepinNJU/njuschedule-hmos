@@ -135,7 +135,7 @@ export class AppState {
     }
     await AppPreferences.setTableId(tableId);
     AppState.setCurrentTable(tableId);
-    AppState.bumpDataRevision();
+    await AppState.bumpDataRevision();
   }
 
   /** 当前课表 id；Store 未就绪时用调用方兜底值，仍无效则回落到 1。 */
@@ -151,11 +151,12 @@ export class AppState {
     return AppState.store().tableId;
   }
 
-  static setCurrentWeek(week: number): void {
+  static async setCurrentWeek(week: number): Promise<void> {
     const store: AppStore = AppState.store();
     store.weekIndex = week;
     store.tmpWeekIndex = week;
-    WidgetData.write();
+    // 等小组件即时推送完成后再返回，避免改完周数立刻退出时错过刷新。
+    await WidgetData.write();
   }
 
   static setWeekPickerOpen(open: boolean): void {
@@ -170,12 +171,11 @@ export class AppState {
     AppState.store().tmpWeekIndex = week;
   }
 
-  /** 课程数据变化（增删改/导入）后调用，通知课表页重载。 */
-  static bumpDataRevision(): void {
+  /** 课程/课表/外观变化后调用：先递增 revision 通知 UI，再排队刷新小组件。 */
+  static async bumpDataRevision(): Promise<void> {
     const current: number = AppState.store().dataRevision;
     AppState.store().dataRevision = current + 1;
-    // 课程/课表变化后同步刷新桌面小组件（失败不影响主流程）。
-    WidgetData.write();
+    await WidgetData.write();
   }
 
   static dataRevision(): number {

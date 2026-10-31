@@ -151,7 +151,7 @@ export struct ManageTablesPage {
       }
       table.name = name;
       await CourseTableRepository.update(table);
-      AppState.bumpDataRevision();
+      await AppState.bumpDataRevision();
       Feedback.toast(this.getUIContext(), '已重命名课表');
     } catch (err) {
       console.error(`[Tables] 重命名课表失败: ${JSON.stringify(err)}`);
@@ -180,7 +180,7 @@ export struct ManageTablesPage {
       } else if (tableId === this.store.tableId) {
         await this.switchTableData(remaining[0].id);
       } else {
-        AppState.bumpDataRevision();
+        await AppState.bumpDataRevision();
       }
       Feedback.toast(this.getUIContext(), '已删除课表');
     } catch (err) {

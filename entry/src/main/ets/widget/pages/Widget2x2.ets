@@ -153,7 +153,7 @@ struct Widget2x2 {
             ListItem() {
               this.courseRow(course)
             }
-          }, (course: WidgetDayCourse, index: number) => `today-${course.name}-${index}`)
+          }, (course: WidgetDayCourse, index: number) => `today-${course.name}-${course.place}-${course.teacher}-${course.startTime}-${course.endTime}-${course.period}-${course.state}-${course.color}-${index}`)
         } else {
           ListItem() {
             Text(this.todayEmptyText())
@@ -180,7 +180,7 @@ struct Widget2x2 {
             ListItem() {
               this.courseRow(course)
             }
-          }, (course: WidgetDayCourse, index: number) => `next-${course.name}-${index}`)
+          }, (course: WidgetDayCourse, index: number) => `next-${course.name}-${course.place}-${course.teacher}-${course.startTime}-${course.endTime}-${course.period}-${course.state}-${course.color}-${index}`)
         }
       }
       .width('100%')
