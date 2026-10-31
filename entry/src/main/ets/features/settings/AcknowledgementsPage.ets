@@ -77,6 +77,17 @@ export struct AcknowledgementsPage {
           openUrl(this.getUIContext(), LegacyUrl.BACKEND);
         }
       })
+      SettingsRowDivider()
+      SettingsRow({
+        icon: $r('sys.symbol.doc_text'),
+        title: '教务系统列表获取',
+        subtitle: '各校教务导入配置，由上游作者 idealclover 提供',
+        trailingText: '打开链接',
+        showArrow: false,
+        onTap: () => {
+          openUrl(this.getUIContext(), `${LegacyUrl.UPDATE_ROOT}/schoolList.json`);
+        }
+      })
     }
   }
 
