@@ -5,11 +5,11 @@
  *   加载 initialUrl → onPageEnd 判定 redirectUrl（命中则 loadUrl targetUrl）
  *   → 命中 targetUrl → preExtractJS → 等待 delayTime 秒 → 注入解析脚本
  *   → 读取 `encodeURIComponent(JSON.stringify({name, courses}))` 返回值
- *   → 解码 → 建课表 → 批量写课程 → 切换当前课表 → 提示并返回。
+ *   → 解码 → 建课表 → 批量写课程 → 按学期开始时间设置当前周 → 切换当前课表 → 提示并返回。
  *
  * 与旧版的差异（均为可用性/安全改进，不改变协议）：
- * - 解析脚本优先用随包 rawfile（`import/tools/<extractJSfileOHOS 文件名>`），
- *   旧版每次从 CDN 下载并直接执行；网络失败或 CDN 被篡改都不会影响导入。
+ * - 解析脚本与上游保持一致，优先从 CDN 下载；网络失败时回退到随包 rawfile
+ *   （`import/tools/<extractJSfileOHOS 文件名>`），离线仍可完成导入。
  * - 解码只 `decodeURIComponent`，不照搬旧版 `replaceAll('"', '')`。
  * - 失败不再把整页 HTML 上传到后端（旧版行为涉及隐私），只在页面内显示可读错误。
  * - URL 判定在 startsWith 之外兼容 targetUrl 里的 `*` 通配符与尾斜杠差异。
@@ -29,6 +29,7 @@ import { webview } from '@kit.ArkWeb';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { HdsNavDestination, HdsNavigationMenuContentOptions, HdsNavigationTitleBarOptions } from '@kit.UIDesignKit';
 import { AppContext } from '../../app/AppContext';
+import { CdnTextFetcher } from '../../common/CdnTextFetcher';
 import { AppPreferences } from '../../app/AppPreferences';
 import { AppState } from '../../app/AppState';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
@@ -44,6 +45,7 @@ import {
   ImportPayload,
   ImportPayloadDecoder
 } from './ImportPayloadCodec';
+import { ImportWeekApplier } from './ImportWeekApplier';
 import { ImportWebParam } from './ImportParams';
 import { SchoolConfig } from './SchoolConfig';
 
@@ -345,7 +347,7 @@ export struct ImportWebPage {
       }
 
       // 3) 取解析脚本：优先 rawfile 内置，其次配置里的内联 extractJS。
-      this.statusText = '正在提取课表数据…';
+      this.statusText = '正在准备解析脚本…';
       const script: string = await this.resolveExtractScript();
 
       // 4) 注入并拿返回值（encodeURIComponent 后的 JSON 文本）。
@@ -376,7 +378,11 @@ export struct ImportWebPage {
       }
       await CourseRepository.insertMany(courses);
 
-      // 7) 切到新表并通知课表页重载。
+      // 7) 按学期开始时间设置当前周（无数据时走远端 complete.json 兜底）。
+      this.statusText = '正在识别学期周次…';
+      await ImportWeekApplier.apply(tableData);
+
+      // 8) 切到新表并通知课表页重载（包含一次小组件推送）。
       await AppState.switchTable(createdTableId);
 
       this.importing = false;
@@ -403,25 +409,34 @@ export struct ImportWebPage {
 
   private async resolveExtractScript(): Promise<string> {
     const cfg: SchoolConfig = this.config;
-    const fileName: string = cfg.toolFileName;
-    if (fileName !== '') {
-      const path: string = `import/tools/${fileName}`;
+    // 与上游一致，优先使用远端解析脚本，保证远端学校配置更新后无需发版；
+    // 网络失败时再回退到随包 rawfile，最后才使用配置内联脚本。
+    if (cfg.extractJsFileOHOS.trim() !== '') {
+      try {
+        const remote: string = await CdnTextFetcher.fetch(cfg.extractJsFileOHOS, 10000, 15000);
+        if (remote.trim() !== '') {
+          return remote;
+        }
+      } catch (err) {
+        console.warn(`[ImportWeb] remote script failed: ${errorMessage(err)}`);
+      }
+    }
+    if (cfg.toolFileName !== '') {
+      const path: string = `import/tools/${cfg.toolFileName}`;
       try {
         const bytes: Uint8Array = await AppContext.get().resourceManager.getRawFileContent(path);
         const js: string = util.TextDecoder.create('utf-8').decodeToString(bytes);
-        if (js.trim() === '') {
-          throw new Error('脚本内容为空');
+        if (js.trim() !== '') {
+          return js;
         }
-        return js;
       } catch (err) {
-        throw new Error(`内置解析脚本不可用（${fileName}）：${errorMessage(err)}`);
+        console.warn(`[ImportWeb] bundled script unavailable: ${errorMessage(err)}`);
       }
     }
     if (cfg.extractJS.trim() !== '') {
       return cfg.extractJS;
     }
-    // 旧版学校列表的 extractJS 全为空串；兜底按规格执行 body.innerHTML。
-    return 'document.body.innerHTML';
+    throw new Error('解析脚本不可用：远端下载和内置脚本均失败');
   }
 
   private runScript(script: string): Promise<string> {

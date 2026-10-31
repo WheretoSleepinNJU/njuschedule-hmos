@@ -1,18 +1,18 @@
 /**
- * 学校列表仓储：从 rawfile 读取 `import/schoolList.json`，解析成 `SchoolConfig[]`。
+ * 学校列表仓储：优先从上游 CDN 拉取 `schoolList.json`，失败时回退到随包 rawfile。
  *
- * 与旧版的差异（按移植规格 §11.3）：
- * - 旧版从 CDN 拉 `schoolList.json` 并做 azlistview 分组；这里改为随包内置
- *   rawfile（离线可用、不会因远端变更导致导入页空白），解析与字段语义保持一致。
- * - 排序：按 `pinyin` 升序（南大 4 条因为 pinyin 以 `1` 开头，自然排在最前）；
- *   分组索引 `tagIndex` 保留在 DTO 里，UI 需要时再分组。
- * - 搜索：旧版没有搜索框，这里按 title / pinyin / description 子串过滤。
+ * - 与上游保持一致：远端新增/调整学校时不需要发版；
+ * - 内置 rawfile 作为离线兜底，避免 CDN 不可用时导入页空白；
+ * - 排序、搜索逻辑不变。
  */
 import { util } from '@kit.ArkTS';
 import { AppContext } from '../../app/AppContext';
+import { CdnTextFetcher } from '../../common/CdnTextFetcher';
+import { LegacyUrl } from '../../common/Constants';
 import { SchoolConfig } from './SchoolConfig';
 
 const SCHOOL_LIST_PATH: string = 'import/schoolList.json';
+const REMOTE_SCHOOL_LIST_URL: string = `${LegacyUrl.UPDATE_ROOT}/schoolList.json`;
 
 export class SchoolRepository {
   private static cache: SchoolConfig[] = [];
@@ -27,6 +27,22 @@ export class SchoolRepository {
       return SchoolRepository.cache.slice();
     }
 
+    let list: SchoolConfig[] | null = null;
+    try {
+      const remote: string = await SchoolRepository.fetchRemote();
+      list = SchoolRepository.parse(remote);
+    } catch (err) {
+      console.warn(`[SchoolRepository] remote list failed, fallback to rawfile: ${errorMessage(err)}`);
+    }
+    if (list === null || list.length === 0) {
+      list = await SchoolRepository.loadBundled();
+    }
+    SchoolRepository.cache = list;
+    SchoolRepository.cacheValid = true;
+    return list.slice();
+  }
+
+  private static async loadBundled(): Promise<SchoolConfig[]> {
     let text: string = '';
     try {
       const context = AppContext.get();
@@ -35,11 +51,11 @@ export class SchoolRepository {
     } catch (err) {
       throw new Error(`读取内置学校列表失败：${errorMessage(err)}`);
     }
+    return SchoolRepository.parse(text);
+  }
 
-    const list: SchoolConfig[] = SchoolRepository.parse(text);
-    SchoolRepository.cache = list;
-    SchoolRepository.cacheValid = true;
-    return list.slice();
+  private static async fetchRemote(): Promise<string> {
+    return CdnTextFetcher.fetch(REMOTE_SCHOOL_LIST_URL, 10000, 15000);
   }
 
   /** 按 pinyin 升序排序后的新数组（不修改入参）。 */
@@ -78,14 +94,14 @@ export class SchoolRepository {
     try {
       parsed = JSON.parse(text) as Record<string, Object>;
     } catch (err) {
-      throw new Error('内置学校列表格式错误（JSON 解析失败）');
+      throw new Error('学校列表格式错误（JSON 解析失败）');
     }
     if (parsed === null) {
-      throw new Error('内置学校列表为空');
+      throw new Error('学校列表为空');
     }
     const data: Object | undefined = parsed['data'];
     if (!Array.isArray(data)) {
-      throw new Error('内置学校列表缺少 data 数组');
+      throw new Error('学校列表缺少 data 数组');
     }
     const items: Object[] = data as Object[];
     const list: SchoolConfig[] = [];
@@ -97,7 +113,7 @@ export class SchoolRepository {
       list.push(SchoolConfig.fromJson(item as Record<string, Object>));
     }
     if (list.length === 0) {
-      throw new Error('内置学校列表为空');
+      throw new Error('学校列表为空');
     }
     return list;
   }

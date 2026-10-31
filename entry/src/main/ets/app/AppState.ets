@@ -151,10 +151,15 @@ export class AppState {
     return AppState.store().tableId;
   }
 
-  static async setCurrentWeek(week: number): Promise<void> {
+  /** 只更新运行时周次，不触发小组件推送；导入流程合并切表刷新时使用。 */
+  static setCurrentWeekLocal(week: number): void {
     const store: AppStore = AppState.store();
     store.weekIndex = week;
     store.tmpWeekIndex = week;
+  }
+
+  static async setCurrentWeek(week: number): Promise<void> {
+    AppState.setCurrentWeekLocal(week);
     // 等小组件即时推送完成后再返回，避免改完周数立刻退出时错过刷新。
     await WidgetData.write();
   }
