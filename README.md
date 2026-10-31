@@ -13,6 +13,7 @@
 > **仓库**：https://github.com/WheretoSleepinNJU/njuschedule-hmos
 >
 > **问题反馈**：https://github.com/WheretoSleepinNJU/njuschedule-hmos/issues
+> **已正式上架华为 AppGallery**：在应用市场搜索「呢喃课表」即可下载。
 >
 > 正在招募有兴趣设计图标的同学，请联系JesseLee3923@outlook.com
 
