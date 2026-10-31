@@ -56,7 +56,7 @@
 - [ ] 未新增权限；如新增权限、第三方 SDK、外部依赖或数据 schema，已在 Issue 中讨论并说明
 - [ ] 仍保持「仅 INTERNET 权限、无第三方 SDK / 广告 / 统计」原则（如有例外，请说明）
 - [ ] UI 与状态管理只使用 V2，未新增 V1 装饰器
-- [ ] 改动用户协议或隐私政策时，已同步 `docs/privacy-policy.md` 并更新 `AppBootstrap.PRIVACY_VERSION`
+- [ ] 如涉及隐私政策修订，已直接联系维护者，未自行修改本地隐私文本或版本号
 - [ ] 新增开源内容或依赖时，已同步 `NOTICE` 与 `ThirdPartyLicenseData.ets`
 - [ ] 没有引入未在 Issue 中说明的网络请求、导入域名或后台行为
 

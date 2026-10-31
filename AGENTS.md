@@ -71,8 +71,7 @@ entry/src/main/ets/
 - 课程、课表、设置与背景图仅保存在本机；分享码完全在本机生成/解析。
 - 教务导入使用 ArkWeb + 注入 `rawfile/import/tools/*.js`；账号密码由学校页面直接处理，应用不读取/不保存。
 - 新增权限、第三方依赖、数据 schema、导入域名/方式前，先在 Issue 中讨论。
-- 隐私政策：正文在 `features/settings/legal/LegalDocuments.ets`，同步维护 `docs/privacy-policy.md`；
-  任何文案变更需同步 AGC 托管隐私声明版本。
+- 隐私政策由华为 AGC 托管，应用内只展示托管声明；涉及修订请直接联系维护者，不要自行修改本地文本或版本号。
 - 新增开源依赖时同步 `features/settings/ThirdPartyLicenseData.ets` 与 `NOTICE`。
 
 ## 5. Git 与提交
@@ -87,7 +86,7 @@ entry/src/main/ets/
 ## 6. 文档
 
 - 开发速查：[docs/README.md](docs/README.md)
-- 隐私政策：`docs/privacy-policy.md`
+- 隐私政策：华为 AGC 托管（本地 `docs/privacy-policy.md` 仅归档）
 - 版本记录：[CHANGELOG.md](CHANGELOG.md)
 - 完整移植调研与开发过程文档已归档，不在仓库内；如需查阅请向维护者索取。
 - 仓库级约束以本文件为准；贡献流程与 AI 辅助规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。

@@ -1,7 +1,7 @@
 /**
- * 法律文档渲染组件：隐私政策正文。
+ * 历史本地法律文档渲染组件；当前应用展示 AGC 托管隐私声明，本组件仅保留代码。
  *
- * 在独立页面与首启同意弹窗中复用；只做静态展示，不联网、不收集信息。
+ * 只做静态展示，不联网、不收集信息。
  */
 import { Colors, FontSize, Spacing } from '../../../common/design/Tokens';
 import { AppCard } from '../../../common/ui/AppCard';

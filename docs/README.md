@@ -101,8 +101,7 @@ entry/src/main/resources/  string/color 资源、rawfile/import（schoolList.jso
 - **通用组件放 `common/ui`**，业务组件留在 `features/<域>`；网络与存储不直接写进页面。
 - 改 UI / 交互前先查 HarmonyOS 官方文档与最佳实践（RTFM / STFW），不凭记忆猜 API 或事件时序。
 - 新增权限、第三方依赖、数据 schema、导入方式前先讨论；新增开源依赖时同步 `ThirdPartyLicenseData.ets` 与 `NOTICE`。
-- 修改隐私政策时：同步 `features/settings/legal/LegalDocuments.ets` 与 `docs/privacy-policy.md`，
-  并与 AGC 托管隐私声明版本保持一致。
+- 隐私政策由华为 AGC 托管；若涉及修订，请直接联系维护者，不要修改本地文本或版本号。
 
 ## 5. 关键实现与坑
 
@@ -123,6 +122,6 @@ entry/src/main/resources/  string/color 资源、rawfile/import（schoolList.jso
 | [README.md](../README.md) | 项目介绍、功能与构建 |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献指引（开发环境、PR、AI 辅助规则） |
 | [SECURITY.md](../SECURITY.md) | 安全漏洞报告与测试边界 |
-| [privacy-policy.md](privacy-policy.md) | 隐私政策（应用内同源） |
+| [privacy-policy.md](privacy-policy.md) | 历史归档；线上以 AGC 托管声明为准 |
 | [AGENTS.md](../AGENTS.md) | 仓库级开发/Agent 约定 |
 | `CHANGELOG.md` | 版本更新记录 |
