@@ -375,19 +375,6 @@ struct Index {
       .height('100%')
       .backgroundColor(Colors.Background)
 
-      // 标题栏副标题热区：点击「课表名 · 第 N 周」打开周次选择器
-      // （HDS 的 subTitleBuilder 只支持 MODAL 模式，MINI 模式用透明热区复用副标题位置）
-      if (this.activeTabIndex === 0) {
-        Row()
-          .width('100%')
-          .height(30)
-          .position({ x: 0, y: this.contentTopSpace() - 30 })
-          .hitTestBehavior(HitTestMode.Default)
-          .onClick(() => {
-            AppState.setWeekPickerOpen(true);
-          })
-      }
-
       // 课程页标题栏 + 的展开菜单：透明锚点定位在标题栏右上角下方。
       if (this.activeTabIndex === 1) {
         Row()

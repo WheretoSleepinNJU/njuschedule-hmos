@@ -713,6 +713,17 @@ export struct TimetableView {
         .hitTestBehavior(HitTestMode.Transparent)
       }
 
+      // 标题栏副标题热区：只在课表 Tab 内容层响应；子页面（NavDestination）在它之上，
+      // 因此打开课程编辑等子页面后点击标题栏不会再误触周次选择器。
+      Row()
+        .width('100%')
+        .height(30)
+        .position({ x: 0, y: this.pageTopPadding() - 30 })
+        .hitTestBehavior(HitTestMode.Default)
+        .onClick(() => {
+          AppState.setWeekPickerOpen(true);
+        })
+
       // ArkUI 同一组件挂多个 bindSheet 会互相干扰（详情 sheet 只暗屏不弹内容），
       // 每个半模态挂到独立隐形锚点上。
       Stack() {
