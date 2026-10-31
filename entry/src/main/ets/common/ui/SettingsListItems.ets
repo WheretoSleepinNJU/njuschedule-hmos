@@ -1,11 +1,52 @@
 /**
- * 设置模块内部复用的行组件与标题栏。
+ * 跨功能复用的列表行组件。
  *
- * 只服务于 features/settings，不放 common/ui（那是跨模块通用组件）。
- * 样式统一走 Tokens：卡片表面色 + 行内左右 Spacing.Lg / 上下 Spacing.Md。
+ * 设置页、教务导入、课程列表和课程编辑共用同一套卡片/行样式。
  */
-import { Colors, FontSize, Radius, Spacing } from '../../common/design/Tokens';
+import { Colors, FontSize, Radius, Spacing } from '../design/Tokens';
 import { AppStore } from '../../app/AppStore';
+
+/** 设置分组卡片：官方设置应用样式，圆角 24、内边距 4。 */
+@ComponentV2
+export struct SettingsItemGroup {
+  /** 可选分类标题，显示在卡片上方。 */
+  @Param title: string = '';
+  @BuilderParam content: () => void;
+
+  build() {
+    Column({ space: Spacing.Sm }) {
+      if (this.title !== '') {
+        Text(this.title)
+          .fontSize(FontSize.BodySm)
+          .fontColor(Colors.TextTertiary)
+          .width('100%')
+          .padding({ left: Spacing.Md, right: Spacing.Md })
+      }
+      Column() {
+        this.content()
+      }
+      .width('100%')
+      .padding(4)
+      .borderRadius(Radius.Xxl)
+      .backgroundColor(Colors.Surface)
+    }
+    .width('100%')
+  }
+}
+
+/** 组内分隔线：左边距 48，右边距 8。 */
+@ComponentV2
+export struct SettingsItemDivider {
+  /** 左侧起始缩进；有图标的行用 48，无图标行传 12。 */
+  @Param startMargin: number = 48;
+
+  build() {
+    Divider()
+      .strokeWidth(1)
+      .color(Colors.OutlineLight)
+      .margin({ left: this.startMargin, right: 8 })
+  }
+}
 
 /** 开关行：左侧标题/说明，右侧 Toggle。 */
 @ComponentV2
@@ -24,7 +65,7 @@ export struct SettingsSwitchRow {
     Row({ space: Spacing.Md }) {
       if (this.icon !== undefined) {
         SymbolGlyph(this.icon)
-          .fontSize(20)
+          .fontSize(24)
           .fontColor([Colors.TextSecondary])
       }
       Column({ space: 2 }) {
@@ -50,7 +91,10 @@ export struct SettingsSwitchRow {
         })
     }
     .width('100%')
-    .padding({ left: Spacing.Lg, right: Spacing.Lg, top: Spacing.Md, bottom: Spacing.Md })
+    .constraintSize({ minHeight: 56 })
+    .padding({ left: Spacing.Sm, right: Spacing.Sm })
+    .borderRadius(Radius.Xl)
+    .backgroundColor(Colors.Surface)
     .alignItems(VerticalAlign.Center)
   }
 }
@@ -65,16 +109,20 @@ export struct SettingsRow {
   @Param trailingText: string = '';
   /** 右侧箭头（跳转型页面用 true）。 */
   @Param showArrow: boolean = true;
+  /** 外部网页链接：右侧显示“打开网页”符号；应用内跳转仍显示箭头。 */
+  @Param externalLink: boolean = false;
   /** 危险操作（删除/清空）：标题与图标用错误色。 */
   @Param danger: boolean = false;
   @Event onTap: () => void = () => {
   };
 
+  @Local isTouched: boolean = false;
+
   build() {
     Row({ space: Spacing.Md }) {
       if (this.icon !== undefined) {
         SymbolGlyph(this.icon)
-          .fontSize(20)
+          .fontSize(24)
           .fontColor([this.danger ? Colors.Error : Colors.TextSecondary])
       }
       Column({ space: 2 }) {
@@ -105,87 +153,34 @@ export struct SettingsRow {
           .constraintSize({ maxWidth: 160 })
       }
       if (this.showArrow) {
-        SymbolGlyph($r('sys.symbol.chevron_right'))
-          .fontSize(16)
-          .fontColor([Colors.TextTertiary])
+        if (this.externalLink) {
+          SymbolGlyph($r('sys.symbol.arrow_up_right'))
+            .fontSize(18)
+            .fontColor([Colors.TextTertiary])
+        } else {
+          Image($r('sys.media.ohos_ic_public_arrow_right'))
+            .width(12)
+            .height(24)
+            .fillColor(Colors.TextTertiary)
+        }
       }
     }
     .width('100%')
-    .padding({ left: Spacing.Lg, right: Spacing.Lg, top: Spacing.Md, bottom: Spacing.Md })
+    .constraintSize({ minHeight: 56 })
+    .padding({ left: Spacing.Sm, right: Spacing.Sm })
+    .borderRadius(Radius.Xl)
+    .backgroundColor(this.isTouched ? Colors.SurfaceHigh : Colors.Surface)
     .alignItems(VerticalAlign.Center)
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.isTouched = true;
+      } else if (event.type === TouchType.Up) {
+        this.isTouched = false;
+      }
+    })
     .onClick(() => {
+      this.isTouched = false;
       this.onTap();
     })
-  }
-}
-
-/** 加减stepper：用于当前周调整。 */
-@ComponentV2
-export struct SettingsStepper {
-  /** V2 全局 Store（主题色 / 避让区）。 */
-  @Local store: AppStore = AppStore.connect();
-  @Param value: number = 1;
-  @Param minValue: number = 1;
-  @Param maxValue: number = 25;
-  /** 显示文本，如「第 3 周」。 */
-  @Param displayText: string = '';
-  @Event onStep: (delta: number) => void = () => {
-  };
-
-  build() {
-    Row({ space: Spacing.Sm }) {
-      Row() {
-        SymbolGlyph($r('sys.symbol.minus'))
-          .fontSize(16)
-          .fontColor([this.value <= this.minValue ? Colors.TextTertiary : this.store.accentDisplay])
-      }
-      .width(36)
-      .height(36)
-      .borderRadius(Radius.Round)
-      .backgroundColor(Colors.SurfaceHigh)
-      .justifyContent(FlexAlign.Center)
-      .opacity(this.value <= this.minValue ? 0.45 : 1)
-      .onClick(() => {
-        if (this.value > this.minValue) {
-          this.onStep(-1);
-        }
-      })
-
-      Text(this.displayText)
-        .fontSize(FontSize.Body)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(Colors.TextPrimary)
-        .textAlign(TextAlign.Center)
-        .constraintSize({ minWidth: 64 })
-
-      Row() {
-        SymbolGlyph($r('sys.symbol.plus'))
-          .fontSize(16)
-          .fontColor([this.value >= this.maxValue ? Colors.TextTertiary : this.store.accentDisplay])
-      }
-      .width(36)
-      .height(36)
-      .borderRadius(Radius.Round)
-      .backgroundColor(Colors.SurfaceHigh)
-      .justifyContent(FlexAlign.Center)
-      .opacity(this.value >= this.maxValue ? 0.45 : 1)
-      .onClick(() => {
-        if (this.value < this.maxValue) {
-          this.onStep(1);
-        }
-      })
-    }
-    .alignItems(VerticalAlign.Center)
-  }
-}
-
-/** 行分隔线：与行内文字左对齐。 */
-@ComponentV2
-export struct SettingsRowDivider {
-  build() {
-    Divider()
-      .color(Colors.OutlineLight)
-      .strokeWidth(1)
-      .margin({ left: Spacing.Lg, right: Spacing.Lg })
   }
 }

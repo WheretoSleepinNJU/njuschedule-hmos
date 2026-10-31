@@ -12,19 +12,17 @@
  */
 import { resolveNavStack } from '../../common/NavStackResolver';
 import { HdsNavDestination } from '@kit.UIDesignKit';
-import { AppPreferences } from '../../app/AppPreferences';
 import { AppState } from '../../app/AppState';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { AppStore } from '../../app/AppStore';
-import { AppCard } from '../../common/ui/AppCard';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { EmptyState } from '../../common/ui/EmptyState';
-import { BadgeTone, StatusBadge } from '../../common/ui/StatusBadge';
 import { DemoData } from '../../data/DemoData';
 import { ImportWebParam } from './ImportParams';
 import { SchoolConfig } from './SchoolConfig';
 import { SchoolRepository } from './SchoolRepository';
+import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
 
 const ROUTE_IMPORT_WEB: string = 'import-web';
 
@@ -42,8 +40,6 @@ export struct ImportView {
   @Local loadError: string = '';
   @Local demoBusy: boolean = false;
 
-  /** 入口页参数里的 tableId（本页不直接使用；导入会新建并切换到新表）。 */
-  private entryTableId: number = 0;
   private stack: NavPathStack | null = null;
   private scroller: Scroller = new Scroller();
 
@@ -106,94 +102,29 @@ export struct ImportView {
   // ---- UI ----
 
   @Builder
-  private demoCard() {
-    AppCard({ contentPadding: 0 }) {
-      Row({ space: Spacing.Md }) {
-        Row() {
-          SymbolGlyph($r('sys.symbol.book_pages'))
-            .fontSize(20)
-            .fontColor([this.store.accentDisplay])
-        }
-        .width(40)
-        .height(40)
-        .borderRadius(Radius.Round)
-        .backgroundColor(this.store.accentSoft)
-        .justifyContent(FlexAlign.Center)
-
-        Column({ space: 2 }) {
-          Text('没有教务账号？先用示例课表看看')
-            .fontSize(FontSize.Body)
-            .fontColor(Colors.TextPrimary)
-            .width('100%')
-          Text('创建一张 Demo 课表，立刻体验周视图与课程块')
-            .fontSize(FontSize.BodySm)
-            .fontColor(Colors.TextTertiary)
-            .maxLines(2)
-            .width('100%')
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        if (this.demoBusy) {
-          LoadingProgress()
-            .width(22)
-            .height(22)
-            .color(this.store.accentDisplay)
-        } else {
-          SymbolGlyph($r('sys.symbol.chevron_right'))
-            .fontSize(16)
-            .fontColor([Colors.TextTertiary])
-        }
+  private quickStartSection(): void {
+    ListItem() {
+      SettingsItemGroup({ title: '快速开始' }) {
+        SettingsRow({
+          icon: $r('sys.symbol.book_pages'),
+          title: '没有教务账号？先用示例课表看看',
+          subtitle: '创建一张 Demo 课表，立刻体验周视图与课程块',
+          trailingText: this.demoBusy ? '创建中…' : '',
+          showArrow: !this.demoBusy,
+          onTap: () => {
+            this.createDemoTable();
+          }
+        })
+        SettingsItemDivider()
+        SettingsRow({
+          icon: $r('sys.symbol.qrcode'),
+          title: '从分享码导入',
+          subtitle: '粘贴同学分享的 ncs://qr 课表编码',
+          onTap: () => {
+            this.navStack().pushPathByName('import-code', null);
+          }
+        })
       }
-      .width('100%')
-      .padding({ left: Spacing.Lg, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
-      .alignItems(VerticalAlign.Center)
-      .onClick(() => {
-        this.createDemoTable();
-      })
-    }
-  }
-
-  /** 从分享码导入：走旧版 ncs://qr 协议（与分享页配对）。 */
-  @Builder
-  private shareCodeCard() {
-    AppCard({ contentPadding: 0 }) {
-      Row({ space: Spacing.Md }) {
-        Row() {
-          SymbolGlyph($r('sys.symbol.qrcode'))
-            .fontSize(20)
-            .fontColor([this.store.accentDisplay])
-        }
-        .width(40)
-        .height(40)
-        .borderRadius(Radius.Round)
-        .backgroundColor(this.store.accentSoft)
-        .justifyContent(FlexAlign.Center)
-
-        Column({ space: 2 }) {
-          Text('从分享码导入')
-            .fontSize(FontSize.Body)
-            .fontColor(Colors.TextPrimary)
-            .width('100%')
-          Text('粘贴同学分享的 ncs://qr 课表编码')
-            .fontSize(FontSize.BodySm)
-            .fontColor(Colors.TextTertiary)
-            .maxLines(2)
-            .width('100%')
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        SymbolGlyph($r('sys.symbol.chevron_right'))
-          .fontSize(16)
-          .fontColor([Colors.TextTertiary])
-      }
-      .width('100%')
-      .padding({ left: Spacing.Lg, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
-      .alignItems(VerticalAlign.Center)
-      .onClick(() => {
-        this.navStack().pushPathByName('import-code', null);
-      })
     }
   }
 
@@ -213,138 +144,99 @@ export struct ImportView {
 
   @Builder
   private schoolRow(school: SchoolConfig) {
-    Row({ space: Spacing.Md }) {
-      Row() {
-        SymbolGlyph($r('sys.symbol.book'))
-          .fontSize(18)
-          .fontColor([school.disabled ? Colors.TextTertiary : this.store.accentDisplay])
+    SettingsRow({
+      icon: $r('sys.symbol.book'),
+      title: school.title,
+      subtitle: school.description,
+      trailingText: school.disabled ? '暂不可用' : '',
+      showArrow: !school.disabled,
+      onTap: () => {
+        this.openSchool(school);
       }
-      .width(36)
-      .height(36)
-      .borderRadius(Radius.Round)
-      .backgroundColor(school.disabled ? Colors.SurfaceHigh : this.store.accentSoft)
-      .justifyContent(FlexAlign.Center)
-
-      Column({ space: 3 }) {
-        Row({ space: Spacing.Sm }) {
-          Text(school.title)
-            .fontSize(FontSize.Body)
-            .fontColor(Colors.TextPrimary)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .constraintSize({ maxWidth: '80%' })
-          if (school.disabled) {
-            StatusBadge({ text: '暂不可用', tone: BadgeTone.Neutral })
-          }
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        Text(school.description)
-          .fontSize(FontSize.BodySm)
-          .fontColor(Colors.TextTertiary)
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-
-      SymbolGlyph($r('sys.symbol.chevron_right'))
-        .fontSize(16)
-        .fontColor([Colors.TextTertiary])
-    }
-    .width('100%')
-    .padding({ left: Spacing.Lg, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
-    .alignItems(VerticalAlign.Center)
-    .opacity(school.disabled ? 0.5 : 1)
-    .onClick(() => {
-      this.openSchool(school);
     })
   }
 
   @Builder
   private schoolList() {
-    AppCard({ contentPadding: 0 }) {
-      Column() {
+    ListItem() {
+      SettingsItemGroup({ title: '学校' }) {
         ForEach(this.filteredSchools(), (school: SchoolConfig, index: number) => {
           if (index > 0) {
-            Divider()
-              .color(Colors.OutlineLight)
-              .strokeWidth(1)
-              .margin({ left: Spacing.Lg + 36 + Spacing.Md })
+            SettingsItemDivider()
           }
           this.schoolRow(school)
         }, (school: SchoolConfig) => `${school.pinyin}|${school.title}`)
       }
-      .width('100%')
     }
   }
+
 
   build() {
     HdsNavDestination() {
       Column() {
-        Scroll(this.scroller) {
-          Column() {
-            Column({ space: Spacing.Md }) {
-              this.demoCard()
-              this.shareCodeCard()
-              this.searchBox()
-
-              if (this.loading) {
-                Column({ space: Spacing.Sm }) {
-                  LoadingProgress()
-                    .width(30)
-                    .height(30)
-                    .color(this.store.accentDisplay)
-                  Text('正在读取学校列表…')
-                    .fontSize(FontSize.BodySm)
-                    .fontColor(Colors.TextTertiary)
-                }
-                .width('100%')
-                .height(160)
-                .justifyContent(FlexAlign.Center)
-              } else if (this.loadError !== '') {
-                EmptyState({
-                  title: '学校列表加载失败',
-                  description: this.loadError,
-                  icon: $r('sys.symbol.exclamationmark_circle'),
-                  actionText: '重新加载',
-                  onAction: () => {
-                    this.loadSchools(true);
-                  }
-                })
-              } else if (this.filteredSchools().length === 0) {
-                EmptyState({
-                  title: '没有匹配的学校',
-                  description: '换个关键字试试，或清空搜索框查看全部学校',
-                  icon: $r('sys.symbol.magnifyingglass')
-                })
-              } else {
-                this.schoolList()
-              }
-
-            }
-            .width('100%')
-            .constraintSize({ maxWidth: 800 })
-            .padding({
-              left: Spacing.Lg,
-              right: Spacing.Lg,
-              top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Sm,
-              bottom: Spacing.Xxxl
-            })
+        List({ space: Spacing.Md, scroller: this.scroller }) {
+          ListItem() {
+            this.searchBox()
           }
-          .width('100%')
-          .alignItems(HorizontalAlign.Center)
+
+          this.quickStartSection()
+
+          if (this.loading) {
+            ListItem() {
+              Column({ space: Spacing.Sm }) {
+                LoadingProgress()
+                  .width(30)
+                  .height(30)
+                  .color(this.store.accentDisplay)
+                Text('正在读取学校列表…')
+                  .fontSize(FontSize.BodySm)
+                  .fontColor(Colors.TextTertiary)
+              }
+              .width('100%')
+              .height(160)
+              .justifyContent(FlexAlign.Center)
+            }
+          } else if (this.loadError !== '') {
+            ListItem() {
+              EmptyState({
+                title: '学校列表加载失败',
+                description: this.loadError,
+                icon: $r('sys.symbol.exclamationmark_circle'),
+                actionText: '重新加载',
+                onAction: () => {
+                  this.loadSchools(true);
+                }
+              })
+            }
+          } else if (this.filteredSchools().length === 0) {
+            ListItem() {
+              EmptyState({
+                title: '没有匹配的学校',
+                description: '换个关键字试试，或清空搜索框查看全部学校',
+                icon: $r('sys.symbol.magnifyingglass')
+              })
+            }
+          } else {
+            this.schoolList()
+          }
         }
         .width('100%')
+        .constraintSize({ maxWidth: 800 })
         .layoutWeight(1)
-        .align(Alignment.Top)
+        .padding({
+          left: Spacing.Md,
+          right: Spacing.Md,
+          top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
+          bottom: Spacing.Xxxl
+        })
+        .clip(false)
+        .cachedCount(3, true)
         .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       }
       .width('100%')
       .height('100%')
+      .alignItems(HorizontalAlign.Center)
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('教务导入', '选择学校并登录教务系统，进入课表页后自动导入'))
@@ -353,4 +245,5 @@ export struct ImportView {
       this.stack = ctx.pathStack;
     })
   }
+
 }

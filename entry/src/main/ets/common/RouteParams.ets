@@ -14,12 +14,3 @@ export class CourseEditParam {
     this.courseId = courseId;
   }
 }
-
-/** 第三方许可证详情页参数：组件名（用于在 ThirdPartyLicenseData 中查找许可证全文）。 */
-export class LicenseDetailParam {
-  name: string = '';
-
-  constructor(name: string) {
-    this.name = name;
-  }
-}

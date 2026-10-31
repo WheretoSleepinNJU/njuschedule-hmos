@@ -14,6 +14,7 @@
 import { AppState } from '../../app/AppState';
 import { Course } from '../../data/models/Models';
 import { TabBarAutoHide } from '../../common/ui/TabBarAutoHide';
+import { contentSheetOptions } from '../../common/ui/SheetOptions';
 import { ArrayDataSource } from '../../common/ui/ArrayDataSource';
 import { CourseRepository } from '../../data/CourseRepository';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
@@ -24,10 +25,11 @@ import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/desi
 import { AppStore } from '../../app/AppStore';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { Feedback } from '../../common/ui/Feedback';
+import { CourseSessionsSheetContent, DetailSheetContent } from '../timetable/TimetableSheets';
 import { StatusBadge, BadgeTone } from '../../common/ui/StatusBadge';
 import { WeeksFormat } from '../timetable/WeeksFormat';
-import { CourseSessionsSheetContent, DetailSheetContent } from '../timetable/TimetableSheets';
 import { CourseFormat, CourseGroup } from './CourseFormat';
+import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
 
 @ComponentV2
 export struct CoursesView {
@@ -51,7 +53,6 @@ export struct CoursesView {
   /** 同一课程多个时段的独立半模态（类似自由时间课程列表）。 */
   @Local sessionsShown: boolean = false;
   @Local sessionCourses: Course[] = [];
-  @Local sessionCourseName: string = '';
   @Local periods: ClassPeriod[] = [];
   @Local pool: number[] = [];
   /** 课程 Tab 是否激活：切回时重新读取配色池。 */
@@ -119,7 +120,6 @@ export struct CoursesView {
     }
     if (group.sessions.length > 1) {
       this.sessionCourses = group.sessions;
-      this.sessionCourseName = group.name;
       this.sessionsShown = true;
       return;
     }
@@ -161,7 +161,6 @@ export struct CoursesView {
   @Builder
   private sessionsSheetContent() {
     CourseSessionsSheetContent({
-      courseName: this.sessionCourseName,
       sessions: this.sessionCourses,
       pool: this.pool,
       onOpenSession: (course: Course) => {
@@ -191,53 +190,52 @@ export struct CoursesView {
     })
   }
 
-  /** 一门课（可能含多个时段）的卡片。 */
+  /** 一门课的卡片：保留原信息排布，外层使用标准分组卡片。 */
   @Builder
   groupCard(group: CourseGroup) {
-    Column({ space: Spacing.Xs }) {
-      Row({ space: Spacing.Sm }) {
-        Column()
-          .width(10)
-          .height(10)
-          .borderRadius(Radius.Round)
-          .backgroundColor(group.color)
-        Text(group.name)
-          .fontSize(FontSize.Title)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(Colors.TextPrimary)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .layoutWeight(1)
-        StatusBadge({
-          text: WeeksFormat.importTypeLabel(group.importType),
-          tone: group.importType === LegacyConstant.ADD_MANUALLY ? BadgeTone.Neutral : BadgeTone.Primary
-        })
+    SettingsItemGroup() {
+      Column({ space: Spacing.Xs }) {
+        Row({ space: Spacing.Sm }) {
+          Column()
+            .width(10)
+            .height(10)
+            .borderRadius(Radius.Round)
+            .backgroundColor(group.color)
+          Text(group.name)
+            .fontSize(FontSize.Title)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(Colors.TextPrimary)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+          StatusBadge({
+            text: WeeksFormat.importTypeLabel(group.importType),
+            tone: group.importType === LegacyConstant.ADD_MANUALLY ? BadgeTone.Neutral : BadgeTone.Primary
+          })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
+        this.infoLine('教师', group.teacherText)
+        this.infoLine('地点', group.roomText)
+        this.infoLine('周次', group.weekText)
+
+        if (group.sessions.length > 1) {
+          Divider()
+            .color(Colors.OutlineLight)
+            .margin({ top: Spacing.Xs, bottom: Spacing.Xs })
+          ForEach(group.sessions, (session: Course) => {
+            this.sessionLine(session)
+          }, (session: Course) => `${session.id}-${session.weekTime}-${session.startTime}`)
+        }
       }
+      .alignItems(HorizontalAlign.Start)
       .width('100%')
-      .alignItems(VerticalAlign.Center)
-
-      this.infoLine('教师', group.teacherText)
-      this.infoLine('地点', group.roomText)
-      this.infoLine('周次', group.weekText)
-
-      if (group.sessions.length > 1) {
-        Divider()
-          .color(Colors.OutlineLight)
-          .margin({ top: Spacing.Xs, bottom: Spacing.Xs })
-        ForEach(group.sessions, (session: Course) => {
-          this.sessionLine(session)
-        }, (session: Course) => `${session.id}-${session.weekTime}-${session.startTime}`)
-      }
+      .padding(Spacing.Md)
+      .onClick(() => {
+        this.openDetail(group);
+      })
     }
-    .alignItems(HorizontalAlign.Start)
-    .width('100%')
-    .padding(Spacing.Lg)
-    .backgroundColor(Colors.Surface)
-    .borderRadius(Radius.Lg)
-    .border({ width: 1, color: Colors.OutlineLight })
-    .onClick(() => {
-      this.openDetail(group);
-    })
   }
 
   @Builder
@@ -255,7 +253,7 @@ export struct CoursesView {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
-    .alignItems(VerticalAlign.Top)
+    .alignItems(VerticalAlign.Center)
   }
 
   /** 多时段课程里的一行：周X 第a-b节 · 周次 · 地点。 */
@@ -361,18 +359,9 @@ export struct CoursesView {
           }
           LazyForEach(this.groupsSource, (group: CourseGroup) => {
             ListItem() {
-              Row() {
-                Row() {
-                  this.groupCard(group)
-                }
-                .width('100%')
-                .constraintSize({ maxWidth: 720 })
-              }
-              .width('100%')
-              .justifyContent(FlexAlign.Center)
-              .padding({ left: Spacing.Lg, right: Spacing.Lg })
+              this.groupCard(group)
             }
-          }, (group: CourseGroup) => `${group.name}-${group.color}`)
+          }, (group: CourseGroup) => `${group.name}`)
           ListItem() {
             Row()
               .width('100%')
@@ -380,7 +369,9 @@ export struct CoursesView {
           }
         }
         .width('100%')
+        .constraintSize({ maxWidth: 800 })
         .layoutWeight(1)
+        .padding({ left: Spacing.Md, right: Spacing.Md })
         .cachedCount(2)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
@@ -398,37 +389,16 @@ export struct CoursesView {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.sessionsShown, this.sessionsSheetContent(), {
-        height: SheetSize.FIT_CONTENT,
-        dragBar: true,
-        showClose: false,
-        preferType: SheetType.BOTTOM,
-        maskColor: Colors.Scrim,
-        onDisappear: () => {
-          this.sessionsShown = false;
-        },
-        onWillDismiss: (action: DismissSheetAction) => {
-          action.dismiss();
-        },
-        backgroundColor: Colors.Background
-      })
+      .bindSheet($$this.sessionsShown, this.sessionsSheetContent(), contentSheetOptions(() => {
+        this.sessionsShown = false;
+      }))
     }
     .width('100%')
     .height('100%')
+    .alignItems(HorizontalAlign.Center)
     .backgroundColor(Colors.Background)
-    .bindSheet($$this.detailShown, this.detailSheetContent(), {
-      height: SheetSize.FIT_CONTENT,
-      dragBar: true,
-      showClose: false,
-      preferType: SheetType.BOTTOM,
-      maskColor: Colors.Scrim,
-      onDisappear: () => {
-        this.detailShown = false;
-      },
-      onWillDismiss: (action: DismissSheetAction) => {
-        action.dismiss();
-      },
-      backgroundColor: Colors.Background
-    })
+    .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions(() => {
+      this.detailShown = false;
+    }))
   }
 }

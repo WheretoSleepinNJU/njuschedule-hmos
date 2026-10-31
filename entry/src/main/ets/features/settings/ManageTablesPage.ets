@@ -13,18 +13,16 @@ import {
   HdsNavigationTitleBarOptions,
   IconStyleMode
 } from '@kit.UIDesignKit';
-import { AppPreferences } from '../../app/AppPreferences';
 import { AppState } from '../../app/AppState';
-import { Colors, FontSize, HdsMetrics, Spacing } from '../../common/design/Tokens';
+import { Colors, HdsMetrics, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
-import { AppCard } from '../../common/ui/AppCard';
 import { EmptyState } from '../../common/ui/EmptyState';
-import { BadgeTone, StatusBadge } from '../../common/ui/StatusBadge';
 import { CourseTable } from '../../data/models/Models';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { AppStore } from '../../app/AppStore';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { TableNameDialog } from './TableNameDialog';
+import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
 
 @ComponentV2
 export struct ManageTablesPage {
@@ -201,63 +199,43 @@ export struct ManageTablesPage {
 
   // ---- UI ----
 
-  @Builder
-  private tableCard(table: CourseTable): void {
-    AppCard({ contentPadding: 0 }) {
-      Row({ space: Spacing.Md }) {
-        Column({ space: 4 }) {
-          Row({ space: Spacing.Sm }) {
-            Text(table.name)
-              .fontSize(FontSize.Body)
-              .fontWeight(table.id === this.store.tableId ? FontWeight.Medium : FontWeight.Normal)
-              .fontColor(Colors.TextPrimary)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .constraintSize({ maxWidth: '70%' })
-            if (table.id === this.store.tableId) {
-              StatusBadge({ text: '当前使用', tone: BadgeTone.Primary })
-            }
-          }
-          .width('100%')
-          .alignItems(VerticalAlign.Center)
-
-          Text(table.id === this.store.tableId ? '正在显示这张课表' : '点击切换为当前课表')
-            .fontSize(FontSize.BodySm)
-            .fontColor(Colors.TextTertiary)
-            .width('100%')
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Text('重命名')
-          .fontSize(FontSize.BodySm)
-          .fontColor(this.store.accentDisplay)
-          .padding({ left: Spacing.Sm, right: Spacing.Sm, top: Spacing.Xs, bottom: Spacing.Xs })
-          .onClick(() => {
-            this.openRenameDialog(table);
-          })
-
-        if (table.id !== this.store.tableId) {
-          Row() {
-            SymbolGlyph($r('sys.symbol.trash'))
-              .fontSize(18)
-              .fontColor([Colors.Error])
-          }
-          .width(36)
-          .height(36)
-          .justifyContent(FlexAlign.Center)
-          .onClick(() => {
-            this.confirmDelete(table);
-          })
+  private tableMenuItems(table: CourseTable): MenuElement[] {
+    const items: MenuElement[] = [
+      {
+        value: '重命名',
+        icon: $r('sys.symbol.pencil_line'),
+        action: () => {
+          this.openRenameDialog(table);
         }
       }
-      .width('100%')
-      .padding({ left: Spacing.Lg, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
-      .alignItems(VerticalAlign.Center)
-      .onClick(() => {
-        this.switchTable(table);
+    ];
+    if (table.id !== this.store.tableId) {
+      items.push({
+        value: '删除课表',
+        icon: $r('sys.symbol.trash'),
+        action: () => {
+          this.confirmDelete(table);
+        }
+      });
+    }
+    return items;
+  }
+
+  @Builder
+  private tableCard(table: CourseTable): void {
+    Stack() {
+      SettingsRow({
+        icon: $r('sys.symbol.calendar'),
+        title: table.name,
+        subtitle: table.id === this.store.tableId ? '当前使用，长按编辑' : '点击切换为当前课表，长按编辑',
+        trailingText: table.id === this.store.tableId ? '当前' : '',
+        onTap: () => {
+          this.switchTable(table);
+        }
       })
     }
+    .width('100%')
+    .bindContextMenuByResponseType(this.tableMenuItems(table), ResponseType.LongPress)
   }
 
   private titleBarOptions(): HdsNavigationTitleBarOptions {
@@ -278,16 +256,9 @@ export struct ManageTablesPage {
   build() {
     HdsNavDestination() {
       Column() {
-
-      Scroll(this.scroller) {
-        Column() {
-          Column({ space: Spacing.Md }) {
-            Text('点击课表可切换为当前课表；删除课表会同时删除其中的全部课程。')
-              .fontSize(FontSize.Caption)
-              .fontColor(Colors.TextTertiary)
-              .width('100%')
-
-            if (this.loading) {
+        List({ space: Spacing.Md, scroller: this.scroller }) {
+          if (this.loading) {
+            ListItem() {
               Row() {
                 LoadingProgress()
                   .width(28)
@@ -297,40 +268,48 @@ export struct ManageTablesPage {
               .width('100%')
               .height(120)
               .justifyContent(FlexAlign.Center)
-            } else if (this.tables.length === 0) {
+            }
+          } else if (this.tables.length === 0) {
+            ListItem() {
               EmptyState({
                 title: '还没有课表',
                 description: '点击右上角「+」新建课表后即可添加课程'
               })
-            } else {
-              ForEach(this.tables, (table: CourseTable) => {
-                this.tableCard(table)
-              }, (table: CourseTable) => table.id.toString())
+            }
+          } else {
+            ListItem() {
+              SettingsItemGroup({ title: '全部课表' }) {
+                ForEach(this.tables, (table: CourseTable, index: number) => {
+                  if (index > 0) {
+                    SettingsItemDivider()
+                  }
+                  this.tableCard(table)
+                }, (table: CourseTable) => table.id.toString())
+              }
             }
           }
-          .width('100%')
-          .constraintSize({ maxWidth: 800 })
-          .padding({
-            left: Spacing.Lg,
-            right: Spacing.Lg,
-            top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-            bottom: Spacing.Xxxl
-          })
         }
         .width('100%')
-        .alignItems(HorizontalAlign.Center)
-      }
-      .width('100%')
-      .layoutWeight(1)
-      .align(Alignment.Top)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+        .constraintSize({ maxWidth: 800 })
+        .layoutWeight(1)
+        .padding({
+          left: Spacing.Md,
+          right: Spacing.Md,
+          top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
+          bottom: Spacing.Xxxl
+        })
+        .clip(false)
+        .cachedCount(3, true)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       }
       .width('100%')
       .height('100%')
+      .alignItems(HorizontalAlign.Center)
       .backgroundColor(Colors.Background)
     }
     .titleBar(this.titleBarOptions())
     .bindToScrollable([this.scroller])
   }
+
 }

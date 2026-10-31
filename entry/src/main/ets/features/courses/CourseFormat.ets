@@ -10,7 +10,7 @@
  * 这里只补组合逻辑，避免两个模块各写一套文案。
  */
 import { Course } from '../../data/models/Models';
-import { LegacyConfig, LegacyConstant, LegacyCourseColors } from '../../common/Constants';
+import { LegacyConfig, LegacyConstant } from '../../common/Constants';
 import { ColorPool } from '../../data/ColorPool';
 import { WeeksFormat } from '../timetable/WeeksFormat';
 
@@ -279,9 +279,5 @@ export class CourseFormat {
     return `#${body.toUpperCase()}`;
   }
 
-  /** 从旧版 14 色色池里随机取一色（表单「随机」按钮）。 */
-  static randomPoolColor(): string {
-    const index: number = Math.floor(Math.random() * LegacyCourseColors.COLOR_LIST.length);
-    return LegacyCourseColors.COLOR_LIST[index];
-  }
+
 }

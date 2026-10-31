@@ -28,7 +28,7 @@ import { TabBarAutoHide } from '../common/ui/TabBarAutoHide';
 import { CourseTableRepository } from '../data/CourseTableRepository';
 import { CourseTable } from '../data/models/Models';
 import { BreakpointName, resolveBreakpoint } from '../common/design/Breakpoints';
-import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../common/design/Tokens';
+import { Colors, HdsMetrics } from '../common/design/Tokens';
 import { CourseEditPage } from '../features/courses/CourseEditPage';
 import { CoursesView } from '../features/courses/CoursesView';
 import { ImportView } from '../features/import/ImportView';
@@ -37,7 +37,6 @@ import { ImportWebPage } from '../features/import/ImportWebPage';
 import { AboutPage } from '../features/settings/AboutPage';
 import { OpenSourceLicensesPage } from '../features/settings/OpenSourceLicensesPage';
 import { AcknowledgementsPage } from '../features/settings/AcknowledgementsPage';
-import { LicenseDetailPage } from '../features/settings/LicenseDetailPage';
 import { PrivacyPage } from '../features/settings/PrivacyPage';
 import { ImportCodePage } from '../features/share/ImportCodePage';
 import { SharePage } from '../features/share/SharePage';
@@ -66,6 +65,8 @@ struct Index {
   /** 当前课表名（标题栏副标题显示「课表名 + 第 N 周」）。 */
   @Local tableName: string = '我的课表';
   @Local activeTabIndex: number = 0;
+  /** HDS 导航是否停留在根页面（没有子页面）。 */
+  @Local navStackAtRoot: boolean = true;
   /** 只把「当前 Tab 正在使用的」Scroller 绑定给 HdsNavigation（官方 FAQ 场景二），避免 25 个周页面互相干扰。 */
   @Local navScrollables: Scroller[] = [];
   /** 当前绑定给课表 Tab 的滚动容器（25 个周页面轮换）。 */
@@ -78,6 +79,12 @@ struct Index {
     this.hdsTabsController.bindScroller(1, this.coursesScroller);
     this.hdsTabsController.bindScroller(2, this.settingsScroller);
     this.navScrollables = [this.timetableScroller];
+    // 跟踪子页面进出：只有根页面显示标题栏副标题热区，避免挡住子页面返回键。
+    this.pageStack.setInterception({
+      didShow: (from: NavDestinationContext | NavBar, to: NavDestinationContext | NavBar) => {
+        this.navStackAtRoot = to === 'navBar';
+      }
+    });
     this.loadTableName();
     this.updateBreakpoint();
   }
@@ -250,15 +257,13 @@ struct Index {
     } else if (name === 'tables') {
       ManageTablesPage({pageStack: this.pageStack})
     } else if (name === 'more-settings') {
-      MoreSettingsPage({pageStack: this.pageStack, tableId: this.store.tableId})
+      MoreSettingsPage()
     } else if (name === 'privacy') {
       PrivacyPage({})
     } else if (name === 'about') {
       AboutPage({pageStack: this.pageStack})
     } else if (name === 'licenses') {
-      OpenSourceLicensesPage({pageStack: this.pageStack})
-    } else if (name === 'license-detail') {
-      LicenseDetailPage({})
+      OpenSourceLicensesPage()
     } else if (name === 'acknowledgements') {
       AcknowledgementsPage({})
     } else if (name === 'import') {
@@ -389,6 +394,19 @@ struct Index {
             onDisappear: () => {
               this.coursesMenuOpen = false;
             }
+          })
+      }
+
+      // 课表页副标题热区：放在 HDS 标题栏之上，避免标题栏材质/滚动状态影响命中率；
+      // 子页面或非课表 Tab 时隐藏，避免遮挡返回键和其他标题栏内容。
+      if (this.activeTabIndex === 0 && this.navStackAtRoot) {
+        Row()
+          .width('100%')
+          .height(30)
+          .position({ x: 0, y: this.contentTopSpace() - 30 })
+          .hitTestBehavior(HitTestMode.Default)
+          .onClick(() => {
+            AppState.setWeekPickerOpen(true);
           })
       }
     }

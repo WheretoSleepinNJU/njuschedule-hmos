@@ -15,7 +15,6 @@ import {
   HdsNavDestination,
   HdsNavDestinationTitleMode,
   HdsNavigation,
-  HdsNavigationAttribute,
   HdsNavigationMenuContentOptions,
   HdsNavigationTitleBarOptions,
   IconStyleMode
@@ -25,6 +24,7 @@ import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/desi
 import { ColorPool } from '../../data/ColorPool';
 import { Course, CourseTable } from '../../data/models/Models';
 import { WeeksFormat } from './WeeksFormat';
+import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
 
 /**
  * 半模态统一外壳：HDS 标题栏（左关闭 / 标题 / 右菜单）+ 统一滚动与 edge effect。
@@ -32,6 +32,7 @@ import { WeeksFormat } from './WeeksFormat';
  */
 @ComponentV2
 export struct HdsSheetFrame {
+  @Local store: AppStore = AppStore.connect();
   @Param title: string = '';
   @Param subtitle: string = '';
   /** true：占满 sheet（切换课表 LARGE）；false：按内容高度（FIT_CONTENT）。 */
@@ -52,6 +53,12 @@ export struct HdsSheetFrame {
   @Builder
   private emptyContent() {
     Column()
+  }
+
+  /** FIT_CONTENT 下的最大滚动视口：内容短时自适应，超出时内部滚动。 */
+  private contentMaxHeight(): number {
+    const windowHeight: number = px2vp(this.store.windowHeight);
+    return Math.max(240, windowHeight * 0.78);
   }
 
   private titleBarOptions(): HdsNavigationTitleBarOptions {
@@ -83,10 +90,12 @@ export struct HdsSheetFrame {
       .edgeEffect(EdgeEffect.Spring)
       .clip(false)
       .height(this.fillHeight ? '100%' : 'auto')
+      .constraintSize({ maxHeight: this.fillHeight ? '100%' : this.contentMaxHeight() })
     }
     .titleBar(this.titleBarOptions())
     .titleMode(HdsNavDestinationTitleMode.MODAL)
     .bindToScrollable([this.scroller])
+    .backgroundColor(Colors.Background)
     .width('100%')
     .height(this.fillHeight ? '100%' : 'auto')
   }
@@ -97,6 +106,7 @@ export struct HdsSheetFrame {
     }
     .navDestination(this.destination)
     .hideNavBar(true)
+    .backgroundColor(Colors.Background)
     .width('100%')
     .height(this.fillHeight ? '100%' : 'auto')
   }
@@ -126,13 +136,14 @@ export struct CourseInfoCard {
   }
 
   build() {
-    Column({ space: Spacing.Sm }) {
-      Row({ space: Spacing.Sm }) {
-        Row()
-          .width(10)
-          .height(10)
-          .borderRadius(Radius.Round)
-          .backgroundColor(ColorPool.resolve(this.course, this.pool))
+    SettingsItemGroup() {
+      Column({ space: Spacing.Sm }) {
+        Row({ space: Spacing.Sm }) {
+          Row()
+            .width(10)
+            .height(10)
+            .borderRadius(Radius.Round)
+            .backgroundColor(ColorPool.resolve(this.course, this.pool))
         Text(this.course.name)
           .fontSize(FontSize.Title)
           .fontWeight(FontWeight.Bold)
@@ -152,20 +163,18 @@ export struct CourseInfoCard {
         this.line('教师', this.course.teacher)
       }
 
-      Text('点击卡片查看课程详情或编辑/删除')
-        .fontSize(FontSize.Caption)
-        .fontColor(Colors.TextTertiary)
-        .margin({ top: Spacing.Sm })
+        Text('点击卡片查看课程详情或编辑/删除')
+          .fontSize(FontSize.Caption)
+          .fontColor(Colors.TextTertiary)
+          .margin({ top: Spacing.Sm })
+      }
+      .width('100%')
+      .padding(Spacing.Md)
+      .alignItems(HorizontalAlign.Start)
+      .onClick(() => {
+        this.onOpen(this.course);
+      })
     }
-    .width('100%')
-    .padding(Spacing.Lg)
-    .backgroundColor(Colors.Surface)
-    .borderRadius(Radius.Lg)
-    .border({ width: 1, color: Colors.OutlineLight })
-    .alignItems(HorizontalAlign.Start)
-    .onClick(() => {
-      this.onOpen(this.course);
-    })
   }
 }
 
@@ -217,8 +226,9 @@ export struct DetailSheetContent {
   @Builder
   private detailBody() {
     Column({ space: Spacing.Lg }) {
-      Column({ space: Spacing.Sm }) {
-        Row({ space: Spacing.Md }) {
+      SettingsItemGroup() {
+        Column({ space: Spacing.Sm }) {
+          Row({ space: Spacing.Md }) {
           Row() {
             SymbolGlyph($r('sys.symbol.book'))
               .fontSize(18)
@@ -257,12 +267,10 @@ export struct DetailSheetContent {
         }
         this.detailTextLine('来源', WeeksFormat.importTypeLabel(this.course.importType))
       }
-      .width('100%')
-      .padding(Spacing.Lg)
-      .backgroundColor(Colors.Surface)
-      .borderRadius(Radius.Lg)
-      .border({ width: 1, color: Colors.OutlineLight })
-      .alignItems(HorizontalAlign.Start)
+        .width('100%')
+        .padding(Spacing.Md)
+        .alignItems(HorizontalAlign.Start)
+      }
     }
     .width('100%')
     .padding({ left: Spacing.Xl, right: Spacing.Xl, top: Spacing.Xl, bottom: Spacing.Xxl })
@@ -439,7 +447,6 @@ export struct FreeCourseSheetContent {
 /** 同一课程多个时段的半模态内容（复刻自由时间课程的左右滑动卡片）。 */
 @ComponentV2
 export struct CourseSessionsSheetContent {
-  @Param courseName: string = '';
   @Param sessions: Course[] = [];
   @Param pool: number[] = [];
   @Event onClose: () => void = () => {

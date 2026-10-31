@@ -4,13 +4,12 @@
  * 仅在拿到有效开学周一时修改周次；写入 preferences 后同时更新 AppStore，
  * 不直接刷新小组件，交给后续 switchTable 的 bump 统一推送。
  */
-import { AppState } from '../../app/AppState';
 import { LegacyConfig } from '../../common/Constants';
 import { WeekUtil } from '../../data/WeekUtil';
 import { SemesterStartResolver } from './SemesterStartResolver';
 
 export class ImportWeekApplier {
-  static async apply(tableData: string): Promise<void> {
+  static async apply(tableData: string, tableId: number): Promise<void> {
     const startMonday: string = await SemesterStartResolver.resolve(tableData);
     if (startMonday === '') {
       return;
@@ -21,7 +20,6 @@ export class ImportWeekApplier {
     } else if (week > LegacyConfig.MAX_WEEKS) {
       week = LegacyConfig.MAX_WEEKS;
     }
-    await WeekUtil.setNowWeek(week);
-    AppState.setCurrentWeekLocal(week);
+    await WeekUtil.setNowWeek(week, tableId);
   }
 }

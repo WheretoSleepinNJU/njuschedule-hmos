@@ -8,7 +8,7 @@
 import { common } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AppContext } from './AppContext';
-import { AppPreferences, PrefKeys } from './AppPreferences';
+import { AppPreferences } from './AppPreferences';
 import { Appearance } from './Appearance';
 import { BackgroundImage } from '../data/BackgroundImage';
 import { WidgetData } from '../data/WidgetData';
@@ -35,7 +35,6 @@ export class AppBootstrap {
       await AppPreferences.init();
       await Db.open();
       await CourseTableRepository.ensureDefaultTable();
-      await WeekUtil.checkWeek();
       await ColorPool.check();
       await AppBootstrap.restoreSelection();
       await ThemeAccent.restore();
@@ -66,15 +65,16 @@ export class AppBootstrap {
       tableId = tables[0].id;
       await AppPreferences.setTableId(tableId);
     }
-    let week: number = await AppPreferences.getWeekIndex();
-    if (week < 1) {
-      week = 1;
+    const ids: number[] = [];
+    for (let i = 0; i < tables.length; i++) {
+      ids.push(tables[i].id);
     }
-    const tmpWeek: number = await AppPreferences.getTmpWeekIndex();
+    await WeekUtil.migrateLegacyToTables(ids);
+    const weekState = await WeekUtil.ensureWeekForTable(tableId);
     const store = AppState.store();
     store.tableId = tableId;
-    store.weekIndex = week;
-    store.tmpWeekIndex = tmpWeek;
+    store.weekIndex = weekState.week;
+    store.tmpWeekIndex = weekState.week;
     await AppBootstrap.restoreDisplayOptions();
   }
 

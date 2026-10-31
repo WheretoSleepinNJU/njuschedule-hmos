@@ -30,6 +30,7 @@ import { Course, CourseTable } from '../../data/models/Models';
 import { ScheduleModel } from '../../data/ScheduleModel';
 import { CourseBlock } from './CourseBlock';
 import { TabBarAutoHide } from '../../common/ui/TabBarAutoHide';
+import { contentSheetOptions, pickerSheetOptions } from '../../common/ui/SheetOptions';
 import {
   BackToCurrentWeekButton,
   FreeCourseEntryButton,
@@ -715,94 +716,39 @@ export struct TimetableView {
         .hitTestBehavior(HitTestMode.Transparent)
       }
 
-      // 标题栏副标题热区：只在课表 Tab 内容层响应；子页面（NavDestination）在它之上，
-      // 因此打开课程编辑等子页面后点击标题栏不会再误触周次选择器。
-      Row()
-        .width('100%')
-        .height(30)
-        .position({ x: 0, y: this.pageTopPadding() - 30 })
-        .hitTestBehavior(HitTestMode.Default)
-        .onClick(() => {
-          AppState.setWeekPickerOpen(true);
-        })
-
       // ArkUI 同一组件挂多个 bindSheet 会互相干扰（详情 sheet 只暗屏不弹内容），
       // 每个半模态挂到独立隐形锚点上。
       Stack() {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.detailShown, this.detailSheetContent(), {
-        height: SheetSize.FIT_CONTENT,
-        dragBar: true,
-        showClose: false,
-        preferType: SheetType.BOTTOM,
-        maskColor: Colors.Scrim,
-        onDisappear: () => {
-          this.detailShown = false;
-        },
-        onWillDismiss: (action: DismissSheetAction) => {
-          action.dismiss();
-        },
-        backgroundColor: Colors.Background
-      })
+      .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions(() => {
+        this.detailShown = false;
+      }))
 
       Stack() {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.multiShown, this.multiSheetContent(), {
-        height: SheetSize.FIT_CONTENT,
-        dragBar: true,
-        showClose: false,
-        preferType: SheetType.BOTTOM,
-        maskColor: Colors.Scrim,
-        onDisappear: () => {
-          this.multiShown = false;
-        },
-        onWillDismiss: (action: DismissSheetAction) => {
-          action.dismiss();
-        },
-        backgroundColor: Colors.Background
-      })
+      .bindSheet($$this.multiShown, this.multiSheetContent(), contentSheetOptions(() => {
+        this.multiShown = false;
+      }))
 
       Stack() {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.store.weekPickerOpen, this.weekPickerSheetContent(), {
-        height: SheetSize.LARGE,
-        dragBar: false,
-        showClose: false,
-        preferType: SheetType.BOTTOM,
-        maskColor: Colors.Scrim,
-        onDisappear: () => {
-          this.store.weekPickerOpen = false;
-        },
-        onWillDismiss: (action: DismissSheetAction) => {
-          action.dismiss();
-        },
-        backgroundColor: Colors.Background
-      })
+      .bindSheet($$this.store.weekPickerOpen, this.weekPickerSheetContent(), pickerSheetOptions(() => {
+        this.store.weekPickerOpen = false;
+      }))
 
       Stack() {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.freeCourseSheetShown, this.freeCourseSheetContent(), {
-        height: SheetSize.FIT_CONTENT,
-        dragBar: true,
-        showClose: false,
-        preferType: SheetType.BOTTOM,
-        maskColor: Colors.Scrim,
-        onDisappear: () => {
-          this.freeCourseSheetShown = false;
-        },
-        onWillDismiss: (action: DismissSheetAction) => {
-          action.dismiss();
-        },
-        backgroundColor: Colors.Background
-      })
+      .bindSheet($$this.freeCourseSheetShown, this.freeCourseSheetContent(), contentSheetOptions(() => {
+        this.freeCourseSheetShown = false;
+      }))
     }
     .width('100%')
     .height('100%')

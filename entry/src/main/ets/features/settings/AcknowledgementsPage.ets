@@ -10,14 +10,12 @@
  */
 import { HdsNavDestination } from '@kit.UIDesignKit';
 import { LegacyUrl } from '../../common/Constants';
-import { Colors, FontSize, HdsMetrics, Spacing } from '../../common/design/Tokens';
+import { Colors, HdsMetrics, Spacing } from '../../common/design/Tokens';
 import { AppStore } from '../../app/AppStore';
 import { Feedback } from '../../common/ui/Feedback';
 import { openUrl } from '../../common/ui/OpenLink';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
-import { AppCard } from '../../common/ui/AppCard';
-import { SectionHeader } from '../../common/ui/SectionHeader';
-import { SettingsRow, SettingsRowDivider } from './SettingsCommon';
+import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
 
 const DEVELOPER_UPSTREAM: string = 'idealclover';
 /** 本应用的 GitHub 贡献者页面。 */
@@ -33,135 +31,121 @@ export struct AcknowledgementsPage {
 
   @Builder
   private contributorSection(): void {
-    SectionHeader({ title: '贡献' })
-    AppCard({ contentPadding: 0 }) {
-      SettingsRow({
-        icon: $r('sys.symbol.person_2'),
-        title: '贡献者',
-        subtitle: '欢迎贡献！',
-        trailingText: LINK_CONTRIBUTORS === '' ? '待补充' : '打开链接',
-        showArrow: false,
-        onTap: () => {
-          if (LINK_CONTRIBUTORS === '') {
-            Feedback.toast(this.getUIContext(), '开源仓库上线后补充链接');
-          } else {
-            openUrl(this.getUIContext(), LINK_CONTRIBUTORS);
+    ListItem() {
+      SettingsItemGroup({ title: '贡献' }) {
+        SettingsRow({
+          icon: $r('sys.symbol.person_2'),
+          title: '贡献者',
+          subtitle: '欢迎贡献！',
+          trailingText: LINK_CONTRIBUTORS === '' ? '待补充' : '',
+          showArrow: LINK_CONTRIBUTORS !== '',
+          externalLink: LINK_CONTRIBUTORS !== '',
+          onTap: () => {
+            if (LINK_CONTRIBUTORS === '') {
+              Feedback.toast(this.getUIContext(), '开源仓库上线后补充链接');
+            } else {
+              openUrl(this.getUIContext(), LINK_CONTRIBUTORS);
+            }
           }
-        }
-      })
-      SettingsRowDivider()
-      SettingsRow({
-        icon: $r('sys.symbol.person'),
-        title: '上游 Flutter 项目作者',
-        subtitle: `${DEVELOPER_UPSTREAM}：数据模型、教务导入脚本、分享码协议与讲座服务`,
-        trailingText: '打开链接',
-        showArrow: false,
-        onTap: () => {
-          openUrl(this.getUIContext(), LegacyUrl.BLOG);
-        }
-      })
+        })
+        SettingsItemDivider()
+        SettingsRow({
+          icon: $r('sys.symbol.person'),
+          title: '上游 Flutter 项目作者',
+          subtitle: `${DEVELOPER_UPSTREAM}：数据模型、教务导入脚本、分享码协议与讲座服务`,
+          externalLink: true,
+          onTap: () => {
+            openUrl(this.getUIContext(), LegacyUrl.BLOG);
+          }
+        })
+      }
     }
   }
 
   @Builder
   private serviceSection(): void {
-    SectionHeader({ title: '服务' })
-    AppCard({ contentPadding: 0 }) {
-      SettingsRow({
-        icon: $r('sys.symbol.book'),
-        title: '讲座数据接口',
-        subtitle: '南大讲座数据，由上游作者 idealclover 提供',
-        trailingText: '打开链接',
-        showArrow: false,
-        onTap: () => {
-          openUrl(this.getUIContext(), LegacyUrl.BACKEND);
-        }
-      })
-      SettingsRowDivider()
-      SettingsRow({
-        icon: $r('sys.symbol.doc_text'),
-        title: '教务系统列表获取',
-        subtitle: '各校教务导入配置，由上游作者 idealclover 提供',
-        trailingText: '打开链接',
-        showArrow: false,
-        onTap: () => {
-          openUrl(this.getUIContext(), `${LegacyUrl.UPDATE_ROOT}/schoolList.json`);
-        }
-      })
+    ListItem() {
+      SettingsItemGroup({ title: '服务' }) {
+        SettingsRow({
+          icon: $r('sys.symbol.book'),
+          title: '讲座数据接口',
+          subtitle: '南大讲座数据，由上游作者 idealclover 提供',
+          externalLink: true,
+          onTap: () => {
+            openUrl(this.getUIContext(), LegacyUrl.BACKEND);
+          }
+        })
+        SettingsItemDivider()
+        SettingsRow({
+          icon: $r('sys.symbol.doc_text'),
+          title: '教务系统列表获取',
+          subtitle: '各校教务导入配置，由上游作者 idealclover 提供',
+          externalLink: true,
+          onTap: () => {
+            openUrl(this.getUIContext(), `${LegacyUrl.UPDATE_ROOT}/schoolList.json`);
+          }
+        })
+      }
     }
   }
 
   @Builder
   private projectSection(): void {
-    SectionHeader({ title: '开源项目' })
-    AppCard({ contentPadding: 0 }) {
-      SettingsRow({
-        icon: $r('sys.symbol.calendar'),
-        title: '南哪课表（上游 Flutter 项目）',
-        subtitle: '数据模型、教务导入配置与解析脚本、分享码协议来源',
-        trailingText: '打开链接',
-        showArrow: false,
-        onTap: () => {
-          openUrl(this.getUIContext(), LegacyUrl.OPEN_SOURCE);
-        }
-      })
-      SettingsRowDivider()
-      SettingsRow({
-        icon: $r('sys.symbol.paintpalette'),
-        title: 'Kazumi',
-        subtitle: 'UI 组织参考',
-        trailingText: '打开链接',
-        showArrow: false,
-        onTap: () => {
-          openUrl(this.getUIContext(), KAZUMI_REPO);
-        }
-      })
+    ListItem() {
+      SettingsItemGroup({ title: '开源项目' }) {
+        SettingsRow({
+          icon: $r('sys.symbol.calendar'),
+          title: '南哪课表（上游 Flutter 项目）',
+          subtitle: '数据模型、教务导入配置与解析脚本、分享码协议来源',
+          externalLink: true,
+          onTap: () => {
+            openUrl(this.getUIContext(), LegacyUrl.OPEN_SOURCE);
+          }
+        })
+        SettingsItemDivider()
+        SettingsRow({
+          icon: $r('sys.symbol.paintpalette'),
+          title: 'Kazumi',
+          subtitle: 'UI 组织参考',
+          externalLink: true,
+          onTap: () => {
+            openUrl(this.getUIContext(), KAZUMI_REPO);
+          }
+        })
+      }
     }
   }
 
-  @Builder
-  private platformSection(): void {
-    SectionHeader({ title: '平台' })
-    AppCard() {
-      Text('HarmonyOS / ArkUI 提供了声明式 UI、状态管理 V2、HDS 组件、ArkWeb、Scan Kit、' +
-        'Form Kit、数据库与首选项等系统能力，本应用基于这些官方能力实现。')
-        .fontSize(FontSize.BodySm)
-        .fontColor(Colors.TextSecondary)
-        .lineHeight(20)
-        .width('100%')
-    }
-  }
 
   build() {
     HdsNavDestination() {
       Column() {
-        Scroll(this.scroller) {
-          Column({ space: Spacing.Lg }) {
-            this.contributorSection()
-            this.serviceSection()
-            this.projectSection()
-            this.platformSection()
-          }
-          .width('100%')
-          .constraintSize({ maxWidth: 800 })
-          .padding({
-            left: Spacing.Lg,
-            right: Spacing.Lg,
-            top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-            bottom: Spacing.Xxxl
-          })
+        List({ space: Spacing.Md, scroller: this.scroller }) {
+          this.contributorSection()
+          this.serviceSection()
+          this.projectSection()
         }
         .width('100%')
+        .constraintSize({ maxWidth: 800 })
         .layoutWeight(1)
-        .align(Alignment.Top)
+        .padding({
+          left: Spacing.Md,
+          right: Spacing.Md,
+          top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
+          bottom: Spacing.Xxxl
+        })
+        .clip(false)
+        .cachedCount(3, true)
         .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       }
       .width('100%')
       .height('100%')
+      .alignItems(HorizontalAlign.Center)
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('致谢'))
     .bindToScrollable([this.scroller])
   }
+
 }

@@ -9,6 +9,7 @@
 import { WidgetData } from '../data/WidgetData';
 import { AppStore } from './AppStore';
 import { AppPreferences } from './AppPreferences';
+import { WeekUtil, TableWeekState } from '../data/WeekUtil';
 
 export class AppState {
   /** V2 全局 Store。 */
@@ -134,6 +135,10 @@ export class AppState {
       return;
     }
     await AppPreferences.setTableId(tableId);
+    const weekState: TableWeekState = await WeekUtil.ensureWeekForTable(tableId);
+    const store: AppStore = AppState.store();
+    store.weekIndex = weekState.week;
+    store.tmpWeekIndex = weekState.week;
     AppState.setCurrentTable(tableId);
     await AppState.bumpDataRevision();
   }
@@ -151,15 +156,10 @@ export class AppState {
     return AppState.store().tableId;
   }
 
-  /** 只更新运行时周次，不触发小组件推送；导入流程合并切表刷新时使用。 */
-  static setCurrentWeekLocal(week: number): void {
+  static async setCurrentWeek(week: number): Promise<void> {
     const store: AppStore = AppState.store();
     store.weekIndex = week;
     store.tmpWeekIndex = week;
-  }
-
-  static async setCurrentWeek(week: number): Promise<void> {
-    AppState.setCurrentWeekLocal(week);
     // 等小组件即时推送完成后再返回，避免改完周数立刻退出时错过刷新。
     await WidgetData.write();
   }

@@ -30,7 +30,6 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import { HdsNavDestination, HdsNavigationMenuContentOptions, HdsNavigationTitleBarOptions } from '@kit.UIDesignKit';
 import { AppContext } from '../../app/AppContext';
 import { CdnTextFetcher } from '../../common/CdnTextFetcher';
-import { AppPreferences } from '../../app/AppPreferences';
 import { AppState } from '../../app/AppState';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
@@ -380,7 +379,7 @@ export struct ImportWebPage {
 
       // 7) 按学期开始时间设置当前周（无数据时走远端 complete.json 兜底）。
       this.statusText = '正在识别学期周次…';
-      await ImportWeekApplier.apply(tableData);
+      await ImportWeekApplier.apply(tableData, createdTableId);
 
       // 8) 切到新表并通知课表页重载（包含一次小组件推送）。
       await AppState.switchTable(createdTableId);

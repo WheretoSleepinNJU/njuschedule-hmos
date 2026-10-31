@@ -12,19 +12,21 @@
 import { resolveNavStack } from '../../common/NavStackResolver';
 import { Feedback } from '../../common/ui/Feedback';
 import { HdsNavDestination, HdsNavigationMenuContentOptions, HdsNavigationTitleBarOptions } from '@kit.UIDesignKit';
+import { CapsuleSegmentButtonV2, ColorMetrics, LengthMetrics, SegmentButtonV2Items } from '@kit.ArkUI';
 import { Course } from '../../data/models/Models';
 import { CourseRepository } from '../../data/CourseRepository';
 import { ColorPool } from '../../data/ColorPool';
 import { AppState } from '../../app/AppState';
 import { LegacyConfig, LegacyConstant, LegacyCourseColors } from '../../common/Constants';
 import { CourseEditParam } from '../../common/RouteParams';
-import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
+import { Colors, FontSize, HdsMetrics, Spacing } from '../../common/design/Tokens';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { WeeksFormat } from '../timetable/WeeksFormat';
 import { CourseFormat, WeekdayOption, WeekSelection } from './CourseFormat';
 import { AppStore } from '../../app/AppStore';
-import { ColorSwatch, CourseTextField, FormSection, SelectChip, StepperRow } from './CourseFormParts';
+import { CourseTextField, FormSection, SelectChip } from './CourseFormParts';
+import { SettingsItemDivider, SettingsRow } from '../../common/ui/SettingsListItems';
 
 @ComponentV2
 export struct CourseEditPage {
@@ -56,6 +58,7 @@ export struct CourseEditPage {
   @Local customWeeks: number[] = [];
   @Local colorValue: string = '';
   @Local customHex: string = '';
+  @Local colorMode: number = 0;
   @Local nameError: string = '';
   @Local formError: string = '';
   @Local saving: boolean = false;
@@ -67,8 +70,17 @@ export struct CourseEditPage {
   private loadedCourse: Course | null = null;
   private pool: number[] = [];
   private weekdays: WeekdayOption[] = CourseFormat.weekdayOptions();
-  private weekTypeLabels: string[] = ['全部', '单周', '双周', '自定义'];
+  private weekTypeItems: SegmentButtonV2Items = new SegmentButtonV2Items([
+    { text: '全部' },
+    { text: '单周' },
+    { text: '双周' },
+    { text: '自定义' }
+  ]);
   private weekNumbers: number[] = CourseFormat.weekNumbers();
+  private colorModeItems: SegmentButtonV2Items = new SegmentButtonV2Items([
+    { text: '跟随色池' },
+    { text: '自定义' }
+  ]);
   private periodNumbers: number[] = CourseFormat.periodNumbers();
 
   private navStack(): NavPathStack {
@@ -131,9 +143,11 @@ export struct CourseEditPage {
     if (normalized !== '' && LegacyCourseColors.COLOR_LIST.indexOf(normalized) < 0) {
       this.customHex = normalized;
       this.colorValue = '';
+      this.colorMode = 1;
     } else {
       this.customHex = '';
       this.colorValue = normalized;
+      this.colorMode = normalized === '' ? 0 : 1;
     }
   }
 
@@ -146,22 +160,6 @@ export struct CourseEditPage {
     selection.weekType = this.weekType;
     selection.customWeeks = this.customWeeks;
     return selection;
-  }
-
-  private adjustWeekStart(delta: number): void {
-    const next: number = CourseFormat.clampWeek(this.weekStart + delta);
-    this.weekStart = next;
-    if (this.weekEnd < next) {
-      this.weekEnd = next;
-    }
-  }
-
-  private adjustWeekEnd(delta: number): void {
-    const next: number = CourseFormat.clampWeek(this.weekEnd + delta);
-    this.weekEnd = next;
-    if (this.weekStart > next) {
-      this.weekStart = next;
-    }
   }
 
   private onWeekTypeSelect(index: number): void {
@@ -219,13 +217,6 @@ export struct CourseEditPage {
     return `第${this.startTime}-${end}节`;
   }
 
-  private isWeekdaySelected(value: number): boolean {
-    if (value === 0) {
-      return this.freeTime;
-    }
-    return !this.freeTime && this.weekTime === value;
-  }
-
   private onWeekdaySelect(value: number): void {
     if (value === 0) {
       this.freeTime = true;
@@ -233,6 +224,125 @@ export struct CourseEditPage {
     }
     this.freeTime = false;
     this.weekTime = value;
+  }
+
+  private weekdayLabels(): string[] {
+    const labels: string[] = [];
+    for (let i = 0; i < this.weekdays.length; i++) {
+      labels.push(this.weekdays[i].label);
+    }
+    return labels;
+  }
+
+  private currentWeekdayIndex(): number {
+    if (this.freeTime) {
+      return this.weekdays.length - 1;
+    }
+    for (let i = 0; i < this.weekdays.length; i++) {
+      if (this.weekdays[i].value === this.weekTime) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  private currentWeekdayLabel(): string {
+    return this.weekdays[this.currentWeekdayIndex()].label;
+  }
+
+  private openWeekdayPicker(): void {
+    this.getUIContext().showTextPickerDialog({
+      range: this.weekdayLabels(),
+      selected: this.currentWeekdayIndex(),
+      canLoop: false,
+      onAccept: (result: TextPickerResult) => {
+        const index: number = Array.isArray(result.index) ? result.index[0] : result.index as number;
+        if (index >= 0 && index < this.weekdays.length) {
+          this.onWeekdaySelect(this.weekdays[index].value);
+        }
+      }
+    });
+  }
+
+  private openStartPeriodPicker(): void {
+    const choices: string[] = [];
+    for (let i = 0; i < this.periodNumbers.length; i++) {
+      choices.push(`第${this.periodNumbers[i]}节`);
+    }
+    this.getUIContext().showTextPickerDialog({
+      range: choices,
+      selected: Math.max(0, this.periodNumbers.indexOf(this.startTime)),
+      canLoop: false,
+      onAccept: (result: TextPickerResult) => {
+        const index: number = Array.isArray(result.index) ? result.index[0] : result.index as number;
+        if (index >= 0 && index < this.periodNumbers.length) {
+          this.onStartPeriodSelect(this.periodNumbers[index]);
+        }
+      }
+    });
+  }
+
+  private openSpanPicker(): void {
+    const spans: number[] = this.spanChoices();
+    const choices: string[] = [];
+    for (let i = 0; i < spans.length; i++) {
+      choices.push(`${spans[i]}节`);
+    }
+    this.getUIContext().showTextPickerDialog({
+      range: choices,
+      selected: Math.max(0, spans.indexOf(this.periodCount)),
+      canLoop: false,
+      onAccept: (result: TextPickerResult) => {
+        const index: number = Array.isArray(result.index) ? result.index[0] : result.index as number;
+        if (index >= 0 && index < spans.length) {
+          this.periodCount = spans[index];
+        }
+      }
+    });
+  }
+
+  private weekChoices(): string[] {
+    const choices: string[] = [];
+    for (let i = 0; i < this.weekNumbers.length; i++) {
+      choices.push(`第${this.weekNumbers[i]}周`);
+    }
+    return choices;
+  }
+
+  private openStartWeekPicker(): void {
+    this.getUIContext().showTextPickerDialog({
+      range: this.weekChoices(),
+      selected: Math.max(0, this.weekNumbers.indexOf(this.weekStart)),
+      canLoop: false,
+      onAccept: (result: TextPickerResult) => {
+        const index: number = Array.isArray(result.index) ? result.index[0] : result.index as number;
+        if (index >= 0 && index < this.weekNumbers.length) {
+          const week: number = this.weekNumbers[index];
+          this.weekStart = week;
+          if (this.weekEnd < week) {
+            this.weekEnd = week;
+          }
+        }
+      }
+    });
+  }
+
+  private openEndWeekPicker(): void {
+    this.getUIContext().showTextPickerDialog({
+      range: this.weekChoices(),
+      selected: Math.max(0, this.weekNumbers.indexOf(this.weekEnd)),
+      canLoop: false,
+      onAccept: (result: TextPickerResult) => {
+        const index: number = Array.isArray(result.index) ? result.index[0] : result.index as number;
+        if (index >= 0 && index < this.weekNumbers.length) {
+          const week: number = this.weekNumbers[index];
+          this.weekEnd = week;
+          if (this.weekStart > week) {
+            this.weekStart = week;
+          }
+        }
+      }
+    });
   }
 
   // ---- 颜色 ----
@@ -255,13 +365,17 @@ export struct CourseEditPage {
     return LegacyCourseColors.COLOR_LIST[0];
   }
 
-  private isFollowPool(): boolean {
-    return this.colorValue === '' && CourseFormat.normalizeHex(this.customHex) === '';
-  }
-
-  private randomizeColor(): void {
-    this.colorValue = CourseFormat.randomPoolColor();
-    this.customHex = '';
+  private onColorModeSelect(index: number): void {
+    if (index === 0) {
+      this.colorMode = 0;
+      this.colorValue = '';
+      this.customHex = '';
+      return;
+    }
+    this.colorMode = 1;
+    if (this.colorValue === '' && CourseFormat.normalizeHex(this.customHex) === '') {
+      this.customHex = this.previewColor();
+    }
   }
 
   // ---- 保存 ----
@@ -439,10 +553,9 @@ export struct CourseEditPage {
   @Builder
   basicSection() {
     FormSection({
-      title: '基本信息',
-      caption: '课程名必填，教师 / 地点可稍后补充'
+      title: '基本信息'
     }) {
-      Column({ space: Spacing.Md }) {
+      Column() {
         CourseTextField({
           label: '课程名',
           placeholder: '如：高等数学',
@@ -453,6 +566,7 @@ export struct CourseEditPage {
             this.name = value;
           }
         })
+        SettingsItemDivider({ startMargin: 12 })
         CourseTextField({
           label: '地点',
           placeholder: '如：仙Ⅰ-109',
@@ -461,6 +575,7 @@ export struct CourseEditPage {
             this.classroom = value;
           }
         })
+        SettingsItemDivider({ startMargin: 12 })
         CourseTextField({
           label: '教师',
           placeholder: '如：李老师',
@@ -477,64 +592,42 @@ export struct CourseEditPage {
   @Builder
   timeSection() {
     FormSection({
-      title: '时间安排',
-      caption: '自由时间课程不占节次，只在课程列表里展示'
+      title: '时间安排'
     }) {
-      Column({ space: Spacing.Sm }) {
-        Text('星期')
-          .fontSize(FontSize.Caption)
-          .fontColor(Colors.TextSecondary)
-        Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(this.weekdays, (option: WeekdayOption) => {
-            SelectChip({
-              label: option.label,
-              selected: this.isWeekdaySelected(option.value),
-              onSelect: () => {
-                this.onWeekdaySelect(option.value);
-              }
-            })
-          }, (option: WeekdayOption) => `weekday-${option.value}`)
-        }
-        .width('100%')
-
+      Column() {
+        SettingsRow({
+          title: '星期',
+          trailingText: this.currentWeekdayLabel(),
+          onTap: () => {
+            this.openWeekdayPicker();
+          }
+        })
         if (!this.freeTime) {
-          Text('起始节')
-            .fontSize(FontSize.Caption)
-            .fontColor(Colors.TextSecondary)
-            .margin({ top: Spacing.Xs })
-          Flex({ wrap: FlexWrap.Wrap }) {
-            ForEach(this.periodNumbers, (period: number) => {
-              SelectChip({
-                label: `${period}`,
-                selected: this.startTime === period,
-                onSelect: () => {
-                  this.onStartPeriodSelect(period);
-                }
-              })
-            }, (period: number) => `period-${period}`)
-          }
-          .width('100%')
-
-          Text('节数')
-            .fontSize(FontSize.Caption)
-            .fontColor(Colors.TextSecondary)
-            .margin({ top: Spacing.Xs })
-          Flex({ wrap: FlexWrap.Wrap }) {
-            ForEach(this.spanChoices(), (span: number) => {
-              SelectChip({
-                label: `${span}节`,
-                selected: this.periodCount === span,
-                onSelect: () => {
-                  this.periodCount = span;
-                }
-              })
-            }, (span: number) => `span-${span}`)
-          }
-          .width('100%')
-
+          SettingsItemDivider({ startMargin: 12 })
+          SettingsRow({
+            title: '起始节',
+            trailingText: `第${this.startTime}节`,
+            onTap: () => {
+              this.openStartPeriodPicker();
+            }
+          })
+          SettingsItemDivider({ startMargin: 12 })
+          SettingsRow({
+            title: '节数',
+            trailingText: `${this.periodCount}节`,
+            onTap: () => {
+              this.openSpanPicker();
+            }
+          })
           Text(`上课节次：${this.periodPreviewText()}`)
             .fontSize(FontSize.Caption)
             .fontColor(Colors.TextTertiary)
+            .padding({ left: Spacing.Md, top: Spacing.Sm, bottom: Spacing.Sm })
+        } else {
+          Text('自由时间课程不占节次')
+            .fontSize(FontSize.Caption)
+            .fontColor(Colors.TextTertiary)
+            .padding({ left: Spacing.Md, top: Spacing.Sm, bottom: Spacing.Sm })
         }
       }
       .alignItems(HorizontalAlign.Start)
@@ -545,22 +638,26 @@ export struct CourseEditPage {
   @Builder
   weekSection() {
     FormSection({
-      title: '周次',
-      caption: '「全部」= 起止周内每周都上；单 / 双周按起止周筛选；自定义逐周勾选'
+      title: '周次'
     }) {
-      Column({ space: Spacing.Sm }) {
-        Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(this.weekTypeLabels, (label: string, index: number) => {
-            SelectChip({
-              label: label,
-              selected: this.weekType === index,
-              onSelect: () => {
-                this.onWeekTypeSelect(index);
-              }
-            })
-          }, (label: string, index: number) => `week-type-${index}`)
+      Column() {
+        Row() {
+          CapsuleSegmentButtonV2({
+            items: this.weekTypeItems,
+            selectedIndex: this.weekType,
+            $selectedIndex: (index: number): void => {
+              this.onWeekTypeSelect(index);
+            },
+            buttonBackgroundColor: ColorMetrics.resourceColor(Colors.SurfaceHigh),
+            itemSelectedBackgroundColor: ColorMetrics.resourceColor(this.store.accentDisplay),
+            itemFontColor: ColorMetrics.resourceColor(Colors.TextSecondary),
+            itemSelectedFontColor: ColorMetrics.resourceColor(this.store.accentOn),
+            itemFontSize: LengthMetrics.fp(FontSize.BodySm),
+            itemSelectedFontSize: LengthMetrics.fp(FontSize.BodySm)
+          })
         }
         .width('100%')
+        .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
 
         if (this.weekType === LegacyConstant.DEFINED_WEEKS) {
           Row({ space: Spacing.Lg }) {
@@ -578,6 +675,7 @@ export struct CourseEditPage {
               })
           }
           .width('100%')
+          .padding({ left: Spacing.Md, right: Spacing.Md })
 
           Flex({ wrap: FlexWrap.Wrap }) {
             ForEach(this.weekNumbers, (week: number) => {
@@ -591,29 +689,21 @@ export struct CourseEditPage {
             }, (week: number) => `custom-week-${week}`)
           }
           .width('100%')
+          .padding({ left: Spacing.Md, right: Spacing.Md, bottom: Spacing.Md })
         } else {
-          StepperRow({
-            label: '起始周',
-            valueText: `${this.weekStart}周`,
-            canDecrease: this.weekStart > 1,
-            canIncrease: this.weekStart < LegacyConfig.MAX_WEEKS,
-            onDecrease: () => {
-              this.adjustWeekStart(-1);
-            },
-            onIncrease: () => {
-              this.adjustWeekStart(1);
+          SettingsRow({
+            title: '起始周',
+            trailingText: `第${this.weekStart}周`,
+            onTap: () => {
+              this.openStartWeekPicker();
             }
           })
-          StepperRow({
-            label: '结束周',
-            valueText: `${this.weekEnd}周`,
-            canDecrease: this.weekEnd > 1,
-            canIncrease: this.weekEnd < LegacyConfig.MAX_WEEKS,
-            onDecrease: () => {
-              this.adjustWeekEnd(-1);
-            },
-            onIncrease: () => {
-              this.adjustWeekEnd(1);
+          SettingsItemDivider({ startMargin: 12 })
+          SettingsRow({
+            title: '结束周',
+            trailingText: `第${this.weekEnd}周`,
+            onTap: () => {
+              this.openEndWeekPicker();
             }
           })
         }
@@ -621,80 +711,63 @@ export struct CourseEditPage {
         Text(`上课周次：${this.weeksSummaryText()}`)
           .fontSize(FontSize.Caption)
           .fontColor(Colors.TextTertiary)
+          .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Sm, bottom: Spacing.Md })
       }
-      .alignItems(HorizontalAlign.Start)
       .width('100%')
+      .alignItems(HorizontalAlign.Start)
     }
   }
 
   @Builder
   colorSection() {
     FormSection({
-      title: '颜色',
-      caption: '默认按课程从色池取色（同门课颜色一致）；也可挑色、随机或自定义'
+      title: '颜色'
     }) {
-      Column({ space: Spacing.Sm }) {
-        Row({ space: Spacing.Md }) {
-          Column()
-            .width(28)
-            .height(28)
-            .borderRadius(Radius.Round)
-            .backgroundColor(this.previewColor())
-            .border({ width: 1, color: Colors.Outline })
-          SelectChip({
-            label: '跟随色池',
-            selected: this.isFollowPool(),
-            onSelect: () => {
-              this.colorValue = '';
-              this.customHex = '';
-            }
+      Column({ space: Spacing.Md }) {
+        Row() {
+          CapsuleSegmentButtonV2({
+            items: this.colorModeItems,
+            selectedIndex: this.colorMode,
+            $selectedIndex: (index: number): void => {
+              this.onColorModeSelect(index);
+            },
+            buttonBackgroundColor: ColorMetrics.resourceColor(Colors.SurfaceHigh),
+            itemSelectedBackgroundColor: ColorMetrics.resourceColor(this.store.accentDisplay),
+            itemFontColor: ColorMetrics.resourceColor(Colors.TextSecondary),
+            itemSelectedFontColor: ColorMetrics.resourceColor(this.store.accentOn),
+            itemFontSize: LengthMetrics.fp(FontSize.BodySm),
+            itemSelectedFontSize: LengthMetrics.fp(FontSize.BodySm)
           })
-          Text('随机')
-            .fontSize(FontSize.BodySm)
-            .fontColor(this.store.accentDisplay)
-            .padding({ left: Spacing.Sm, right: Spacing.Sm, top: Spacing.Xs, bottom: Spacing.Xs })
-            .onClick(() => {
-              this.randomizeColor();
-            })
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
 
-        Flex({ wrap: FlexWrap.Wrap }) {
-          ForEach(LegacyCourseColors.COLOR_LIST, (color: string, index: number) => {
-            ColorSwatch({
-              color: color,
-              selected: this.colorValue === color && CourseFormat.normalizeHex(this.customHex) === '',
-              onSelect: () => {
-                this.colorValue = color;
-                this.customHex = '';
-              }
-            })
-          }, (color: string, index: number) => `swatch-${index}`)
+        if (this.colorMode === 1) {
+          CourseTextField({
+            label: '自定义色值',
+            placeholder: '#RRGGBB',
+            text: this.customHex,
+            showLeadingColor: true,
+            leadingColor: CourseFormat.normalizeHex(this.customHex),
+            onTextChange: (value: string): void => {
+              this.colorMode = 1;
+              this.customHex = value;
+            }
+          })
         }
-        .width('100%')
-
-        CourseTextField({
-          label: '自定义色值',
-          placeholder: '#RRGGBB（可选，优先于上方选择）',
-          text: this.customHex,
-          onTextChange: (value: string): void => {
-            this.customHex = value;
-          }
-        })
       }
-      .alignItems(HorizontalAlign.Start)
       .width('100%')
+      .padding(Spacing.Md)
+      .alignItems(HorizontalAlign.Start)
     }
   }
 
   @Builder
   extraSection() {
     FormSection({
-      title: '其他信息',
-      caption: '备注与考试信息会在课程详情页展示'
+      title: '其他信息'
     }) {
-      Column({ space: Spacing.Md }) {
+      Column() {
         CourseTextField({
           label: '备注',
           placeholder: '课程说明、线上会议链接等',
@@ -704,6 +777,7 @@ export struct CourseEditPage {
             this.info = value;
           }
         })
+        SettingsItemDivider({ startMargin: 12 })
         CourseTextField({
           label: '考试时间',
           placeholder: '如：2026-01-10 14:00',
@@ -712,6 +786,7 @@ export struct CourseEditPage {
             this.testTime = value;
           }
         })
+        SettingsItemDivider({ startMargin: 12 })
         CourseTextField({
           label: '考试地点',
           placeholder: '如：逸夫楼 302',
@@ -727,43 +802,45 @@ export struct CourseEditPage {
 
   @Builder
   formBody() {
-    Column() {
-      Scroll(this.scroller) {
-        Row() {
-          Column({ space: Spacing.Lg }) {
-            if (this.formError !== '') {
-              Text(this.formError)
-                .fontSize(FontSize.Caption)
-                .fontColor(Colors.Error)
-                .width('100%')
-            }
-            this.basicSection()
-            this.timeSection()
-            this.weekSection()
-            this.colorSection()
-            this.extraSection()
-          }
-          .width('100%')
-          .constraintSize({ maxWidth: 720 })
-          .padding({
-            left: Spacing.Lg,
-            right: Spacing.Lg,
-            // HdsNavDestination 的标题栏覆盖在内容上：让出标题栏高度，避免表单被标题压住。
-            top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Lg,
-            bottom: Spacing.Xl
-          })
+    List({ space: Spacing.Md, scroller: this.scroller }) {
+      if (this.formError !== '') {
+        ListItem() {
+          Text(this.formError)
+            .fontSize(FontSize.Caption)
+            .fontColor(Colors.Error)
+            .width('100%')
+            .padding({ left: Spacing.Md, right: Spacing.Md })
         }
-        .width('100%')
-        .justifyContent(FlexAlign.Center)
       }
-      .width('100%')
-      .layoutWeight(1)
-      .align(Alignment.Top)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+      ListItem() {
+        this.basicSection()
+      }
+      ListItem() {
+        this.timeSection()
+      }
+      ListItem() {
+        this.weekSection()
+      }
+      ListItem() {
+        this.colorSection()
+      }
+      ListItem() {
+        this.extraSection()
+      }
     }
     .width('100%')
+    .constraintSize({ maxWidth: 720 })
     .layoutWeight(1)
+    .padding({
+      left: Spacing.Md,
+      right: Spacing.Md,
+      top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
+      bottom: Spacing.Xl
+    })
+    .clip(false)
+    .cachedCount(3, true)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
   }
 
   @Builder

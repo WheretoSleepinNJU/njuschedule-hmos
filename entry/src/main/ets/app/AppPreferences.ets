@@ -22,6 +22,8 @@ export class PrefKeys {
   static readonly WeekIndex: string = 'weekIndex';
   static readonly TmpWeekIndex: string = 'tmpWeekIndex';
   static readonly LastWeekMonday: string = 'lastWeekMonday';
+  /** 一次性迁移标记：旧版全局周次已复制到各课表。 */
+  static readonly TableWeekMigrated: string = 'tableWeekMigrated';
 
   // 课表显示配置（ConfigState）
   static readonly ShowWeekend: string = 'showWeekend';
@@ -100,17 +102,35 @@ export class AppPreferences {
     await AppPreferences.put(PrefKeys.TableId, tableId);
   }
 
-  static async getWeekIndex(): Promise<number> {
-    return AppPreferences.getInt(PrefKeys.WeekIndex, 1);
-  }
-
-  static async getTmpWeekIndex(): Promise<number> {
-    const week: number = await AppPreferences.getWeekIndex();
-    return AppPreferences.getInt(PrefKeys.TmpWeekIndex, week);
-  }
-
   static async setTmpWeekIndex(week: number): Promise<void> {
     await AppPreferences.put(PrefKeys.TmpWeekIndex, week);
+  }
+
+  // ---- 每个课表独立的当前周 ----
+
+  private static tableWeekKey(tableId: number, suffix: string): string {
+    return `tableWeek_${tableId}_${suffix}`;
+  }
+
+  static async getTableWeekIndex(tableId: number): Promise<number> {
+    return AppPreferences.getInt(AppPreferences.tableWeekKey(tableId, 'index'), -1);
+  }
+
+  static async getTableWeekMonday(tableId: number): Promise<string> {
+    return AppPreferences.getString(AppPreferences.tableWeekKey(tableId, 'monday'), '');
+  }
+
+  static async setTableWeek(tableId: number, week: number, monday: string): Promise<void> {
+    await AppPreferences.put(AppPreferences.tableWeekKey(tableId, 'index'), week);
+    await AppPreferences.put(AppPreferences.tableWeekKey(tableId, 'monday'), monday);
+  }
+
+  static async isTableWeekMigrated(): Promise<boolean> {
+    return AppPreferences.getBool(PrefKeys.TableWeekMigrated, false);
+  }
+
+  static async markTableWeekMigrated(): Promise<void> {
+    await AppPreferences.put(PrefKeys.TableWeekMigrated, true);
   }
 
   static async getClassHeight(): Promise<number> {

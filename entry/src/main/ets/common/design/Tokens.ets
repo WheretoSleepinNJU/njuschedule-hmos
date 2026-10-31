@@ -23,6 +23,7 @@ export class Radius {
   static readonly Md: number = 12;
   static readonly Lg: number = 14;
   static readonly Xl: number = 20;
+  static readonly Xxl: number = 24;
   static readonly Round: number = 999;
 }
 
