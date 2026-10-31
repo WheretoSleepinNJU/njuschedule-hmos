@@ -1,0 +1,5 @@
+# GitHub Linguist: ArkTS 源文件按 TypeScript 统计（ArkTS 是 TypeScript 超集）。
+*.ets linguist-language=TypeScript linguist-detectable=true
+
+# 教务导入脚本沿用上游数据源脚本，不参与本仓库语言占比统计。
+entry/src/main/resources/rawfile/import/tools/*.js linguist-vendored
