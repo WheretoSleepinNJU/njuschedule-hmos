@@ -344,6 +344,7 @@ export struct TimetableView {
   private openEdit(course: Course): void {
     this.detailShown = false;
     this.multiShown = false;
+    this.freeCourseSheetShown = false;
     this.pageStack.pushPathByName('course-edit', new CourseEditParam(this.store.tableId, course.id),
       (popInfo: PopInfo) => {
         this.reload();
@@ -371,6 +372,7 @@ export struct TimetableView {
       await CourseRepository.delete(course.id);
       this.detailShown = false;
       this.multiShown = false;
+      this.freeCourseSheetShown = false;
       await AppState.bumpDataRevision();
       await this.reload();
     } catch (err) {
