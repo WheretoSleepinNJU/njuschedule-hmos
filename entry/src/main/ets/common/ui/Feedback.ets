@@ -28,6 +28,7 @@ export class Feedback {
         autoCancel: true,
         primaryButton: {
           value: '取消',
+          fontColor: Colors.TextSecondary,
           action: () => {
           }
         },
@@ -54,6 +55,7 @@ export class Feedback {
         autoCancel: true,
         primaryButton: {
           value: '取消',
+          fontColor: Colors.TextSecondary,
           action: () => {
           }
         },
