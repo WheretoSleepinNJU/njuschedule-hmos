@@ -5,7 +5,6 @@
  * 色池色块），不是跨功能通用件。视觉全部走 design/Tokens 令牌。
  */
 import { Colors, FontSize, Radius, Spacing } from '../../common/design/Tokens';
-import { AppStore } from '../../app/AppStore';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
 
 /** 表单分区卡片：标题 + 说明 + 内容。 */
@@ -141,34 +140,5 @@ export struct CourseTextField {
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-  }
-}
-
-/** 单选 chip：星期、节次、周次类型等短选项。 */
-@ComponentV2
-export struct SelectChip {
-  /** V2 全局 Store（主题色）。 */
-  @Local store: AppStore = AppStore.connect();
-  @Param label: string = '';
-  @Param selected: boolean = false;
-  @Event onSelect: () => void = () => {
-  };
-
-  build() {
-    Text(this.label)
-      .fontSize(FontSize.BodySm)
-      .fontColor(this.selected ? this.store.accentOn : Colors.TextSecondary)
-      .backgroundColor(this.selected ? this.store.accentDisplay : Colors.SurfaceHigh)
-      .borderRadius(Radius.Sm)
-      .padding({
-        left: Spacing.Md,
-        right: Spacing.Md,
-        top: Spacing.Xs + 2,
-        bottom: Spacing.Xs + 2
-      })
-      .margin({ right: Spacing.Sm, bottom: Spacing.Sm })
-      .onClick(() => {
-        this.onSelect();
-      })
   }
 }

@@ -19,13 +19,13 @@ import { ColorPool } from '../../data/ColorPool';
 import { AppState } from '../../app/AppState';
 import { LegacyConfig, LegacyConstant, LegacyCourseColors } from '../../common/Constants';
 import { CourseEditParam } from '../../common/RouteParams';
-import { Colors, FontSize, HdsMetrics, Spacing } from '../../common/design/Tokens';
+import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { WeeksFormat } from '../timetable/WeeksFormat';
 import { CourseFormat, WeekdayOption, WeekSelection } from './CourseFormat';
 import { AppStore } from '../../app/AppStore';
-import { CourseTextField, FormSection, SelectChip } from './CourseFormParts';
+import { CourseTextField, FormSection } from './CourseFormParts';
 import { SettingsItemDivider, SettingsRow } from '../../common/ui/SettingsListItems';
 import { applyTextPickerAccent } from '../../common/ui/TextPickerStyle';
 
@@ -661,14 +661,18 @@ export struct CourseEditPage {
         .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
 
         if (this.weekType === LegacyConstant.DEFINED_WEEKS) {
-          Row({ space: Spacing.Lg }) {
-            Text('全选')
+          Row({ space: Spacing.Sm }) {
+            Button('全选')
+              .buttonStyle(ButtonStyleMode.TEXTUAL)
+              .controlSize(ControlSize.SMALL)
               .fontSize(FontSize.BodySm)
               .fontColor(this.store.accentDisplay)
               .onClick(() => {
                 this.selectAllWeeks();
               })
-            Text('清空')
+            Button('清空')
+              .buttonStyle(ButtonStyleMode.TEXTUAL)
+              .controlSize(ControlSize.SMALL)
               .fontSize(FontSize.BodySm)
               .fontColor(Colors.TextSecondary)
               .onClick(() => {
@@ -676,20 +680,32 @@ export struct CourseEditPage {
               })
           }
           .width('100%')
-          .padding({ left: Spacing.Md, right: Spacing.Md })
+          .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Xs })
 
-          Flex({ wrap: FlexWrap.Wrap }) {
+          Grid() {
             ForEach(this.weekNumbers, (week: number) => {
-              SelectChip({
-                label: `${week}`,
-                selected: this.customWeeks.indexOf(week) >= 0,
-                onSelect: () => {
-                  this.toggleCustomWeek(week);
-                }
-              })
+              GridItem() {
+                Text(`${week}`)
+                  .fontSize(FontSize.Body)
+                  .fontColor(this.customWeeks.indexOf(week) >= 0 ?
+                    this.store.accentOn : Colors.TextPrimary)
+                  .width('100%')
+                  .height(44)
+                  .textAlign(TextAlign.Center)
+                  .backgroundColor(this.customWeeks.indexOf(week) >= 0 ?
+                    this.store.accentDisplay : Colors.SurfaceHigh)
+                  .borderRadius(Radius.Md)
+                  .onClick(() => {
+                    this.toggleCustomWeek(week);
+                  })
+              }
             }, (week: number) => `custom-week-${week}`)
           }
+          .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
+          .columnsGap(Spacing.Md)
+          .rowsGap(Spacing.Md)
           .width('100%')
+          .height(5 * 44 + 4 * Spacing.Md)
           .padding({ left: Spacing.Md, right: Spacing.Md, bottom: Spacing.Md })
         } else {
           SettingsRow({
