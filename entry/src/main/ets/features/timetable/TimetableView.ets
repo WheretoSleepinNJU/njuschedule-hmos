@@ -431,10 +431,10 @@ export struct TimetableView {
             .fontColor(Colors.TextSecondary)
           if (this.store.showClassTime) {
             Text(period.start)
-              .fontSize(9)
+              .fontSize(10)
               .fontColor(Colors.TextTertiary)
             Text(period.end)
-              .fontSize(9)
+              .fontSize(10)
               .fontColor(Colors.TextTertiary)
           }
         }

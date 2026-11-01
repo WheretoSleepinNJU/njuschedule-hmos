@@ -13,6 +13,7 @@ import {
   HdsNavigationTitleBarOptions,
   IconStyleMode
 } from '@kit.UIDesignKit';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { AppState } from '../../app/AppState';
 import { Colors, HdsMetrics, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
@@ -199,26 +200,34 @@ export struct ManageTablesPage {
 
   // ---- UI ----
 
-  private tableMenuItems(table: CourseTable): MenuElement[] {
-    const items: MenuElement[] = [
-      {
-        value: '重命名',
-        icon: $r('sys.symbol.pencil_line'),
-        action: () => {
+  /**
+   * 长按菜单。
+   *
+   * 这里使用 API 8 起就支持的 bindContextMenu + 自定义 Menu：
+   * bindContextMenuByResponseType（API 26）在兼容版本 24 的真机上不可调用，
+   * 会在打开课表管理页时直接触发 JsError 崩溃。
+   */
+  @Builder
+  private tableMenu(table: CourseTable): void {
+    Menu() {
+      MenuItem({
+        content: '重命名',
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.pencil_line'))
+      })
+        .onClick(() => {
           this.openRenameDialog(table);
-        }
+        })
+      if (table.id !== this.store.tableId) {
+        MenuItem({
+          content: '删除课表',
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash'))
+            .fontColor([Colors.Error])
+        })
+          .onClick(() => {
+            this.confirmDelete(table);
+          })
       }
-    ];
-    if (table.id !== this.store.tableId) {
-      items.push({
-        value: '删除课表',
-        icon: $r('sys.symbol.trash'),
-        action: () => {
-          this.confirmDelete(table);
-        }
-      });
     }
-    return items;
   }
 
   @Builder
@@ -235,7 +244,7 @@ export struct ManageTablesPage {
       })
     }
     .width('100%')
-    .bindContextMenuByResponseType(this.tableMenuItems(table), ResponseType.LongPress)
+    .bindContextMenu(this.tableMenu(table), ResponseType.LongPress)
   }
 
   private titleBarOptions(): HdsNavigationTitleBarOptions {
