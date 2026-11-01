@@ -18,6 +18,7 @@ import { AppStore } from '../../app/AppStore';
 import { LegacyConfig } from '../../common/Constants';
 import { Colors, HdsMetrics, Spacing, TimetableMetrics } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
+import { applyTextPickerAccent } from '../../common/ui/TextPickerStyle';
 import { CourseTable } from '../../data/models/Models';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { WeekUtil } from '../../data/WeekUtil';
@@ -119,7 +120,7 @@ export struct SettingsView {
 
   private openWeekPicker(): void {
     const selected: number = Math.max(0, Math.min(this.store.weekIndex - 1, LegacyConfig.MAX_WEEKS - 1));
-    this.getUIContext().showTextPickerDialog({
+    this.getUIContext().showTextPickerDialog(applyTextPickerAccent(this.store, {
       range: this.weekChoices(),
       selected: selected,
       canLoop: false,
@@ -127,13 +128,13 @@ export struct SettingsView {
         const index: number = Array.isArray(result.index) ? result.index[0] : result.index as number;
         this.commitWeek(index + 1);
       }
-    });
+    }));
   }
 
   private openClassHeightPicker(): void {
     const current: number = Math.max(TimetableMetrics.MinClassHeight,
       Math.min(this.store.classHeight, TimetableMetrics.MaxClassHeight));
-    this.getUIContext().showTextPickerDialog({
+    this.getUIContext().showTextPickerDialog(applyTextPickerAccent(this.store, {
       range: this.heightChoices(),
       selected: current - TimetableMetrics.MinClassHeight,
       canLoop: false,
@@ -143,7 +144,7 @@ export struct SettingsView {
         AppState.setClassHeight(height);
         this.persistClassHeight(height);
       }
-    });
+    }));
   }
 
   /** 显示开关统一写 preferences（运行时状态已由 AppState setter 写入 AppStore）。 */

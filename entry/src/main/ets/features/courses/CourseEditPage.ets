@@ -27,6 +27,7 @@ import { CourseFormat, WeekdayOption, WeekSelection } from './CourseFormat';
 import { AppStore } from '../../app/AppStore';
 import { CourseTextField, FormSection, SelectChip } from './CourseFormParts';
 import { SettingsItemDivider, SettingsRow } from '../../common/ui/SettingsListItems';
+import { applyTextPickerAccent } from '../../common/ui/TextPickerStyle';
 
 @ComponentV2
 export struct CourseEditPage {
@@ -251,7 +252,7 @@ export struct CourseEditPage {
   }
 
   private openWeekdayPicker(): void {
-    this.getUIContext().showTextPickerDialog({
+    this.getUIContext().showTextPickerDialog(applyTextPickerAccent(this.store, {
       range: this.weekdayLabels(),
       selected: this.currentWeekdayIndex(),
       canLoop: false,
@@ -261,7 +262,7 @@ export struct CourseEditPage {
           this.onWeekdaySelect(this.weekdays[index].value);
         }
       }
-    });
+    }));
   }
 
   private openStartPeriodPicker(): void {
@@ -269,7 +270,7 @@ export struct CourseEditPage {
     for (let i = 0; i < this.periodNumbers.length; i++) {
       choices.push(`第${this.periodNumbers[i]}节`);
     }
-    this.getUIContext().showTextPickerDialog({
+    this.getUIContext().showTextPickerDialog(applyTextPickerAccent(this.store, {
       range: choices,
       selected: Math.max(0, this.periodNumbers.indexOf(this.startTime)),
       canLoop: false,
@@ -279,7 +280,7 @@ export struct CourseEditPage {
           this.onStartPeriodSelect(this.periodNumbers[index]);
         }
       }
-    });
+    }));
   }
 
   private openSpanPicker(): void {
@@ -288,7 +289,7 @@ export struct CourseEditPage {
     for (let i = 0; i < spans.length; i++) {
       choices.push(`${spans[i]}节`);
     }
-    this.getUIContext().showTextPickerDialog({
+    this.getUIContext().showTextPickerDialog(applyTextPickerAccent(this.store, {
       range: choices,
       selected: Math.max(0, spans.indexOf(this.periodCount)),
       canLoop: false,
@@ -298,7 +299,7 @@ export struct CourseEditPage {
           this.periodCount = spans[index];
         }
       }
-    });
+    }));
   }
 
   private weekChoices(): string[] {
@@ -310,7 +311,7 @@ export struct CourseEditPage {
   }
 
   private openStartWeekPicker(): void {
-    this.getUIContext().showTextPickerDialog({
+    this.getUIContext().showTextPickerDialog(applyTextPickerAccent(this.store, {
       range: this.weekChoices(),
       selected: Math.max(0, this.weekNumbers.indexOf(this.weekStart)),
       canLoop: false,
@@ -324,11 +325,11 @@ export struct CourseEditPage {
           }
         }
       }
-    });
+    }));
   }
 
   private openEndWeekPicker(): void {
-    this.getUIContext().showTextPickerDialog({
+    this.getUIContext().showTextPickerDialog(applyTextPickerAccent(this.store, {
       range: this.weekChoices(),
       selected: Math.max(0, this.weekNumbers.indexOf(this.weekEnd)),
       canLoop: false,
@@ -342,7 +343,7 @@ export struct CourseEditPage {
           }
         }
       }
-    });
+    }));
   }
 
   // ---- 颜色 ----
