@@ -18,6 +18,7 @@ import { WeekUtil } from '../../data/WeekUtil';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ArrayDataSource } from '../../common/ui/ArrayDataSource';
+import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
 
 @ComponentV2
 export struct LecturesPage {
@@ -306,7 +307,7 @@ export struct LecturesPage {
           this.tagChip(tag, tag)
         }, (tag: string) => `tag-${tag}`)
       }
-      .padding({ left: Spacing.Lg, right: Spacing.Lg })
+      .padding({ left: Spacing.Md, right: Spacing.Md })
     }
     .scrollable(ScrollDirection.Horizontal)
     .scrollBar(BarState.Off)
@@ -333,7 +334,8 @@ export struct LecturesPage {
 
   @Builder
   private lectureCard(lecture: Lecture) {
-    Column({ space: Spacing.Sm }) {
+    SettingsItemGroup() {
+      Column({ space: Spacing.Sm }) {
       Row({ space: Spacing.Sm }) {
         Text(lecture.title)
           .fontSize(FontSize.Body)
@@ -423,15 +425,13 @@ export struct LecturesPage {
             }
           })
       }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+      }
       .width('100%')
-      .alignItems(VerticalAlign.Center)
+      .padding(Spacing.Md)
+      .alignItems(HorizontalAlign.Start)
     }
-    .width('100%')
-    .padding(Spacing.Lg)
-    .backgroundColor(Colors.Surface)
-    .borderRadius(Radius.Lg)
-    .border({ width: 1, color: Colors.OutlineLight })
-    .alignItems(HorizontalAlign.Start)
   }
 
   private titleBarOptions(): HdsNavigationTitleBarOptions {
@@ -487,8 +487,8 @@ export struct LecturesPage {
               }
               .width('100%')
               .padding({
-                left: Spacing.Lg,
-                right: Spacing.Lg,
+                left: Spacing.Md,
+                right: Spacing.Md,
                 top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Sm
               })
             }
@@ -498,7 +498,7 @@ export struct LecturesPage {
                   this.lectureCard(lecture)
                 }
                 .width('100%')
-                .padding({ left: Spacing.Lg, right: Spacing.Lg })
+                .padding({ left: Spacing.Md, right: Spacing.Md })
               }
             }, (lecture: Lecture) => `lecture-${lecture.id}`)
             if (this.page < this.totalPage) {
@@ -516,7 +516,7 @@ export struct LecturesPage {
                     })
                 }
                 .width('100%')
-                .padding({ left: Spacing.Lg, right: Spacing.Lg })
+                .padding({ left: Spacing.Md, right: Spacing.Md })
               }
             }
             if (this.lectures.length === 0) {
@@ -535,6 +535,7 @@ export struct LecturesPage {
                 .height(Spacing.Xxl)
             }
           }
+          .constraintSize({ maxWidth: 800 })
           .scrollBar(BarState.Off)
           .edgeEffect(EdgeEffect.Spring)
           .cachedCount(2)
@@ -545,6 +546,7 @@ export struct LecturesPage {
       }
       .width('100%')
       .height('100%')
+      .alignItems(HorizontalAlign.Center)
       .backgroundColor(Colors.Background)
     }
     .titleBar(this.titleBarOptions())
