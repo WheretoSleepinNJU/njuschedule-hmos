@@ -12,6 +12,7 @@ import {
   HdsNavigationTitleMode,
   HdsNavigationTitle,
   HdsNavigationMenuContentOptions,
+  HdsSideBar,
   HdsTabs,
   HdsTabsController,
   HdsAnimationMode,
@@ -27,8 +28,8 @@ import { TabBarAutoHide } from '../common/ui/TabBarAutoHide';
 
 import { CourseTableRepository } from '../data/CourseTableRepository';
 import { CourseTable } from '../data/models/Models';
-import { BreakpointName, resolveBreakpoint } from '../common/design/Breakpoints';
-import { Colors, HdsMetrics } from '../common/design/Tokens';
+import { BreakpointName, breakpointNameOf, isTabletBreakpoint } from '../common/design/Breakpoints';
+import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../common/design/Tokens';
 import { CourseEditPage } from '../features/courses/CourseEditPage';
 import { CoursesView } from '../features/courses/CoursesView';
 import { ImportView } from '../features/import/ImportView';
@@ -43,6 +44,7 @@ import { SharePage } from '../features/share/SharePage';
 import { ManageTablesPage } from '../features/settings/ManageTablesPage';
 import { MoreSettingsPage } from '../features/settings/MoreSettingsPage';
 import { SettingsView } from '../features/settings/SettingsView';
+import { SettingsSplitView } from '../features/settings/SettingsSplitView';
 import { TimetableView } from '../features/timetable/TimetableView';
 
 @Entry
@@ -101,6 +103,13 @@ struct Index {
   /** 滚动方向变化 → HDS 页签栏显隐动画（官方 HdsTabsController.applyHide/ShowAnimation）。 */
   @Monitor('store.tabBarHidden')
   private onTabBarHiddenChanged(_monitor: IMonitor): void {
+    // 宽屏用侧边导航，没有底部页签可收起；滚动逻辑仍可能写 tabBarHidden，这里归位。
+    if (this.isWideShell()) {
+      if (this.store.tabBarHidden) {
+        AppState.setTabBarHidden(false);
+      }
+      return;
+    }
     try {
       if (this.store.tabBarHidden) {
         this.hdsTabsController.applyHideAnimation(HdsAnimationMode.SCROLL_ANIMATION);
@@ -155,8 +164,8 @@ struct Index {
   }
 
   private updateBreakpoint(): void {
-    const widthVp: number = this.store.windowWidth > 0 ? this.getUIContext().px2vp(this.store.windowWidth) : 360;
-    const next: BreakpointName = resolveBreakpoint(widthVp);
+    // 官方断点 API（API 13+），阈值与 WidthBreakpoint 完全一致，避免维护第二套宽度判断。
+    const next: BreakpointName = breakpointNameOf(this.getUIContext().getWindowWidthBreakpoint());
     if (next !== this.store.breakpoint) {
       AppState.setBreakpoint(next);
     }
@@ -279,102 +288,208 @@ struct Index {
     }
   }
 
+  private isWideShell(): boolean {
+    return isTabletBreakpoint(this.store.breakpoint as BreakpointName);
+  }
+
+  private onTabChanged(index: number): void {
+    this.activeTabIndex = index;
+    this.coursesMenuOpen = false;
+    TabBarAutoHide.resetAndShow();
+    this.navScrollables = this.currentTabScroller();
+  }
+
+  private selectTab(index: number): void {
+    if (this.activeTabIndex === index) {
+      return;
+    }
+    this.activeTabIndex = index;
+    this.coursesMenuOpen = false;
+    TabBarAutoHide.resetAndShow();
+    this.navScrollables = this.currentTabScroller();
+    this.hdsTabsController.changeIndex(index);
+  }
+
+  @Builder
+  private tabContents() {
+    TabContent() {
+      Column() {
+        TimetableView({
+          pageStack: this.pageStack,
+          active: this.activeTabIndex === 0,
+          scroller: this.timetableScroller,
+          weekScrollers: this.weekScrollers,
+          onActiveScrollerChange: (scroller: Scroller) => {
+            this.bindTimetableScroller(scroller);
+          }
+        })
+      }
+      .width('100%')
+      .height('100%')
+      .padding({ top: 0 })
+      .backgroundColor(Colors.Background)
+    }
+    .tabBar(this.bottomTabBar($r('sys.symbol.calendar'), this.tabLabels[0]))
+
+    TabContent() {
+      Column() {
+        CoursesView({ pageStack: this.pageStack, active: this.activeTabIndex === 1,
+          tableId: this.store.tableId, scroller: this.coursesScroller })
+      }
+      .width('100%')
+      .height('100%')
+      .padding({ top: 0 })
+      .backgroundColor(Colors.Background)
+    }
+    .tabBar(this.bottomTabBar($r('sys.symbol.book'), this.tabLabels[1]))
+
+    TabContent() {
+      Column() {
+        if (this.isWideShell()) {
+          SettingsSplitView({ scroller: this.settingsScroller })
+        } else {
+          SettingsView({ pageStack: this.pageStack, scroller: this.settingsScroller })
+        }
+      }
+      .width('100%')
+      .height('100%')
+      .padding({ top: 0 })
+      .backgroundColor(Colors.Background)
+    }
+    .tabBar(this.bottomTabBar($r('sys.symbol.gearshape'), this.tabLabels[2]))
+  }
+
+  @Builder
+  private narrowTabs() {
+    HdsTabs({ controller: this.hdsTabsController, index: this.activeTabIndex }) {
+      this.tabContents()
+    }
+    .animationDuration(250)
+    .vertical(false)
+    .scrollable(false)
+    .barPosition(BarPosition.End)
+    // 悬浮胶囊页签栏：需要 barOverlap(true) 才能浮在内容之上
+    .barOverlap(true)
+    .barFloatingStyle({
+      barWidth: { smallWidth: 220, mediumWidth: 300, largeWidth: 360 },
+      barBottomMargin: Math.max(px2vp(this.store.windowBottomInset) + 8, 24),
+      systemMaterialEffect: {
+        materialType: hdsMaterial.MaterialType.IMMERSIVE,
+        materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+      }
+    })
+    .onChange((index: number) => {
+      this.onTabChanged(index);
+    })
+    .width('100%')
+    .height('100%')
+    .backgroundColor(Colors.Background)
+  }
+
+  @Builder
+  private wideTabs() {
+    HdsTabs({ controller: this.hdsTabsController, index: this.activeTabIndex }) {
+      this.tabContents()
+    }
+    .animationDuration(250)
+    .vertical(false)
+    .scrollable(false)
+    .barPosition(BarPosition.End)
+    .barHeight(0)
+    .barOverlap(false)
+    .onChange((index: number) => {
+      this.onTabChanged(index);
+    })
+    .width('100%')
+    .height('100%')
+    .backgroundColor(Colors.Background)
+  }
+
+  @Builder
+  private sideBarItem(index: number, icon: Resource, label: string) {
+    Row({ space: Spacing.Md }) {
+      SymbolGlyph(icon)
+        .fontSize(24)
+        .fontColor([index === this.activeTabIndex ? this.store.accentDisplay : Colors.TextSecondary])
+      Text(label)
+        .fontSize(FontSize.Body)
+        .fontWeight(index === this.activeTabIndex ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(index === this.activeTabIndex ? this.store.accentDisplay : Colors.TextPrimary)
+        .layoutWeight(1)
+    }
+    .width('100%')
+    .height(52)
+    .padding({ left: Spacing.Md, right: Spacing.Md })
+    .borderRadius(Radius.Md)
+    .backgroundColor(index === this.activeTabIndex ? this.store.accentSoft : Color.Transparent)
+    .onClick(() => {
+      this.selectTab(index);
+    })
+  }
+
+  @Builder
+  private sideBarPanel() {
+    Column({ space: Spacing.Xs }) {
+      this.sideBarItem(0, $r('sys.symbol.calendar'), this.tabLabels[0])
+      this.sideBarItem(1, $r('sys.symbol.book'), this.tabLabels[1])
+      this.sideBarItem(2, $r('sys.symbol.gearshape'), this.tabLabels[2])
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: Spacing.Md, right: Spacing.Md, top: this.contentTopSpace() + Spacing.Md })
+    .alignItems(HorizontalAlign.Start)
+  }
+
   build() {
     Stack() {
       Column() {
-      HdsNavigation(this.pageStack) {
-        HdsTabs({ controller: this.hdsTabsController }) {
-          TabContent() {
-            Column() {
-              TimetableView({
-                pageStack: this.pageStack,
-                active: this.activeTabIndex === 0,
-                scroller: this.timetableScroller,
-                weekScrollers: this.weekScrollers,
-                onActiveScrollerChange: (scroller: Scroller) => {
-                  this.bindTimetableScroller(scroller);
-                }
-              })
-            }
+        HdsNavigation(this.pageStack) {
+          if (this.isWideShell()) {
+            HdsSideBar({
+              isShowSideBar: true,
+              autoHide: false,
+              sideBarWidth: 240,
+              minContentWidth: 480,
+              sideBarColor: Colors.Background,
+              contentColor: Colors.Background,
+              sideBarContainerType: SideBarContainerType.Embed,
+              sideBarPanelBuilder: () => {
+                this.sideBarPanel()
+              },
+              contentPanelBuilder: () => {
+                this.wideTabs()
+              }
+            })
             .width('100%')
             .height('100%')
-            .padding({ top: 0 })
-            .backgroundColor(Colors.Background)
+          } else {
+            this.narrowTabs()
           }
-          .tabBar(this.bottomTabBar($r('sys.symbol.calendar'), this.tabLabels[0]))
-
-          TabContent() {
-            Column() {
-              CoursesView({ pageStack: this.pageStack, active: this.activeTabIndex === 1, tableId: this.store.tableId, scroller: this.coursesScroller })
-            }
-            .width('100%')
-            .height('100%')
-            .padding({ top: 0 })
-            .backgroundColor(Colors.Background)
-          }
-          .tabBar(this.bottomTabBar($r('sys.symbol.book'), this.tabLabels[1]))
-
-          TabContent() {
-            Column() {
-              SettingsView({ pageStack: this.pageStack, scroller: this.settingsScroller })
-            }
-            .width('100%')
-            .height('100%')
-            .padding({ top: 0 })
-            .backgroundColor(Colors.Background)
-          }
-          .tabBar(this.bottomTabBar($r('sys.symbol.gearshape'), this.tabLabels[2]))
         }
-        .animationDuration(250)
-        .vertical(false)
-        .scrollable(false)
-        .barPosition(BarPosition.End)
-        // 悬浮胶囊页签栏：需要 barOverlap(true) 才能浮在内容之上
-        .barOverlap(true)
-        .barFloatingStyle({
-          barWidth: { smallWidth: 220, mediumWidth: 300, largeWidth: 360 },
-          barBottomMargin: Math.max(px2vp(this.store.windowBottomInset) + 8, 24),
-          systemMaterialEffect: {
-            materialType: hdsMaterial.MaterialType.IMMERSIVE,
-            materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        .mode(NavigationMode.Stack)
+        .hideBackButton(true)
+        .titleMode(HdsNavigationTitleMode.MINI)
+        .titleBar({
+          avoidLayoutSafeArea: true,
+          content: {
+            title: this.titleContent(),
+            menu: this.activeTabIndex === 1 ? this.courseMenuContent() : undefined
+          },
+          style: {
+            // 与 hydrotoolkit 相同：静止透明，内容滚到标题栏下方时渐变模糊
+            scrollEffectOpts: {
+              scrollEffectType: ScrollEffectType.GRADIENT_BLUR
+            },
+            systemMaterialEffect: {
+              materialType: hdsMaterial.MaterialType.ADAPTIVE,
+              materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+            }
           }
         })
-        .onChange((index: number) => {
-          this.activeTabIndex = index;
-          this.coursesMenuOpen = false;
-          // 切 Tab 时恢复悬浮页签（避免在别的页面保持收起状态）
-          TabBarAutoHide.resetAndShow();
-          // 标题栏模糊只绑定当前 Tab 的滚动容器
-          this.navScrollables = this.currentTabScroller();
-        })
+        .bindToScrollable(this.navScrollables)
+        .navDestination(this.destinationBuilder)
         .width('100%')
         .height('100%')
-        .backgroundColor(Colors.Background)
-      }
-      .mode(NavigationMode.Stack)
-      .hideBackButton(true)
-      .titleMode(HdsNavigationTitleMode.MINI)
-      .titleBar({
-        avoidLayoutSafeArea: true,
-        content: {
-          title: this.titleContent(),
-          menu: this.activeTabIndex === 1 ? this.courseMenuContent() : undefined
-        },
-        style: {
-          // 与 hydrotoolkit 相同：静止透明，内容滚到标题栏下方时渐变模糊
-          scrollEffectOpts: {
-            scrollEffectType: ScrollEffectType.GRADIENT_BLUR
-          },
-          systemMaterialEffect: {
-            materialType: hdsMaterial.MaterialType.ADAPTIVE,
-            materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-          }
-        }
-      })
-      .bindToScrollable(this.navScrollables)
-      .navDestination(this.destinationBuilder)
-      .width('100%')
-      .height('100%')
       }
       .width('100%')
       .height('100%')

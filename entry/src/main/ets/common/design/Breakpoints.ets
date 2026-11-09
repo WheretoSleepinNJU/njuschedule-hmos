@@ -6,16 +6,39 @@ export enum BreakpointName {
   Xs = 'xs',
   Sm = 'sm',
   Md = 'md',
-  Lg = 'lg'
+  Lg = 'lg',
+  Xl = 'xl'
 }
 
+/** 与官方 WidthBreakpoint 对齐：<320 / 320–600 / 600–840 / 840–1440 / ≥1440vp。 */
 export class BreakpointRange {
   static readonly Sm: number = 320;
   static readonly Md: number = 600;
   static readonly Lg: number = 840;
+  static readonly Xl: number = 1440;
+}
+
+/** 将官方 UIContext.getWindowWidthBreakpoint() 映射为项目断点。 */
+export function breakpointNameOf(value: WidthBreakpoint): BreakpointName {
+  if (value === WidthBreakpoint.WIDTH_XL) {
+    return BreakpointName.Xl;
+  }
+  if (value === WidthBreakpoint.WIDTH_LG) {
+    return BreakpointName.Lg;
+  }
+  if (value === WidthBreakpoint.WIDTH_MD) {
+    return BreakpointName.Md;
+  }
+  if (value === WidthBreakpoint.WIDTH_SM) {
+    return BreakpointName.Sm;
+  }
+  return BreakpointName.Xs;
 }
 
 export function resolveBreakpoint(widthVp: number): BreakpointName {
+  if (widthVp >= BreakpointRange.Xl) {
+    return BreakpointName.Xl;
+  }
   if (widthVp >= BreakpointRange.Lg) {
     return BreakpointName.Lg;
   }
@@ -33,7 +56,7 @@ export function isExpandedBreakpoint(breakpoint: BreakpointName): boolean {
 }
 
 export function isTabletBreakpoint(breakpoint: BreakpointName): boolean {
-  return breakpoint === BreakpointName.Lg;
+  return breakpoint === BreakpointName.Lg || breakpoint === BreakpointName.Xl;
 }
 
 export class BreakpointType<T> {
@@ -41,15 +64,20 @@ export class BreakpointType<T> {
   private smValue: T;
   private mdValue: T;
   private lgValue: T;
+  private xlValue: T;
 
-  constructor(xs: T, sm: T, md: T, lg: T) {
+  constructor(xs: T, sm: T, md: T, lg: T, xl?: T) {
     this.xsValue = xs;
     this.smValue = sm;
     this.mdValue = md;
     this.lgValue = lg;
+    this.xlValue = xl === undefined ? lg : xl;
   }
 
   value(breakpoint: BreakpointName): T {
+    if (breakpoint === BreakpointName.Xl) {
+      return this.xlValue;
+    }
     if (breakpoint === BreakpointName.Lg) {
       return this.lgValue;
     }
