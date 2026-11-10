@@ -48,15 +48,6 @@ export class CourseTableRepository {
     return store.update(bucket, predicates);
   }
 
-  /** 只更新 data 字段（导入学期起始周、改作息时用）。 */
-  static async updateData(tableId: number, data: string): Promise<number> {
-    const store: relationalStore.RdbStore = await CourseTableRepository.store();
-    const bucket: relationalStore.ValuesBucket = { 'data': data };
-    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(LegacySchema.COURSETABLE_TABLE);
-    predicates.equalTo(LegacySchema.COURSETABLE_ID, tableId);
-    return store.update(bucket, predicates);
-  }
-
   static async getById(tableId: number): Promise<CourseTable | null> {
     const store: relationalStore.RdbStore = await CourseTableRepository.store();
     const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(LegacySchema.COURSETABLE_TABLE);

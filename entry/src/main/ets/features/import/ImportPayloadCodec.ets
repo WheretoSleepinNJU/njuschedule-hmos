@@ -1,7 +1,7 @@
 /**
  * 教务导入 payload 解码与课程映射。
  *
- * 协议来源：`docs/porting/legacy-import-spec.md` §4 / §5.1。
+ * 协议来源：旧版导入规格（仓库外归档）§4 / §5.1。
  * - 远端 `api/tools/*.js` 的最后一个表达式都返回
  *   `encodeURIComponent(JSON.stringify({ name, courses }))`，即**字符串**；
  * - `courses` 可能是数组、JSON 字符串（njuyjsxk / sjtuyjsxk）甚至二次序列化字符串；

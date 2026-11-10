@@ -62,14 +62,14 @@ CI **只构建未签名 HAP**，不接触发布证书；正式签名仍在本机
 参考 Kazumi 的版本管理方式：**单一版本源 + 语义化版本 + 发布 tag**。
 
 - 版本唯一来源：`AppScope/app.json5` 的 `versionName` / `versionCode`；
-- `versionName` 使用语义化版本，如 `0.2.1`；
+- `versionName` 使用语义化版本，如 `0.2.2`；
 - `versionCode` 由语义版本编码，保证单调递增：
   `1_000_000 + major*10000 + minor*100 + patch`
-  （`0.2.1` → `1000201`；前导 `1_000_000` 为兼容已发布版本的基数）；
+  （`0.2.2` → `1000202`；前导 `1_000_000` 为兼容已发布版本的基数）；
 - 发布流程：
   1. 更新 `AppScope/app.json5`；
   2. 更新 `CHANGELOG.md` 对应版本记录；
-  3. 提交并打 tag（如 `v0.2.1`）推送；
+  3. 提交并打 tag（如 `v0.2.2`）推送；
   4. tag 会触发 Release workflow，自动构建未签名 HAP、生成 SHA256SUMS 并发布 GitHub Release；
   5. 签名 `.app` 仍在本机生成后手动上传 AGC。
 
@@ -82,7 +82,8 @@ entry/src/main/ets/
   app/        AppContext / AppPreferences / AppState / AppStore / AppBootstrap / Appearance / ThemeAccent
   common/     Constants / DateUtils / RouteParams / AppVersion / NavStackResolver
     design/   Tokens（颜色/字号/间距/圆角/课表尺寸）、Breakpoints
-    ui/       跨功能组件：AppCard / SectionHeader / EmptyState / Feedback / HdsSubPage / ArrayDataSource 等
+    ui/       跨功能组件：HdsSubPage / HdsTabPage / DesktopSideBar / EmptyState / Feedback /
+              SettingsListItems / SheetOptions / ArrayDataSource 等
   data/       Db、RdbUtil、各 Repository、ScheduleModel、WeekUtil、ColorPool、DemoData、
               Lecture、BackgroundImage、ShareCodec、WidgetData
   widget/     桌面小组件（2x2 / 2x4 / 4x4）与 Form 数据
@@ -105,8 +106,9 @@ entry/src/main/resources/  string/color 资源、rawfile/import（schoolList.jso
 
 ## 5. 关键实现与坑
 
-- **标题栏滚动模糊**：`HdsNavigation` 的 `bindToScrollable` 只绑定当前 Tab 的 Scroller；
-  课表 25 个周页面轮换绑定时同一时刻只绑一个，避免互相干扰。
+- **标题栏滚动模糊**：根 `HdsNavigation` 隐藏标题栏，由各一级 Tab 的 `HdsNavDestination`
+  标题栏通过 `bindToScrollable` 绑定当前滚动容器；课表 25 个周页面轮换时只绑当前周，
+  避免互相干扰。
 - **课表周切换**：`Swiper` 的 `currentIndex` 保持单一来源，不要在动画回调里反向驱动外部状态。
 - **沉浸式布局**：内容顶部使用 `HdsMetrics.contentTopInset(px2vp(store.windowTopInset))`，
   padding 必须放在 Scroll 内部（否则标题栏模糊联动失效）。

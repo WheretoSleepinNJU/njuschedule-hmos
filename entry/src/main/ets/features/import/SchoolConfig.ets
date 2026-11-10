@@ -3,7 +3,7 @@
  *
  * 数据来源：旧版 `~/Projects/njuschedule/api/schoolList.json`（本仓库原样搬运到
  * `entry/src/main/resources/rawfile/import/schoolList.json`）。字段语义见
- * `docs/porting/legacy-import-spec.md` §3。
+ * 旧版导入规格（仓库外归档）§3。
  *
  * 说明：
  * - 旧版字段是 snake_case，且含 `isGrey3.1.0` 这种不是合法 ArkTS 标识符的键；

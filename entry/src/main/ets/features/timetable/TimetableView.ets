@@ -226,16 +226,6 @@ export struct TimetableView {
     return this.scroller;
   }
 
-  /** 当前显示周的周一（用于表头日期）。 */
-  private weekMonday(): Date {
-    const thisMonday: Date = DateUtils.mondayOf(DateUtils.today());
-    return DateUtils.addDays(thisMonday, (this.store.tmpWeekIndex - this.store.weekIndex) * 7);
-  }
-
-  private dayDate(index: number): string {
-    return DateUtils.formatMonthDay(DateUtils.addDays(this.weekMonday(), index));
-  }
-
   private weekMondayOf(week: number): Date {
     const thisMonday: Date = DateUtils.mondayOf(DateUtils.today());
     return DateUtils.addDays(thisMonday, (week - this.store.weekIndex) * 7);
@@ -243,12 +233,6 @@ export struct TimetableView {
 
   private dayDateFor(week: number, index: number): string {
     return DateUtils.formatMonthDay(DateUtils.addDays(this.weekMondayOf(week), index));
-  }
-
-  private weekRangeText(): string {
-    const monday: Date = this.weekMonday();
-    const sunday: Date = DateUtils.addDays(monday, this.daysCount() - 1);
-    return `${DateUtils.formatMonthDay(monday)} - ${DateUtils.formatMonthDay(sunday)}`;
   }
 
   private makeBlock(course: Course, faded: boolean, conflictCount: number, group: Course[]): LayoutBlock {
@@ -315,13 +299,6 @@ export struct TimetableView {
     // 模拟快速滑回本周：走 Swiper 的滑动动画，而不是瞬间跳页
     this.animateWeekJump = true;
     this.changeWeek(this.store.weekIndex);
-  }
-
-  private openCreate(): void {
-    this.pageStack.pushPathByName('course-edit', new CourseEditParam(this.store.tableId, 0),
-      (popInfo: PopInfo) => {
-        this.reload();
-      });
   }
 
   private openEdit(course: Course): void {
@@ -393,14 +370,6 @@ export struct TimetableView {
       result.push(i);
     }
     return result;
-  }
-
-  private isToday(index: number): boolean {
-    return this.store.tmpWeekIndex === this.store.weekIndex && this.todayWeekday === index + 1;
-  }
-
-  private isTodayFor(week: number, index: number): boolean {
-    return week === this.store.weekIndex && this.todayWeekday === index + 1;
   }
 
   @Builder

@@ -141,10 +141,6 @@ export class CourseFormat {
 
   // ---- 周次选择 ----
 
-  static defaultSelection(): WeekSelection {
-    return new WeekSelection();
-  }
-
   /** 按「起止周 + 类型」生成落库用的周次数组；自定义时用已勾选的周次。 */
   static buildWeeks(selection: WeekSelection): number[] {
     const weeks: number[] = [];

@@ -50,7 +50,8 @@ entry/src/main/ets/
   app/        AppContext / AppPreferences / AppState / AppStore / AppBootstrap / Appearance / ThemeAccent
   common/     常量、日期/路由工具、AppVersion、NavStackResolver
     design/   Tokens（颜色/尺寸/间距/字号/圆角）、Breakpoints
-    ui/       跨功能组件（AppCard / SectionHeader / EmptyState / Feedback / HdsSubPage / ArrayDataSource）
+    ui/       跨功能组件（HdsSubPage / HdsTabPage / DesktopSideBar / EmptyState / Feedback /
+              SettingsListItems / SheetOptions / ArrayDataSource）
   data/       Db / RdbUtil / Repository / ScheduleModel / WeekUtil / ColorPool / DemoData /
               Lecture / BackgroundImage / ShareCodec / WidgetData
   widget/     桌面小组件（2x2 / 2x4 / 4x4）

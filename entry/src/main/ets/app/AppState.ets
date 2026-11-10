@@ -4,7 +4,7 @@
  * 约定：**显示类配置以 `AppStore` 为运行时真源，preferences 只做持久化**。
  * 启动时 `AppBootstrap` 用 prefs 初始化 AppStore；页面改动统一调用本类 setter，
  * 课表/课程/设置页通过 `@Local store` 读取，V2 的 @ObservedV2/@Trace 自动通知刷新。
- * 迁移过程与映射见 `docs/porting/state-v2-migration.md`。
+ * 迁移过程记录见仓库历史归档。
  */
 import { WidgetData } from '../data/WidgetData';
 import { AppStore } from './AppStore';

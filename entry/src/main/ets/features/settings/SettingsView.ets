@@ -6,7 +6,7 @@
  * ② 显示      —— 周末、节次时间、自由时间、日期开关 + 课程高度（官方滑动选择器）
  * ③ 更多      —— 分享课表（share）、讲座（lectures）、自定义外观（more-settings）、关于（about）
  *
- * 状态约定（见 docs/porting/architecture.md 与 AGENTS.md）：
+ * 状态约定（见 AGENTS.md）：
  * - 显示类配置以 `AppStore` 为运行时真源（Bootstrap 已用 prefs 初始化），
  *   改动时同步写 preferences 持久化，页面通过 `@Local store` 自动响应。
  * - 当前周改动写 prefs（WeekUtil.setNowWeek）后再写 AppState。

@@ -4,7 +4,7 @@
  * - `@ObservedV2` + `@Trace`：所有全局状态字段可被 V2 组件深度观测；
  * - `AppStorageV2.connect`：跨页面 / 跨 Ability 共享同一实例；
  * - 写入口统一走 `AppState.setXxx`（本 Store 为唯一运行时真源，prefs 只做持久化）；
- * - 迁移过程与例外见 `docs/porting/state-v2-migration.md`。
+ * - 迁移过程与例外见仓库历史归档。
  */
 import { AppStorageV2 } from '@kit.ArkUI';
 import { ColorMath } from '../common/design/ColorMath';

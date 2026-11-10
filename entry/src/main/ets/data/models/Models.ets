@@ -44,16 +44,6 @@ export class Course {
     this.tableId = tableId;
   }
 
-  /** 是否为自由时间课程（旧版 weekTime == 0 的约定）。 */
-  isFreeCourse(): boolean {
-    return this.weekTime === 0;
-  }
-
-  /** 该课程在某一周是否上课。 */
-  hasWeek(week: number): boolean {
-    return this.weeks.indexOf(week) >= 0;
-  }
-
   clone(): Course {
     const c: Course = new Course(this.name, this.tableId);
     c.id = this.id;

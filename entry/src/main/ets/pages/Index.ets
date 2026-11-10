@@ -5,7 +5,7 @@
  * 三个一级 Tab 各自用 HdsNavDestination 提供标题栏。
  * 设置 Tab 在宽屏进入 Auto/Split，设置详情与普通子页面统一走 NavPathStack。
  *
- * 路由表见 docs/porting/architecture.md。子页面自行提供标题栏，
+ * 子页面自行提供标题栏，
  * 这里只负责分发。
  */
 import {
