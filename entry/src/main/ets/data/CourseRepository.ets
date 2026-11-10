@@ -50,17 +50,19 @@ export class CourseRepository {
       }
     }
     const ids: number[] = [];
-    store.beginTransaction();
+    const tx: relationalStore.Transaction = await store.createTransaction();
     try {
       for (let i = 0; i < courses.length; i++) {
         const course: Course = courses[i];
-        const rowId: number = await store.insert(LegacySchema.COURSE_TABLE, CourseRepository.toValuesBucket(course));
+        const rowId: number = await tx.insert(LegacySchema.COURSE_TABLE, CourseRepository.toValuesBucket(course));
         course.id = rowId;
         ids.push(rowId);
       }
-      store.commit();
+      await tx.commit();
     } catch (err) {
-      store.rollBack();
+      await tx.rollback().catch((rollbackErr: Error) => {
+        console.warn(`[CourseRepository] rollback failed: ${JSON.stringify(rollbackErr)}`);
+      });
       throw err as Error;
     }
     return ids;

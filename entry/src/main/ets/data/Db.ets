@@ -6,7 +6,14 @@
  * 建表语句改用 `IF NOT EXISTS`，避免重复打开时报错。
  */
 import { relationalStore } from '@kit.ArkData';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AppContext } from '../app/AppContext';
+
+/** 一条 v2 → v3 的列升级描述。 */
+interface SchemaUpgrade {
+  table: string;
+  column: string;
+}
 
 export class LegacySchema {
   static readonly DB_NAME: string = 'course.db';
@@ -66,13 +73,12 @@ export class LegacySchema {
       LegacySchema.COURSETABLE_DATA + ' TEXT' +
     ')';
 
-  /** 旧版 v2 → v3 的三条 ALTER（Course.info、Course.data、CourseTable.data）。 */
-  static readonly SQL_UPGRADE_V2_PART_1: string =
-    'ALTER TABLE ' + LegacySchema.COURSE_TABLE + ' ADD COLUMN ' + LegacySchema.COURSE_INFO + ' TEXT';
-  static readonly SQL_UPGRADE_V2_PART_2: string =
-    'ALTER TABLE ' + LegacySchema.COURSE_TABLE + ' ADD COLUMN ' + LegacySchema.COURSE_DATA + ' TEXT';
-  static readonly SQL_UPGRADE_V2_COURSETABLE: string =
-    'ALTER TABLE ' + LegacySchema.COURSETABLE_TABLE + ' ADD COLUMN ' + LegacySchema.COURSETABLE_DATA + ' TEXT';
+  /** 旧版 v2 → v3 需要补齐的列。 */
+  static readonly UPGRADE_V2: SchemaUpgrade[] = [
+    { table: LegacySchema.COURSE_TABLE, column: LegacySchema.COURSE_INFO },
+    { table: LegacySchema.COURSE_TABLE, column: LegacySchema.COURSE_DATA },
+    { table: LegacySchema.COURSETABLE_TABLE, column: LegacySchema.COURSETABLE_DATA }
+  ];
 }
 
 /**
@@ -109,25 +115,75 @@ export class Db {
     };
     const store: relationalStore.RdbStore = await relationalStore.getRdbStore(AppContext.get(), config);
     if (store.version === 0) {
-      await store.executeSql(LegacySchema.SQL_CREATE_COURSETABLE);
-      await store.executeSql(LegacySchema.SQL_CREATE_COURSES);
-      store.version = LegacySchema.DB_VERSION;
-    } else if (store.version < LegacySchema.DB_VERSION) {
-      // 旧版 v2 升级路径，逐条补齐列；重复升级时忽略已存在的列。
-      await Db.tryExecute(store, LegacySchema.SQL_UPGRADE_V2_PART_1);
-      await Db.tryExecute(store, LegacySchema.SQL_UPGRADE_V2_PART_2);
-      await Db.tryExecute(store, LegacySchema.SQL_UPGRADE_V2_COURSETABLE);
-      store.version = LegacySchema.DB_VERSION;
+      await Db.createInitialSchema(store);
+      return store;
     }
+    // 旧版 v2 升级 / 修复历史失败留下的不完整 v3 schema。
+    await Db.ensureUpgradeSchema(store);
     return store;
   }
 
-  private static async tryExecute(store: relationalStore.RdbStore, sql: string): Promise<void> {
+  /** 新库：建表与版本号在同一事务内完成。 */
+  private static async createInitialSchema(store: relationalStore.RdbStore): Promise<void> {
+    await Db.runInTransaction(store, async (tx: relationalStore.Transaction) => {
+      await tx.execute(LegacySchema.SQL_CREATE_COURSETABLE);
+      await tx.execute(LegacySchema.SQL_CREATE_COURSES);
+    });
+    store.version = LegacySchema.DB_VERSION;
+  }
+
+  /** 已有库：只补齐缺失列，全部成功后提交事务并写版本号。 */
+  private static async ensureUpgradeSchema(store: relationalStore.RdbStore): Promise<void> {
+    const missing: SchemaUpgrade[] = [];
+    for (let i = 0; i < LegacySchema.UPGRADE_V2.length; i++) {
+      const upgrade: SchemaUpgrade = LegacySchema.UPGRADE_V2[i];
+      if (!await Db.hasColumn(store, upgrade.table, upgrade.column)) {
+        missing.push(upgrade);
+      }
+    }
+    if (missing.length === 0) {
+      if (store.version < LegacySchema.DB_VERSION) {
+        store.version = LegacySchema.DB_VERSION;
+      }
+      return;
+    }
+    await Db.runInTransaction(store, async (tx: relationalStore.Transaction) => {
+      for (let i = 0; i < missing.length; i++) {
+        await tx.execute(`ALTER TABLE ${missing[i].table} ADD COLUMN ${missing[i].column} TEXT`);
+      }
+    });
+    store.version = LegacySchema.DB_VERSION;
+  }
+
+  /** 统一事务边界：成功 commit，失败 rollback 并抛出。 */
+  private static async runInTransaction(store: relationalStore.RdbStore,
+    work: (tx: relationalStore.Transaction) => Promise<void>): Promise<void> {
+    const tx: relationalStore.Transaction = await store.createTransaction();
     try {
-      await store.executeSql(sql);
+      await work(tx);
+      await tx.commit();
     } catch (err) {
-      // 列已存在（或 schema 已是新版）时忽略；真正的错误由后续读写暴露。
-      console.warn(`[Db] executeSql skipped: ${sql} (${JSON.stringify(err)})`);
+      await tx.rollback().catch((rollbackErr: Error) => {
+        hilog.warn(0x0000, 'Db', 'rollback failed: %{public}s', JSON.stringify(rollbackErr));
+      });
+      hilog.error(0x0000, 'Db', 'schema transaction failed: %{public}s', JSON.stringify(err));
+      throw err as Error;
+    }
+  }
+
+  private static async hasColumn(store: relationalStore.RdbStore, table: string,
+    column: string): Promise<boolean> {
+    const resultSet: relationalStore.ResultSet = await store.querySql(`PRAGMA table_info(${table})`);
+    try {
+      const nameIndex: number = resultSet.getColumnIndex('name');
+      while (resultSet.goToNextRow()) {
+        if (resultSet.getString(nameIndex) === column) {
+          return true;
+        }
+      }
+      return false;
+    } finally {
+      resultSet.close();
     }
   }
 
