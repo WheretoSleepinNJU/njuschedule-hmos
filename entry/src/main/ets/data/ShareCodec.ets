@@ -181,7 +181,7 @@ export class ShareCodec {
   }
 
   /** 解析单帧 URI（`ncs://qr/v2/s/<payload>`）。 */
-  static decode(uri: string): Promise<DecodedSharePayload> {
+  static async decode(uri: string): Promise<DecodedSharePayload> {
     return ShareCodec.decodeImpl(ShareCodec.extractSingleFrame(uri));
   }
 
@@ -251,7 +251,6 @@ export class ShareCodec {
     return [single];
   }
 
-  /** 多帧解析：返回 null 表示还没收齐。 */
   /**
    * 多帧合并：只认帧内容里的 group/idx/total（不依赖 Map 的 key），
    * 收齐 1..total 才返回合并后的单帧 URI，否则返回 null。
@@ -269,30 +268,27 @@ export class ShareCodec {
     }
     const group: string = frames[0].group;
     const total: number = frames[0].total;
-    if (total <= 0) {
-      return null;
-    }
-    const slots: string[] = [];
-    for (let i = 0; i <= total; i++) {
-      slots.push('');
-    }
-    let received: number = 0;
+    // 与上游一致：用索引表收集，不按 total 预分配数组。
+    const parts: Map<number, string> = new Map();
     for (let i = 0; i < frames.length; i++) {
       const frame: FrameInfo = frames[i];
       if (frame.group !== group || frame.index < 1 || frame.index > total) {
         continue;
       }
-      if (slots[frame.index] === '') {
-        slots[frame.index] = frame.part;
-        received++;
+      if (!parts.has(frame.index)) {
+        parts.set(frame.index, frame.part);
       }
     }
-    if (received < total) {
+    if (parts.size !== total) {
       return null;
     }
     let merged: string = '';
     for (let i = 1; i <= total; i++) {
-      merged += slots[i];
+      const part: string | undefined = parts.get(i);
+      if (part === undefined) {
+        return null;
+      }
+      merged += part;
     }
     return `${SCHEME}://${HOST}/${VERSION_TAG}/s/${merged}`;
   }
@@ -325,6 +321,9 @@ export class ShareCodec {
     } catch (err) {
       return Promise.reject(new Error(ShareCodeError.InvalidShape));
     }
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+      return Promise.reject(new Error(ShareCodeError.InvalidShape));
+    }
     ShareCodec.validate(payload);
     const result: DecodedSharePayload = new DecodedSharePayload();
     result.tableName = payload.table.name;
@@ -346,19 +345,28 @@ export class ShareCodec {
     if (payload.alg !== ALG_GZIP) {
       throw new Error(ShareCodeError.UnsupportedAlg);
     }
-    if (payload.table === undefined || payload.table === null || payload.courses === undefined ||
-      payload.courses === null || payload.meta === undefined || payload.meta === null) {
+    if (payload.table === null || payload.table === undefined ||
+      !Array.isArray(payload.courses) || payload.meta === null || payload.meta === undefined) {
       throw new Error(ShareCodeError.InvalidFields);
     }
-    const tableName: string = payload.table.name ?? '';
+    const tableName: string = payload.table.name === null || payload.table.name === undefined ?
+      '' : `${payload.table.name}`;
     if (tableName === '') {
       throw new Error(ShareCodeError.MissingTableName);
+    }
+    for (let i = 0; i < payload.courses.length; i++) {
+      const course: Object = payload.courses[i] as Object;
+      if (course === null || typeof course !== 'object' || Array.isArray(course)) {
+        throw new Error(ShareCodeError.InvalidFields);
+      }
     }
     const dataForChecksum: string = JSON.stringify(
       new ChecksumEnvelope(tableName, payload.table.data ?? '', payload.courses)
     );
     const expected: string = ShareCodec.crc32Hex(dataForChecksum);
-    if ((payload.meta.checksum ?? '') !== expected) {
+    const actual: string = payload.meta.checksum === null || payload.meta.checksum === undefined ?
+      '' : `${payload.meta.checksum}`;
+    if (actual !== expected) {
       throw new Error(ShareCodeError.ChecksumMismatch);
     }
   }
@@ -387,11 +395,21 @@ export class ShareCodec {
       return info;
     }
     if (parts.length === 5 && parts[0] === 'm') {
+      if (!/^[+-]?\d+$/.test(parts[1]) || !/^[+-]?\d+$/.test(parts[2])) {
+        return null;
+      }
+      const index: number = Number(parts[1]);
+      const total: number = Number(parts[2]);
+      const group: string = parts[3];
+      const part: string = parts[4];
+      if (!Number.isInteger(index) || !Number.isInteger(total) || group === '' || part === '') {
+        return null;
+      }
       info.isMulti = true;
-      info.index = parseInt(parts[1], 10);
-      info.total = parseInt(parts[2], 10);
-      info.group = parts[3];
-      info.part = parts[4];
+      info.index = index;
+      info.total = total;
+      info.group = group;
+      info.part = part;
       return info;
     }
     return null;
@@ -422,7 +440,8 @@ export class ShareCodec {
 
   private static base64UrlEncode(bytes: Uint8Array): string {
     const basic: string = new util.Base64Helper().encodeToStringSync(bytes);
-    return basic.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    // 保留 `=` 填充：上游 Dart base64Url 解码按标准长度校验，去掉填充会导致扫码端 base64_decode_failed。
+    return basic.replace(/\+/g, '-').replace(/\//g, '_');
   }
 
   private static base64UrlDecode(encoded: string): Uint8Array {
