@@ -1,35 +1,34 @@
 /**
  * 应用外壳：唯一 @Entry。
  *
- * 结构照 `hydrotoolkit-hmos` 的约定：HdsNavigation（系统材质标题栏）+ HdsTabs
- * （底部悬浮胶囊 Tab）+ NavPathStack 路由表。三个主 Tab：课表 / 课程 / 设置。
+ * 结构：HdsNavigation 不显示根标题栏，HdsTabs 提供底部胶囊导航；
+ * 三个一级 Tab 各自用 HdsNavDestination 提供标题栏。
+ * 设置 Tab 在宽屏进入 Auto/Split，设置详情与普通子页面统一走 NavPathStack。
  *
- * 路由表见 docs/porting/architecture.md。子页面自行提供标题栏
- * （HdsNavDestination / NavDestination 自带 titleBar），这里只负责分发。
+ * 路由表见 docs/porting/architecture.md。子页面自行提供标题栏，
+ * 这里只负责分发。
  */
 import {
   HdsNavigation,
-  HdsNavigationTitleMode,
-  HdsNavigationTitle,
+  HdsNavDestination,
   HdsNavigationMenuContentOptions,
-  HdsSideBar,
   HdsTabs,
   HdsTabsController,
-  HdsAnimationMode,
   IconStyleMode,
-  hdsMaterial,
-  ScrollEffectType
+  hdsMaterial
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { deviceInfo } from '@kit.BasicServicesKit';
 import { CourseEditParam } from '../common/RouteParams';
 import { AppState } from '../app/AppState';
 import { AppStore } from '../app/AppStore';
-import { TabBarAutoHide } from '../common/ui/TabBarAutoHide';
+import { HdsTabPage } from '../common/ui/HdsTabPage';
+import { DesktopSideBar } from '../common/ui/DesktopSideBar';
 
 import { CourseTableRepository } from '../data/CourseTableRepository';
 import { CourseTable } from '../data/models/Models';
 import { BreakpointName, breakpointNameOf, isTabletBreakpoint } from '../common/design/Breakpoints';
-import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../common/design/Tokens';
+import { Colors, HdsMetrics } from '../common/design/Tokens';
 import { CourseEditPage } from '../features/courses/CourseEditPage';
 import { CoursesView } from '../features/courses/CoursesView';
 import { ImportView } from '../features/import/ImportView';
@@ -44,7 +43,7 @@ import { SharePage } from '../features/share/SharePage';
 import { ManageTablesPage } from '../features/settings/ManageTablesPage';
 import { MoreSettingsPage } from '../features/settings/MoreSettingsPage';
 import { SettingsView } from '../features/settings/SettingsView';
-import { SettingsSplitView } from '../features/settings/SettingsSplitView';
+import { SETTINGS_EMPTY_ROUTE } from '../common/RouteParams';
 import { TimetableView } from '../features/timetable/TimetableView';
 
 @Entry
@@ -59,6 +58,13 @@ struct Index {
   private settingsScroller: Scroller = new Scroller();
   private pageStack: NavPathStack = new NavPathStack();
   private tabLabels: string[] = ['课表', '课程', '设置'];
+  private tabIcons: Resource[] = [
+    $r('sys.symbol.calendar'),
+    $r('sys.symbol.book'),
+    $r('sys.symbol.gearshape')
+  ];
+  /** 2in1/PC 使用侧边导航；平板和手机保留底部胶囊。 */
+  private readonly is2in1: boolean = deviceInfo.deviceType === '2in1';
   /** 「课程」Tab 标题栏 + 菜单是否展开。 */
   @Local coursesMenuOpen: boolean = false;
 
@@ -67,20 +73,23 @@ struct Index {
   /** 当前课表名（标题栏副标题显示「课表名 + 第 N 周」）。 */
   @Local tableName: string = '我的课表';
   @Local activeTabIndex: number = 0;
+  /** 设置 Tab 在宽屏进入 Auto/Split，其余 Tab 保持 Stack。 */
+  @Local navigationMode: NavigationMode = NavigationMode.Stack;
   /** HDS 导航是否停留在根页面（没有子页面）。 */
   @Local navStackAtRoot: boolean = true;
-  /** 只把「当前 Tab 正在使用的」Scroller 绑定给 HdsNavigation（官方 FAQ 场景二），避免 25 个周页面互相干扰。 */
-  @Local navScrollables: Scroller[] = [];
   /** 当前绑定给课表 Tab 的滚动容器（25 个周页面轮换）。 */
   private boundTimetableScroller: Scroller | undefined = undefined;
+  /** 课表 Tab 当前周页面滚动容器，供 HdsNavDestination 标题栏模糊联动。 */
+  @Local timetableTabScrollables: Scroller[] = [];
 
   aboutToAppear(): void {
     for (let i = 0; i < 25; i++) {
       this.weekScrollers.push(new Scroller());
     }
+    const initialWeek: number = Math.max(0, Math.min(this.store.tmpWeekIndex - 1, this.weekScrollers.length - 1));
+    this.timetableTabScrollables = [this.weekScrollers[initialWeek]];
     this.hdsTabsController.bindScroller(1, this.coursesScroller);
     this.hdsTabsController.bindScroller(2, this.settingsScroller);
-    this.navScrollables = [this.timetableScroller];
     // 跟踪子页面进出：只有根页面显示标题栏副标题热区，避免挡住子页面返回键。
     this.pageStack.setInterception({
       didShow: (from: NavDestinationContext | NavBar, to: NavDestinationContext | NavBar) => {
@@ -100,27 +109,6 @@ struct Index {
     }
   }
 
-  /** 滚动方向变化 → HDS 页签栏显隐动画（官方 HdsTabsController.applyHide/ShowAnimation）。 */
-  @Monitor('store.tabBarHidden')
-  private onTabBarHiddenChanged(_monitor: IMonitor): void {
-    // 宽屏用侧边导航，没有底部页签可收起；滚动逻辑仍可能写 tabBarHidden，这里归位。
-    if (this.isWideShell()) {
-      if (this.store.tabBarHidden) {
-        AppState.setTabBarHidden(false);
-      }
-      return;
-    }
-    try {
-      if (this.store.tabBarHidden) {
-        this.hdsTabsController.applyHideAnimation(HdsAnimationMode.SCROLL_ANIMATION);
-      } else {
-        this.hdsTabsController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION);
-      }
-    } catch (err) {
-      console.warn(`[Index] tab bar animation failed: ${JSON.stringify(err)}`);
-    }
-  }
-
   /** 课表页切换周页面时，把当前页的 Scroller 重新绑定给 HdsTabs，并同步给 HdsNavigation 标题栏模糊。 */
   private bindTimetableScroller(scroller: Scroller): void {
     if (this.boundTimetableScroller === scroller) {
@@ -132,30 +120,44 @@ struct Index {
       }
       this.hdsTabsController.bindScroller(0, scroller);
       this.boundTimetableScroller = scroller;
-      if (this.activeTabIndex === 0) {
-        this.navScrollables = [scroller];
-      }
+      this.timetableTabScrollables = [scroller];
     } catch (err) {
       console.warn(`[Index] bind timetable scroller failed: ${JSON.stringify(err)}`);
     }
   }
 
-  /** 当前 Tab 对应的滚动容器（HdsNavigation 标题栏模糊只绑当前这一个，官方 FAQ 场景二）。 */
-  private currentTabScroller(): Scroller[] {
-    if (this.activeTabIndex === 0) {
-      const active: Scroller = this.boundTimetableScroller !== undefined ?
-        this.boundTimetableScroller : this.timetableScroller;
-      return [active];
-    }
-    if (this.activeTabIndex === 1) {
-      return [this.coursesScroller];
-    }
-    return [this.settingsScroller];
-  }
-
   @Monitor('store.windowWidth')
   onWindowWidthChange(_monitor: IMonitor): void {
     this.updateBreakpoint();
+  }
+
+  /** Settings Split 的栈底空页：模式切换或设置页真正显示时触发一次。 */
+  private ensureSettingsBase(): void {
+    if (!this.isWideShell() || this.activeTabIndex !== 2) {
+      return;
+    }
+    if (this.pageStack.getAllPathName().length === 0) {
+      this.pageStack.pushPathByName(SETTINGS_EMPTY_ROUTE, null, false);
+    }
+  }
+
+  @Monitor('store.breakpoint')
+  private onBreakpointChanged(_monitor: IMonitor): void {
+    if (!this.isWideShell()) {
+      this.navigationMode = NavigationMode.Stack;
+      if (this.activeTabIndex === 2) {
+        this.pageStack.clear();
+      }
+      return;
+    }
+    if (this.activeTabIndex === 2) {
+      this.navigationMode = NavigationMode.Auto;
+      this.pageStack.clear();
+      this.pageStack.pushPathByName(SETTINGS_EMPTY_ROUTE, null, false);
+    } else {
+      this.navigationMode = NavigationMode.Stack;
+      this.pageStack.clear();
+    }
   }
 
   private contentTopSpace(): number {
@@ -239,15 +241,6 @@ struct Index {
     this.loadTableName();
   }
 
-  /** 标题栏标题内容：课表页不显示副标题（由 bottomBuilder 取代），其他 Tab 仍显示 Tab 名。 */
-  private titleContent(): HdsNavigationTitle {
-    if (this.activeTabIndex === 0) {
-      // 直接替换原来的「课表」副标题：课表名 + 当前周（点击由顶部透明热区打开周次选择器）
-      return { mainTitle: '呢喃课表', subTitle: `${this.tableName} · 第 ${this.store.tmpWeekIndex} 周` };
-    }
-    return { mainTitle: '呢喃课表', subTitle: this.tabLabels[this.activeTabIndex] };
-  }
-
   /** 底部页签样式：选中态跟随主题强调色（图标 + 文字）。 */
   private bottomTabBar(icon: Resource, label: string): BottomTabBarStyle {
     return new BottomTabBarStyle({
@@ -264,13 +257,13 @@ struct Index {
     if (name === 'course-edit') {
       CourseEditPage({ pageStack: this.pageStack })
     } else if (name === 'tables') {
-      ManageTablesPage({pageStack: this.pageStack})
+      ManageTablesPage()
     } else if (name === 'more-settings') {
       MoreSettingsPage()
     } else if (name === 'privacy') {
       PrivacyPage({})
     } else if (name === 'about') {
-      AboutPage({pageStack: this.pageStack})
+      AboutPage()
     } else if (name === 'licenses') {
       OpenSourceLicensesPage()
     } else if (name === 'acknowledgements') {
@@ -285,6 +278,14 @@ struct Index {
       SharePage({})
     } else if (name === 'import-code') {
       ImportCodePage({pageStack: this.pageStack})
+    } else if (name === SETTINGS_EMPTY_ROUTE) {
+      HdsNavDestination() {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor(Colors.Background)
+      }
+      .hideTitleBar(true)
     }
   }
 
@@ -293,30 +294,40 @@ struct Index {
   }
 
   private onTabChanged(index: number): void {
-    this.activeTabIndex = index;
-    this.coursesMenuOpen = false;
-    TabBarAutoHide.resetAndShow();
-    this.navScrollables = this.currentTabScroller();
-  }
-
-  private selectTab(index: number): void {
-    if (this.activeTabIndex === index) {
+    if (index === this.activeTabIndex) {
       return;
     }
+    const previous: number = this.activeTabIndex;
     this.activeTabIndex = index;
     this.coursesMenuOpen = false;
-    TabBarAutoHide.resetAndShow();
-    this.navScrollables = this.currentTabScroller();
-    this.hdsTabsController.changeIndex(index);
+    if (this.isWideShell()) {
+      if (index === 2) {
+        this.navigationMode = NavigationMode.Auto;
+      } else {
+        this.navigationMode = NavigationMode.Stack;
+      }
+      this.pageStack.clear();
+    } else {
+      this.navigationMode = NavigationMode.Stack;
+      if (previous === 2) {
+        this.pageStack.clear();
+      }
+    }
+    if (index < 2) {
+      this.hdsTabsController.changeIndex(index);
+    }
   }
 
   @Builder
   private tabContents() {
     TabContent() {
-      Column() {
+      HdsTabPage({
+        title: '呢喃课表',
+        subtitle: `${this.tableName} · 第 ${this.store.tmpWeekIndex} 周`,
+        scrollables: this.timetableTabScrollables
+      }) {
         TimetableView({
           pageStack: this.pageStack,
-          active: this.activeTabIndex === 0,
           scroller: this.timetableScroller,
           weekScrollers: this.weekScrollers,
           onActiveScrollerChange: (scroller: Scroller) => {
@@ -324,38 +335,34 @@ struct Index {
           }
         })
       }
-      .width('100%')
-      .height('100%')
-      .padding({ top: 0 })
-      .backgroundColor(Colors.Background)
     }
     .tabBar(this.bottomTabBar($r('sys.symbol.calendar'), this.tabLabels[0]))
 
     TabContent() {
-      Column() {
+      HdsTabPage({
+        title: '呢喃课表',
+        subtitle: this.tabLabels[1],
+        menu: this.courseMenuContent(),
+        scrollables: [this.coursesScroller]
+      }) {
         CoursesView({ pageStack: this.pageStack, active: this.activeTabIndex === 1,
           tableId: this.store.tableId, scroller: this.coursesScroller })
       }
-      .width('100%')
-      .height('100%')
-      .padding({ top: 0 })
-      .backgroundColor(Colors.Background)
     }
     .tabBar(this.bottomTabBar($r('sys.symbol.book'), this.tabLabels[1]))
 
     TabContent() {
-      Column() {
-        if (this.isWideShell()) {
-          SettingsSplitView({ scroller: this.settingsScroller })
-        } else {
-          SettingsView({ pageStack: this.pageStack, scroller: this.settingsScroller })
-        }
+      HdsTabPage({
+        title: '呢喃课表',
+        subtitle: this.tabLabels[2],
+        scrollables: [this.settingsScroller]
+      }) {
+        SettingsView({ pageStack: this.pageStack, scroller: this.settingsScroller })
       }
-      .width('100%')
-      .height('100%')
-      .padding({ top: 0 })
-      .backgroundColor(Colors.Background)
     }
+    .onWillShow(() => {
+      this.ensureSettingsBase();
+    })
     .tabBar(this.bottomTabBar($r('sys.symbol.gearshape'), this.tabLabels[2]))
   }
 
@@ -364,7 +371,8 @@ struct Index {
     HdsTabs({ controller: this.hdsTabsController, index: this.activeTabIndex }) {
       this.tabContents()
     }
-    .animationDuration(250)
+    .animationDuration(0)
+    .barHeight(this.is2in1 ? 0 : 56)
     .vertical(false)
     .scrollable(false)
     .barPosition(BarPosition.End)
@@ -386,110 +394,30 @@ struct Index {
     .backgroundColor(Colors.Background)
   }
 
+  /** 根 Navigation：不显示标题栏；仅设置 Tab 在宽屏进入 Auto/Split。 */
   @Builder
-  private wideTabs() {
-    HdsTabs({ controller: this.hdsTabsController, index: this.activeTabIndex }) {
-      this.tabContents()
+  private contentNavigation() {
+    HdsNavigation(this.pageStack) {
+      this.narrowTabs()
     }
-    .animationDuration(250)
-    .vertical(false)
-    .scrollable(false)
-    .barPosition(BarPosition.End)
-    .barHeight(0)
-    .barOverlap(false)
-    .onChange((index: number) => {
-      this.onTabChanged(index);
+    .mode(this.navigationMode)
+    .navBarWidth(420)
+    .hideTitleBar(true)
+    .onNavigationModeChange((mode: NavigationMode) => {
+      if (mode === NavigationMode.Split) {
+        this.ensureSettingsBase();
+      }
     })
+    .navDestination(this.destinationBuilder)
     .width('100%')
     .height('100%')
-    .backgroundColor(Colors.Background)
   }
 
   @Builder
-  private sideBarItem(index: number, icon: Resource, label: string) {
-    Row({ space: Spacing.Md }) {
-      SymbolGlyph(icon)
-        .fontSize(24)
-        .fontColor([index === this.activeTabIndex ? this.store.accentDisplay : Colors.TextSecondary])
-      Text(label)
-        .fontSize(FontSize.Body)
-        .fontWeight(index === this.activeTabIndex ? FontWeight.Medium : FontWeight.Regular)
-        .fontColor(index === this.activeTabIndex ? this.store.accentDisplay : Colors.TextPrimary)
-        .layoutWeight(1)
-    }
-    .width('100%')
-    .height(52)
-    .padding({ left: Spacing.Md, right: Spacing.Md })
-    .borderRadius(Radius.Md)
-    .backgroundColor(index === this.activeTabIndex ? this.store.accentSoft : Color.Transparent)
-    .onClick(() => {
-      this.selectTab(index);
-    })
-  }
-
-  @Builder
-  private sideBarPanel() {
-    Column({ space: Spacing.Xs }) {
-      this.sideBarItem(0, $r('sys.symbol.calendar'), this.tabLabels[0])
-      this.sideBarItem(1, $r('sys.symbol.book'), this.tabLabels[1])
-      this.sideBarItem(2, $r('sys.symbol.gearshape'), this.tabLabels[2])
-    }
-    .width('100%')
-    .height('100%')
-    .padding({ left: Spacing.Md, right: Spacing.Md, top: this.contentTopSpace() + Spacing.Md })
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  build() {
+  private mainContent() {
     Stack() {
       Column() {
-        HdsNavigation(this.pageStack) {
-          if (this.isWideShell()) {
-            HdsSideBar({
-              isShowSideBar: true,
-              autoHide: false,
-              sideBarWidth: 240,
-              minContentWidth: 480,
-              sideBarColor: Colors.Background,
-              contentColor: Colors.Background,
-              sideBarContainerType: SideBarContainerType.Embed,
-              sideBarPanelBuilder: () => {
-                this.sideBarPanel()
-              },
-              contentPanelBuilder: () => {
-                this.wideTabs()
-              }
-            })
-            .width('100%')
-            .height('100%')
-          } else {
-            this.narrowTabs()
-          }
-        }
-        .mode(NavigationMode.Stack)
-        .hideBackButton(true)
-        .titleMode(HdsNavigationTitleMode.MINI)
-        .titleBar({
-          avoidLayoutSafeArea: true,
-          content: {
-            title: this.titleContent(),
-            menu: this.activeTabIndex === 1 ? this.courseMenuContent() : undefined
-          },
-          style: {
-            // 与 hydrotoolkit 相同：静止透明，内容滚到标题栏下方时渐变模糊
-            scrollEffectOpts: {
-              scrollEffectType: ScrollEffectType.GRADIENT_BLUR
-            },
-            systemMaterialEffect: {
-              materialType: hdsMaterial.MaterialType.ADAPTIVE,
-              materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-            }
-          }
-        })
-        .bindToScrollable(this.navScrollables)
-        .navDestination(this.destinationBuilder)
-        .width('100%')
-        .height('100%')
+        this.contentNavigation()
       }
       .width('100%')
       .height('100%')
@@ -528,4 +456,29 @@ struct Index {
     .width('100%')
     .height('100%')
   }
+
+  build() {
+    if (this.is2in1) {
+      SideBarContainer(SideBarContainerType.Embed) {
+        DesktopSideBar({
+          labels: this.tabLabels,
+          icons: this.tabIcons,
+          activeIndex: this.activeTabIndex,
+          onSelect: (index: number) => {
+            this.onTabChanged(index);
+          }
+        })
+        this.mainContent()
+      }
+      .showSideBar(true)
+      .sideBarWidth(240)
+      .showControlButton(false)
+      .autoHide(false)
+      .width('100%')
+      .height('100%')
+    } else {
+      this.mainContent()
+    }
+  }
+
 }

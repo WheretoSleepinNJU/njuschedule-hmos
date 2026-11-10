@@ -1,5 +1,5 @@
 /**
- * 设置 Tab 页（挂在 HdsTabs 的「设置」TabContent 里，标题由外壳 HdsNavigation 提供）。
+ * 设置 Tab 页（挂在 HdsTabs 的「设置」TabContent 里，标题由 Tab 的 HdsNavDestination 提供）。
  *
  * 分区：
  * ① 课表      —— 当前课表名 + 课表管理、当前周（每个课表独立保存）
@@ -11,7 +11,6 @@
  *   改动时同步写 preferences 持久化，页面通过 `@Local store` 自动响应。
  * - 当前周改动写 prefs（WeekUtil.setNowWeek）后再写 AppState。
  */
-import { TabBarAutoHide } from '../../common/ui/TabBarAutoHide';
 import { AppPreferences, PrefKeys } from '../../app/AppPreferences';
 import { AppState } from '../../app/AppState';
 import { AppStore } from '../../app/AppStore';
@@ -19,6 +18,8 @@ import { LegacyConfig } from '../../common/Constants';
 import { Colors, HdsMetrics, Spacing, TimetableMetrics } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { applyTextPickerAccent } from '../../common/ui/TextPickerStyle';
+import { pushPageOnce } from '../../common/NavStackResolver';
+import { SETTINGS_EMPTY_ROUTE } from '../../common/RouteParams';
 import { CourseTable } from '../../data/models/Models';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { WeekUtil } from '../../data/WeekUtil';
@@ -45,10 +46,8 @@ export struct SettingsView {
   @Param tableId: number = 0;
   /** 外壳可传入自己的 Scroller（用于标题栏滚动模糊联动）；不传时用内置的。 */
   @Param scroller: Scroller = new Scroller();
-
   @Local tableName: string = '';
   aboutToAppear(): void {
-    TabBarAutoHide.resetAndShow();
     this.reloadTableName();
   }
 
@@ -99,6 +98,37 @@ export struct SettingsView {
       }
     } catch (err) {
       console.error(`[Settings] 保存当前周失败: ${JSON.stringify(err)}`);
+    }
+  }
+
+  /**
+   * 一级设置页：分享/讲座/自定义外观/关于/课表管理。
+   * 宽屏分栏时右侧只保留当前一级页面，返回直接回到设置根（右侧空白），
+   * 不会记住上一级详情页。
+   */
+  private openLevelOnePage(name: string): void {
+    try {
+      const names: string[] = this.pageStack.getAllPathName();
+      if (names.length > 0 && names[names.length - 1] === name) {
+        return;
+      }
+      if (names.length === 1 && names[0] === SETTINGS_EMPTY_ROUTE) {
+        pushPageOnce(this.pageStack, name);
+        return;
+      }
+      if (names.length > 1 && names[0] === SETTINGS_EMPTY_ROUTE) {
+        this.pageStack.clear(false);
+        this.pageStack.pushPathByName(SETTINGS_EMPTY_ROUTE, null, false);
+        pushPageOnce(this.pageStack, name);
+        return;
+      }
+      if (names.length > 0) {
+        this.pageStack.replacePathByName(name, null);
+        return;
+      }
+      pushPageOnce(this.pageStack, name);
+    } catch (err) {
+      console.warn(`[Settings] open level one page failed: ${JSON.stringify(err)}`);
     }
   }
 
@@ -186,7 +216,7 @@ export struct SettingsView {
           title: this.tableName === '' ? '当前课表' : this.tableName,
           trailingText: '课表管理',
           onTap: () => {
-            this.pageStack.pushPathByName(ROUTE_TABLES, null);
+            this.openLevelOnePage(ROUTE_TABLES);
           }
         })
         SettingsItemDivider()
@@ -270,7 +300,7 @@ export struct SettingsView {
           icon: $r('sys.symbol.share'),
           title: '分享当前课表',
           onTap: () => {
-            this.pageStack.pushPathByName('share', null);
+            this.openLevelOnePage('share');
           }
         })
         SettingsItemDivider()
@@ -278,7 +308,7 @@ export struct SettingsView {
           icon: $r('sys.symbol.graduationcap'),
           title: '讲座',
           onTap: () => {
-            this.pageStack.pushPathByName(ROUTE_LECTURES, null);
+            this.openLevelOnePage(ROUTE_LECTURES);
           }
         })
         SettingsItemDivider()
@@ -286,7 +316,7 @@ export struct SettingsView {
           icon: $r('sys.symbol.paintbrush'),
           title: '自定义外观',
           onTap: () => {
-            this.pageStack.pushPathByName(ROUTE_MORE_SETTINGS, null);
+            this.openLevelOnePage(ROUTE_MORE_SETTINGS);
           }
         })
         SettingsItemDivider()
@@ -294,7 +324,7 @@ export struct SettingsView {
           icon: $r('sys.symbol.info_circle'),
           title: '关于',
           onTap: () => {
-            this.pageStack.pushPathByName(ROUTE_ABOUT, null);
+            this.openLevelOnePage(ROUTE_ABOUT);
           }
         })
       }
@@ -314,6 +344,8 @@ export struct SettingsView {
       .padding({
         left: Spacing.Md,
         right: Spacing.Md,
+        // HdsNavigation 标题栏与内容区默认堆叠，NavBar 内容同样需要让出标题栏高度，
+        // 与官方 HdsNavigation 开发实例里的 Blank(TITLE_BAR_HEIGHT_MINI) 一致。
         top: HdsMetrics.TitleBarHeight + HdsMetrics.TitleBarBreathing + px2vp(this.store.windowTopInset),
         bottom: 120
       })
@@ -321,12 +353,6 @@ export struct SettingsView {
       .cachedCount(3, true)
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-      .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
-        TabBarAutoHide.onScroll(this.scroller);
-      })
-      .onReachStart(() => {
-        TabBarAutoHide.resetAndShow();
-      })
     }
     .width('100%')
     .height('100%')

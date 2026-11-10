@@ -11,7 +11,7 @@
  */
 import { AppStore } from '../../app/AppStore';
 import { LegacyConfig } from '../../common/Constants';
-import { Colors, FontSize, Radius, Spacing, TimetableMetrics } from '../../common/design/Tokens';
+import { Colors, FontSize, Radius, TimetableMetrics } from '../../common/design/Tokens';
 
 /** 星期/日期行：单独成组件，主题色（今天高亮）变化时只重绘这一行，不重绘 25 页课表。 */
 @ComponentV2
@@ -21,7 +21,6 @@ export struct WeekHeaderRow {
   @Param labels: string[] = [];
   @Param dates: string[] = [];
   @Param todayColumn: number = -1;
-  @Param dayWidth: number = 0;
   @Param showDate: boolean = true;
 
   build() {
@@ -44,7 +43,7 @@ export struct WeekHeaderRow {
               .fontColor(index === this.todayColumn ? this.store.accentDisplay : Colors.TextTertiary)
           }
         }
-        .width(this.dayWidth)
+        .layoutWeight(1)
         .height(TimetableMetrics.HeaderHeight)
         .justifyContent(FlexAlign.Center)
         .backgroundColor(Color.Transparent)

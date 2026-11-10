@@ -20,8 +20,4 @@ export class AppContext {
     }
     return ctx;
   }
-
-  static isReady(): boolean {
-    return AppContext.abilityContext !== null;
-  }
 }

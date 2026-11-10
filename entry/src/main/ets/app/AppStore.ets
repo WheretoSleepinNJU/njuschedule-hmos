@@ -23,7 +23,6 @@ export class AppStore {
   @Trace windowBottomInset: number = 0;
 
   // ---- 外壳 / 导航 ----
-  @Trace tabBarHidden: boolean = false;
   @Trace weekPickerOpen: boolean = false;
   @Trace ready: boolean = false;
 

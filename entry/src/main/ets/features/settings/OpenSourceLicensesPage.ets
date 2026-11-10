@@ -100,7 +100,7 @@ export struct OpenSourceLicensesPage {
           left: Spacing.Md,
           right: Spacing.Md,
           top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-          bottom: Spacing.Xxxl
+          bottom: Spacing.Xxxl + HdsMetrics.FloatingTabBarClearance
         })
         .clip(false)
         .cachedCount(3, true)

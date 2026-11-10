@@ -57,7 +57,7 @@ export struct PrivacyPage {
           .width('100%')
           .padding({
             top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-            bottom: Spacing.Sm
+            bottom: Spacing.Sm + HdsMetrics.FloatingTabBarClearance
           })
         }
         .width('100%')

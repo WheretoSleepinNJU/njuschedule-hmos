@@ -11,6 +11,7 @@ import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/desi
 import { readVersionName } from '../../common/AppVersion';
 import { openUrl } from '../../common/ui/OpenLink';
 import { Feedback } from '../../common/ui/Feedback';
+import { pushPageOnce } from '../../common/NavStackResolver';
 import { AppStore } from '../../app/AppStore';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
@@ -34,7 +35,7 @@ const LINK_CONTRIBUTING: string = 'https://github.com/WheretoSleepinNJU/njusched
 export struct AboutPage {
   /** V2 全局 Store（主题色等）。 */
   @Local store: AppStore = AppStore.connect();
-  @Param pageStack: NavPathStack = new NavPathStack();
+  @Local pageStack: NavPathStack = new NavPathStack();
 
   @Local version: string = FALLBACK_VERSION;
 
@@ -127,7 +128,7 @@ export struct AboutPage {
           icon: $r('sys.symbol.heart'),
           title: '致谢',
           onTap: () => {
-            this.pageStack.pushPathByName(ROUTE_ACKNOWLEDGEMENTS, null);
+            pushPageOnce(this.pageStack, ROUTE_ACKNOWLEDGEMENTS);
           }
         })
         SettingsItemDivider()
@@ -145,7 +146,7 @@ export struct AboutPage {
           icon: $r('sys.symbol.book_pages'),
           title: '第三方许可证',
           onTap: () => {
-            this.pageStack.pushPathByName(ROUTE_LICENSES, null);
+            pushPageOnce(this.pageStack, ROUTE_LICENSES);
           }
         })
       }
@@ -190,7 +191,7 @@ export struct AboutPage {
           title: '隐私政策',
           subtitle: '个人信息处理规则',
           onTap: () => {
-            this.pageStack.pushPathByName(ROUTE_PRIVACY, null);
+            pushPageOnce(this.pageStack, ROUTE_PRIVACY);
           }
         })
       }
@@ -215,7 +216,7 @@ export struct AboutPage {
           left: Spacing.Md,
           right: Spacing.Md,
           top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-          bottom: Spacing.Xxxl
+          bottom: Spacing.Xxxl + HdsMetrics.FloatingTabBarClearance
         })
         .clip(false)
         .cachedCount(3, true)
@@ -229,6 +230,9 @@ export struct AboutPage {
     }
     .titleBar(hdsSubPageTitleBar('关于'))
     .bindToScrollable([this.scroller])
+    .onReady((ctx: NavDestinationContext) => {
+      this.pageStack = ctx.pathStack;
+    })
   }
 
 }

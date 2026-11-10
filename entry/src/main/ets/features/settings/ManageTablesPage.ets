@@ -29,7 +29,7 @@ import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../commo
 export struct ManageTablesPage {
   /** V2 全局 Store。 */
   @Local store: AppStore = AppStore.connect();
-  @Param pageStack: NavPathStack = new NavPathStack();
+  @Local pageStack: NavPathStack = new NavPathStack();
 
   @Local tables: CourseTable[] = [];
   @Local loading: boolean = true;
@@ -305,7 +305,7 @@ export struct ManageTablesPage {
           left: Spacing.Md,
           right: Spacing.Md,
           top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-          bottom: Spacing.Xxxl
+          bottom: Spacing.Xxxl + HdsMetrics.FloatingTabBarClearance
         })
         .clip(false)
         .cachedCount(3, true)
@@ -319,6 +319,9 @@ export struct ManageTablesPage {
     }
     .titleBar(this.titleBarOptions())
     .bindToScrollable([this.scroller])
+    .onReady((ctx: NavDestinationContext) => {
+      this.pageStack = ctx.pathStack;
+    })
   }
 
 }

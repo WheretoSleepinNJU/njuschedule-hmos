@@ -532,7 +532,7 @@ export struct LecturesPage {
             ListItem() {
               Row()
                 .width('100%')
-                .height(Spacing.Xxl)
+                .height(Spacing.Xxl + HdsMetrics.FloatingTabBarClearance)
             }
           }
           .constraintSize({ maxWidth: 800 })

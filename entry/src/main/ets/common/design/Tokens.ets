@@ -43,17 +43,14 @@ export class HdsMetrics {
   static readonly TitleBarBreathing: number = 8;
   /** HDS IconStyleMode.NORMAL 的标题栏图标默认尺寸（24vp）。 */
   static readonly TitleBarIconSize: number = 24;
+  /** 底部悬浮胶囊页签占位高度：胶囊高度 + 底部间距。 */
+  static readonly FloatingTabBarClearance: number = 80;
 
   static contentTopInset(insetVp: number): number {
     return insetVp + HdsMetrics.TitleBarHeight + HdsMetrics.TitleBarBreathing;
   }
 }
 
-export class Durations {
-  static readonly Fast: number = 150;
-  static readonly Standard: number = 250;
-  static readonly Slow: number = 350;
-}
 
 /** 亮色 / 暗色两套资源都定义了同名颜色，组件只引用这里的令牌。 */
 export class Colors {

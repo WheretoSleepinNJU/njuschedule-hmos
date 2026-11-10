@@ -1,15 +1,10 @@
 /**
  * 日期工具（替代旧版 `intl` 的 DateFormat 用法）。
  *
- * 只做课表需要的格式化：`yyyy-MM-dd`、`MM/dd`、英文短月份（旧版 `DateFormat('MMM','en_US')`）。
+ * 只做课表需要的格式化：`yyyy-MM-dd`、`MM/dd`。
  * 一律使用本地时区，避免 `new Date('yyyy-MM-dd')` 被解析成 UTC 造成跨日偏移。
  */
 export class DateUtils {
-  private static readonly MONTH_NAMES_EN: string[] = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
-
   static today(): Date {
     const now: Date = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -46,10 +41,6 @@ export class DateUtils {
     return `${DateUtils.pad2(date.getHours())}:${DateUtils.pad2(date.getMinutes())}`;
   }
 
-  static monthNameEn(date: Date): string {
-    return DateUtils.MONTH_NAMES_EN[date.getMonth()];
-  }
-
   /** 周一为一周起点（与旧版 WeekUtil 相同）。 */
   static mondayOf(date: Date): Date {
     const day: Date = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -75,10 +66,6 @@ export class DateUtils {
   /** 本周周一的 ISO 字符串（旧版 `_getMonday`）。 */
   static currentMondayString(): string {
     return DateUtils.formatIsoDate(DateUtils.mondayOf(DateUtils.today()));
-  }
-
-  static isSameDay(a: Date, b: Date): boolean {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   }
 
   static weekdayOneBased(date: Date): number {

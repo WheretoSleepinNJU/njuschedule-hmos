@@ -398,7 +398,7 @@ export struct SharePage {
             left: Spacing.Lg,
             right: Spacing.Lg,
             top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-            bottom: Spacing.Xxl
+            bottom: Spacing.Xxl + HdsMetrics.FloatingTabBarClearance
           })
         }
         .scrollable(ScrollDirection.Vertical)

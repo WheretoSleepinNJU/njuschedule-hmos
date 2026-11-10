@@ -8,7 +8,7 @@
  */
 import { AppStore } from '../../app/AppStore';
 import { Course } from '../../data/models/Models';
-import { Colors, CourseBlockColors, FontSize, Radius, Spacing } from '../../common/design/Tokens';
+import { Colors, CourseBlockColors, FontSize, Radius } from '../../common/design/Tokens';
 
 @ComponentV2
 export struct CourseBlock {
@@ -18,6 +18,8 @@ export struct CourseBlock {
   @Param color: string = '#8AD297';
   @Param widthPx: number = 0;
   @Param heightPx: number = 0;
+  /** 放在自适应日期列内时宽度跟随列宽。 */
+  @Param fillWidth: boolean = false;
   /** 本周不上、仅淡显的课程。 */
   @Param faded: boolean = false;
   /** 同一时段的课程数量（>1 时显示角标）。 */
@@ -108,7 +110,7 @@ export struct CourseBlock {
           Text(this.course.classroom)
             .fontSize(FontSize.Caption)
             .fontColor(this.secondaryTextColor())
-            .maxLines(1)
+            .maxLines(3)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .width('100%')
         }
@@ -125,18 +127,38 @@ export struct CourseBlock {
       .padding({ left: 6, right: 4, top: 5, bottom: 2 })
 
       if (this.conflictCount > 1) {
-        Text(`${this.conflictCount}`)
-          .fontSize(9)
-          .fontColor('#FFFFFF')
-          .backgroundColor('#99000000')
-          .borderRadius(Radius.Round)
-          .width(14)
-          .height(14)
-          .textAlign(TextAlign.Center)
-          .position({ x: this.widthPx - 16, y: 2 })
+        if (this.fillWidth) {
+          Row() {
+            Blank()
+            Text(`${this.conflictCount}`)
+              .fontSize(9)
+              .fontColor('#FFFFFF')
+              .backgroundColor('#99000000')
+              .borderRadius(Radius.Round)
+              .width(14)
+              .height(14)
+              .textAlign(TextAlign.Center)
+              .margin({ top: 2, right: 2 })
+          }
+          .width('100%')
+          .height('100%')
+          .justifyContent(FlexAlign.End)
+          .alignItems(VerticalAlign.Top)
+          .hitTestBehavior(HitTestMode.None)
+        } else {
+          Text(`${this.conflictCount}`)
+            .fontSize(9)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#99000000')
+            .borderRadius(Radius.Round)
+            .width(14)
+            .height(14)
+            .textAlign(TextAlign.Center)
+            .position({ x: this.widthPx - 16, y: 2 })
+        }
       }
     }
-    .width(this.widthPx)
+    .width(this.fillWidth ? '100%' : `${this.widthPx}vp`)
     .height(this.heightPx)
     .borderRadius(Radius.Sm)
     .clip(true)

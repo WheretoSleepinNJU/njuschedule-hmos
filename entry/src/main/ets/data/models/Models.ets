@@ -86,12 +86,3 @@ export class CourseTable {
     this.data = data;
   }
 }
-
-/** 课表 data 字段解析结果。 */
-export class CourseTableData {
-  /** 作息列表；为空表示使用默认作息。 */
-  classTimeList: string = '';
-  semesterStartMonday: string = '';
-  hasClassTimeList: boolean = false;
-  hasSemesterStartMonday: boolean = false;
-}

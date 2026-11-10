@@ -54,20 +54,6 @@ export class AppState {
     store.recomputeAccent();
   }
 
-  /**
-   * 记录「系统」的深浅色（来自 EntryAbility 的 config）。与 App 内强制深浅色解耦：
-   * 只有外观模式为「跟随系统」时才同时更新生效的 isDark，强制深色/浅色时不能覆盖。
-   */
-  static setSystemIsDark(dark: boolean): void {
-    const store: AppStore = AppState.store();
-    store.systemIsDark = dark;
-    store.systemIsDarkKnown = true;
-    if (store.themeModeIndex === 0) {
-      store.isDark = dark;
-      store.recomputeAccent();
-    }
-  }
-
   /** 记录真正的系统深浅色（来自 ApplicationContext.onSystemConfigurationUpdated）。 */
   static noteSystemColorMode(dark: boolean): void {
     const store: AppStore = AppState.store();
@@ -168,10 +154,6 @@ export class AppState {
     AppState.store().weekPickerOpen = open;
   }
 
-  static setTabBarHidden(hidden: boolean): void {
-    AppState.store().tabBarHidden = hidden;
-  }
-
   static setDisplayWeek(week: number): void {
     AppState.store().tmpWeekIndex = week;
   }
@@ -181,9 +163,5 @@ export class AppState {
     const current: number = AppState.store().dataRevision;
     AppState.store().dataRevision = current + 1;
     await WidgetData.write();
-  }
-
-  static dataRevision(): number {
-    return AppState.store().dataRevision;
   }
 }

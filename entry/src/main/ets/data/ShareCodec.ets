@@ -209,22 +209,6 @@ export class ShareCodec {
     return frame;
   }
 
-  /** 把长码切成多帧（扫码用；单帧 ≤ 1400 字符）。 */
-  static splitFrames(code: string, groupId?: string): string[] {
-    const encoded: string = ShareCodec.extractSingleFrame(code);
-    if (encoded.length <= PART_MAX_LENGTH) {
-      return [code];
-    }
-    const group: string = groupId !== undefined && groupId !== '' ? groupId : `${Date.now()}`;
-    const total: number = Math.ceil(encoded.length / PART_MAX_LENGTH);
-    const frames: string[] = [];
-    for (let i = 0; i < total; i++) {
-      const part: string = encoded.substring(i * PART_MAX_LENGTH, (i + 1) * PART_MAX_LENGTH);
-      frames.push(`${SCHEME}://${HOST}/${VERSION_TAG}/m/${i + 1}/${total}/${group}/${part}`);
-    }
-    return frames;
-  }
-
   /**
    * 生成二维码用的帧序列：Scan Kit 单张二维码文本上限 512 字符，
    * 因此整条 URI 控制在 500 以内；单帧放得下就返回单帧，否则拆成多帧（旧版 App 可按 idx/total 合并）。

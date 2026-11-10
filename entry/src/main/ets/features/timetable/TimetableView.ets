@@ -29,7 +29,6 @@ import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { Course, CourseTable } from '../../data/models/Models';
 import { ScheduleModel } from '../../data/ScheduleModel';
 import { CourseBlock } from './CourseBlock';
-import { TabBarAutoHide } from '../../common/ui/TabBarAutoHide';
 import { contentSheetOptions, pickerSheetOptions } from '../../common/ui/SheetOptions';
 import {
   BackToCurrentWeekButton,
@@ -48,9 +47,7 @@ class LayoutBlock {
   faded: boolean = false;
   conflictCount: number = 0;
   group: Course[] = [];
-  x: number = 0;
   y: number = 0;
-  w: number = 0;
   h: number = 0;
 }
 
@@ -59,8 +56,6 @@ export struct TimetableView {
   /** V2 全局 Store（主题色 / 背景图 / 课表与周次 / 显示配置）。 */
   @Local store: AppStore = AppStore.connect();
   @Param pageStack: NavPathStack = new NavPathStack();
-  /** 课表 Tab 是否处于激活状态：切回时重新读取配色池，保证重置颜色立即生效。 */
-  @Param active: boolean = true;
   /** 外壳可传入自己的 Scroller（用于标题栏模糊联动）；不传时用内置的。 */
   @Param scroller: Scroller = new Scroller();
   /** 外壳传入的 25 个周页面滚动控制器（用于标题栏模糊绑定）。 */
@@ -92,7 +87,6 @@ export struct TimetableView {
   @Local activeCourses: Course[] = [];
   @Local multiGroups: Course[][] = [];
   @Local freeCourses: Course[] = [];
-  @Local containerWidth: number = 0;
   @Local todayWeekday: number = 1;
   /** 当前课表名（对齐系统日历标题：课表名 + 周次）。 */
   @Local tableName: string = '我的课表';
@@ -156,13 +150,6 @@ export struct TimetableView {
     this.reload();
   }
 
-  @Monitor('active')
-  onActiveChanged(_monitor: IMonitor): void {
-    if (this.active) {
-      this.reload();
-    }
-  }
-
   // ------------------------------------------------------------------ 数据
 
   private async reload(): Promise<void> {
@@ -211,13 +198,6 @@ export struct TimetableView {
 
   private daysCount(): number {
     return this.store.showWeekend ? 7 : 5;
-  }
-
-  private dayWidth(): number {
-    const width: number = this.containerWidth > 0 ? this.containerWidth : 360;
-    const available: number = width - TimetableMetrics.TimeColumnWidth;
-    const perDay: number = available / this.daysCount();
-    return perDay > 40 ? perDay : 40;
   }
 
   private gridHeight(): number {
@@ -280,12 +260,14 @@ export struct TimetableView {
     block.conflictCount = conflictCount;
     block.group = group;
     const gap: number = TimetableMetrics.CourseBlockGap;
-    const dayWidth: number = this.dayWidth();
-    block.x = TimetableMetrics.TimeColumnWidth + (course.weekTime - 1) * dayWidth + gap;
     block.y = (course.startTime - 1) * this.store.classHeight + gap;
-    block.w = dayWidth - gap * 2;
     block.h = Math.max((course.timeCount + 1) * this.store.classHeight - gap * 2, this.store.classHeight - gap * 2);
     return block;
+  }
+
+  /** 某一天的课程块：布局按日期列自适应，不再计算横向绝对坐标。 */
+  private blocksForDay(week: number, day: number): LayoutBlock[] {
+    return this.layoutBlocksFor(week).filter((block: LayoutBlock) => block.course.weekTime === day);
   }
 
   private layoutBlocksFor(week: number): LayoutBlock[] {
@@ -448,62 +430,64 @@ export struct TimetableView {
   }
 
   @Builder
-  private gridBackground() {
-    Row() {
-      this.timeColumn()
-      ForEach(this.dayIndexes(), (dayIndex: number) => {
-        Column() {
-          ForEach(this.periods, (period: ClassPeriod, periodIndex: number) => {
-            Row()
-              .width('100%')
-              .height(this.store.classHeight)
-              .backgroundColor(Color.Transparent)
-              .border({ width: { bottom: 1 }, color: Colors.GridLine, style: BorderStyle.Dashed })
-          }, (period: ClassPeriod, periodIndex: number) => `c-${this.store.classHeight}-${this.containerWidth}-${dayIndex}-${periodIndex}`)
-        }
-        .width(this.dayWidth())
-      }, (dayIndex: number) => `col-${this.daysCount()}-${this.containerWidth}-${dayIndex}`)
-    }
-    .alignItems(VerticalAlign.Top)
-  }
-
-  /** 单周网格页面（Swiper 的每个子页面，等价旧版 PageView.builder 的单页内容）。 */
-  @Builder
-  private gridFor(week: number) {
-    Stack({ alignContent: Alignment.TopStart }) {
-      this.gridBackground()
-      ForEach(this.layoutBlocksFor(week), (block: LayoutBlock) => {
-        CourseBlock({
-          course: block.course,
-          color: block.color,
-          widthPx: block.w,
-          heightPx: block.h,
-          faded: block.faded,
-          conflictCount: block.conflictCount,
-          showPlace: true,
-          showTeacher: this.store.classHeight >= 60,
-          onTap: () => {
-            if (block.conflictCount > 1) {
-              this.openMulti(block.group);
-            } else {
-              this.openDetail(block.course);
-            }
-          },
-          onLongPress: () => {
-            this.confirmDelete(block.course);
-          }
-        })
-          .position({ x: block.x, y: block.y })
-      }, (block: LayoutBlock) => `w${week}-${this.daysCount()}-${this.store.classHeight}-${this.containerWidth}-${block.key}-${block.color}`)
+  private dayGridLines() {
+    Column() {
+      ForEach(this.periods, (period: ClassPeriod, periodIndex: number) => {
+        Row()
+          .width('100%')
+          .height(this.store.classHeight)
+          .backgroundColor(Color.Transparent)
+          .border({ width: { bottom: 1 }, color: Colors.GridLine, style: BorderStyle.Dashed })
+      }, (period: ClassPeriod, periodIndex: number) => `c-${this.store.classHeight}-${periodIndex}`)
     }
     .width('100%')
     .height(this.gridHeight())
-    .onAreaChange((oldValue: Area, newValue: Area) => {
-      const width: number = Number(newValue.width);
-      if (width > 0 && Math.abs(width - this.containerWidth) > 1) {
-        this.containerWidth = width;
-      }
-    })
+  }
+
+  /** 单周网格页面：日期列 layoutWeight 自适应，课程块放在各自日期列内。 */
+  @Builder
+  private gridFor(week: number) {
+    Row() {
+      this.timeColumn()
+      ForEach(this.dayIndexes(), (dayIndex: number) => {
+        Stack({ alignContent: Alignment.TopStart }) {
+          this.dayGridLines()
+          ForEach(this.blocksForDay(week, dayIndex + 1), (block: LayoutBlock) => {
+            Column() {
+              CourseBlock({
+                course: block.course,
+                color: block.color,
+                widthPx: 0,
+                heightPx: block.h,
+                faded: block.faded,
+                conflictCount: block.conflictCount,
+                showPlace: true,
+                showTeacher: this.store.classHeight >= 60,
+                fillWidth: true,
+                onTap: () => {
+                  if (block.conflictCount > 1) {
+                    this.openMulti(block.group);
+                  } else {
+                    this.openDetail(block.course);
+                  }
+                },
+                onLongPress: () => {
+                  this.confirmDelete(block.course);
+                }
+              })
+            }
+            .width('100%')
+            .padding({ left: TimetableMetrics.CourseBlockGap, right: TimetableMetrics.CourseBlockGap })
+            .position({ x: 0, y: block.y })
+          }, (block: LayoutBlock) => `w${week}-${dayIndex}-${block.key}-${block.color}`)
+        }
+        .layoutWeight(1)
+        .height(this.gridHeight())
+      }, (dayIndex: number) => `col-${this.daysCount()}-${dayIndex}`)
+    }
+    .width('100%')
+    .height(this.gridHeight())
+    .alignItems(VerticalAlign.Top)
   }
 
   @Monitor('store.weekPickerOpen')
@@ -620,7 +604,6 @@ export struct TimetableView {
                     labels: this.weekdayLabels(),
                     dates: this.dayDatesFor(weekValue),
                     todayColumn: this.todayColumnFor(weekValue),
-                    dayWidth: this.dayWidth(),
                     showDate: this.store.showDate
                   })
                   this.gridFor(weekValue)
@@ -636,13 +619,6 @@ export struct TimetableView {
               .scrollBar(BarState.Off)
               .edgeEffect(EdgeEffect.Spring)
               .align(Alignment.TopStart)
-              // 下滑收起悬浮页签、上滑恢复；回到顶部一定恢复
-              .onDidScroll((xOffset: number, yOffset: number) => {
-                TabBarAutoHide.onScroll(this.pageScroller(weekValue));
-              })
-              .onReachStart(() => {
-                TabBarAutoHide.resetAndShow();
-              })
             }
             .width('100%')
             .height('100%')

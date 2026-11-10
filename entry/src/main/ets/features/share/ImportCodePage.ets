@@ -9,7 +9,7 @@ import { common } from '@kit.AbilityKit';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { AppState } from '../../app/AppState';
-import { AppPreferences } from '../../app/AppPreferences';
+import {} from '../../app/AppPreferences';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { AppStore } from '../../app/AppStore';

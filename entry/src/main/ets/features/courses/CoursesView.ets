@@ -13,7 +13,6 @@
  */
 import { AppState } from '../../app/AppState';
 import { Course } from '../../data/models/Models';
-import { TabBarAutoHide } from '../../common/ui/TabBarAutoHide';
 import { contentSheetOptions } from '../../common/ui/SheetOptions';
 import { ArrayDataSource } from '../../common/ui/ArrayDataSource';
 import { CourseRepository } from '../../data/CourseRepository';
@@ -59,7 +58,6 @@ export struct CoursesView {
   @Param active: boolean = true;
 
   aboutToAppear(): void {
-    TabBarAutoHide.resetAndShow();
     this.reload();
   }
 
@@ -342,12 +340,6 @@ export struct CoursesView {
         .align(Alignment.Top)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-        .onDidScroll((xOffset: number, yOffset: number) => {
-          TabBarAutoHide.onScroll(this.scroller);
-        })
-        .onReachStart(() => {
-          TabBarAutoHide.resetAndShow();
-        })
       } else {
         List({ space: Spacing.Md, scroller: this.scroller }) {
           // 顶部留白必须位于滚动内容内（而不是 List 的 padding），
@@ -375,13 +367,6 @@ export struct CoursesView {
         .cachedCount(2)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
-        // 下滑收起悬浮页签、上滑恢复；回到顶部一定恢复
-        .onDidScroll((xOffset: number, yOffset: number) => {
-          TabBarAutoHide.onScroll(this.scroller);
-        })
-        .onReachStart(() => {
-          TabBarAutoHide.resetAndShow();
-        })
       }
 
       // 独立锚点：多时段列表半模态；详情半模态仍挂在根 Column 上。

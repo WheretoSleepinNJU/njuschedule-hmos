@@ -130,39 +130,6 @@ export class CourseTableRepository {
     }
   }
 
-  /** 学期起始周一（`yyyy-MM-dd`），空串表示未设置。 */
-  static async getSemesterStartMonday(tableId: number): Promise<string> {
-    const table: CourseTable | null = await CourseTableRepository.getById(tableId);
-    if (table === null || table.data === '') {
-      return '';
-    }
-    try {
-      const parsed: CourseTableDataJson = JSON.parse(table.data) as CourseTableDataJson;
-      const monday: string | undefined = parsed.semester_start_monday;
-      return monday === undefined ? '' : monday;
-    } catch (err) {
-      return '';
-    }
-  }
-
-  /** 写回 semester_start_monday，保留 `data` 里其它字段。 */
-  static async setSemesterStartMonday(tableId: number, monday: string): Promise<void> {
-    const table: CourseTable | null = await CourseTableRepository.getById(tableId);
-    const existing: string = table === null ? '' : table.data;
-    let data: string = '{}';
-    if (existing !== '') {
-      try {
-        const parsed: CourseTableDataJson = JSON.parse(existing) as CourseTableDataJson;
-        parsed.semester_start_monday = monday;
-        data = JSON.stringify(parsed);
-      } catch (err) {
-        data = JSON.stringify({ 'semester_start_monday': monday } as CourseTableDataJson);
-      }
-    } else {
-      data = JSON.stringify({ 'semester_start_monday': monday } as CourseTableDataJson);
-    }
-    await CourseTableRepository.updateData(tableId, data);
-  }
 
   /** 首次启动兜底：没有任何课表时建「默认课表」（旧版 InitUtil.checkDataBase）。 */
   static async ensureDefaultTable(): Promise<void> {

@@ -16,12 +16,6 @@ export class Appearance {
   static readonly MODE_LIGHT: number = 1;
   static readonly MODE_DARK: number = 2;
 
-  static readonly LABELS: string[] = ['跟随系统', '浅色', '深色'];
-
-  static label(index: number): string {
-    return index >= 0 && index < Appearance.LABELS.length ? Appearance.LABELS[index] : Appearance.LABELS[0];
-  }
-
   static index(): number {
     const value: number = AppState.store().themeModeIndex;
     return value >= Appearance.MODE_SYSTEM && value <= Appearance.MODE_DARK ? value : Appearance.MODE_SYSTEM;
