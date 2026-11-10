@@ -284,8 +284,9 @@ export class WidgetDataProvider {
   /** 从明天起最多向后找 7 天，填「下一个有课的日期」区块。 */
   private static fillNextCourseDay(payload: WidgetCardPayload, courses: Course[], periods: ClassPeriodLike[],
     colors: WidgetCourseColors, currentWeek: number, today: number, now: Date): void {
+    const targetDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     for (let offset = 1; offset <= 7; offset++) {
-      const targetDate: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+      targetDate.setDate(targetDate.getDate() + 1);
       const targetWeek: number = currentWeek + Math.floor((offset + (today - 1)) / 7);
       if (targetWeek < 1 || targetWeek > 25) {
         continue;
