@@ -22,8 +22,70 @@ import { CourseTable } from '../../data/models/Models';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { AppStore } from '../../app/AppStore';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { IS_2IN1 } from '../../common/DeviceType';
 import { TableNameDialog } from './TableNameDialog';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
+
+/**
+ * 单张课表卡片。
+ *
+ * 独立组件持有自己的 @Builder 菜单，才能把方法引用直接传给
+ * bindContextMenuWithResponse（其参数类型为 CustomBuilderT<ResponseType>）。
+ * 不要把内联箭头函数传给该接口：运行时不会被识别为合法菜单构造器，
+ * 表现为长按/右键都没有菜单。
+ */
+@ComponentV2
+struct CourseTableCard {
+  @Param table: CourseTable = new CourseTable();
+  @Param isCurrent: boolean = false;
+  @Event onTap: () => void = () => {
+  };
+  @Event onRename: () => void = () => {
+  };
+  @Event onDelete: () => void = () => {
+  };
+
+  // 触发方式由框架传入；当前长按和右键使用相同菜单，保留参数以匹配 CustomBuilderT<ResponseType>。
+  @Builder
+  private tableMenu(_responseType: ResponseType): void {
+    Menu() {
+      MenuItem({
+        content: '重命名',
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.pencil_line'))
+      })
+        .onClick(this.onRename)
+      if (!this.isCurrent) {
+        MenuItem({
+          content: '删除课表',
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash'))
+            .fontColor([Colors.Error])
+        })
+          .onClick(this.onDelete)
+      }
+    }
+  }
+
+  private subtitleText(): string {
+    const editHint: string = IS_2IN1 ? '右键编辑' : '长按编辑';
+    return this.isCurrent ? `当前使用，${editHint}` : `点击切换为当前课表，${editHint}`;
+  }
+
+  build() {
+    Stack() {
+      SettingsRow({
+        icon: $r('sys.symbol.calendar'),
+        title: this.table.name,
+        subtitle: this.subtitleText(),
+        trailingText: this.isCurrent ? '当前' : '',
+        onTap: this.onTap
+      })
+    }
+    .width('100%')
+    .bindContextMenuWithResponse(this.tableMenu, {
+      preview: MenuPreviewMode.IMAGE
+    })
+  }
+}
 
 @ComponentV2
 export struct ManageTablesPage {
@@ -200,53 +262,6 @@ export struct ManageTablesPage {
 
   // ---- UI ----
 
-  /**
-   * 长按菜单。
-   *
-   * 这里使用 API 8 起就支持的 bindContextMenu + 自定义 Menu：
-   * bindContextMenuByResponseType（API 26）在兼容版本 24 的真机上不可调用，
-   * 会在打开课表管理页时直接触发 JsError 崩溃。
-   */
-  @Builder
-  private tableMenu(table: CourseTable): void {
-    Menu() {
-      MenuItem({
-        content: '重命名',
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.pencil_line'))
-      })
-        .onClick(() => {
-          this.openRenameDialog(table);
-        })
-      if (table.id !== this.store.tableId) {
-        MenuItem({
-          content: '删除课表',
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash'))
-            .fontColor([Colors.Error])
-        })
-          .onClick(() => {
-            this.confirmDelete(table);
-          })
-      }
-    }
-  }
-
-  @Builder
-  private tableCard(table: CourseTable): void {
-    Stack() {
-      SettingsRow({
-        icon: $r('sys.symbol.calendar'),
-        title: table.name,
-        subtitle: table.id === this.store.tableId ? '当前使用，长按编辑' : '点击切换为当前课表，长按编辑',
-        trailingText: table.id === this.store.tableId ? '当前' : '',
-        onTap: () => {
-          this.switchTable(table);
-        }
-      })
-    }
-    .width('100%')
-    .bindContextMenu(this.tableMenu(table), ResponseType.LongPress)
-  }
-
   private titleBarOptions(): HdsNavigationTitleBarOptions {
     const menu: HdsNavigationMenuContentOptions = {
       value: [{
@@ -292,7 +307,19 @@ export struct ManageTablesPage {
                   if (index > 0) {
                     SettingsItemDivider()
                   }
-                  this.tableCard(table)
+                  CourseTableCard({
+                    table: table,
+                    isCurrent: table.id === this.store.tableId,
+                    onTap: () => {
+                      this.switchTable(table);
+                    },
+                    onRename: () => {
+                      this.openRenameDialog(table);
+                    },
+                    onDelete: () => {
+                      this.confirmDelete(table);
+                    }
+                  })
                 }, (table: CourseTable) => table.id.toString())
               }
             }

@@ -18,7 +18,7 @@ import {
   hdsMaterial
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
-import { deviceInfo } from '@kit.BasicServicesKit';
+import { IS_2IN1 } from '../common/DeviceType';
 import { CourseEditParam } from '../common/RouteParams';
 import { AppState } from '../app/AppState';
 import { AppStore } from '../app/AppStore';
@@ -64,7 +64,7 @@ struct Index {
     $r('sys.symbol.gearshape')
   ];
   /** 2in1/PC 使用侧边导航；平板和手机保留底部胶囊。 */
-  private readonly is2in1: boolean = deviceInfo.deviceType === '2in1';
+  private readonly is2in1: boolean = IS_2IN1;
   /** 「课程」Tab 标题栏 + 菜单是否展开。 */
   @Local coursesMenuOpen: boolean = false;
 
