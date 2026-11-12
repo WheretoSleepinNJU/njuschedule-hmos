@@ -448,11 +448,11 @@ export struct TimetableView {
             .width('100%')
             .padding({ left: TimetableMetrics.CourseBlockGap, right: TimetableMetrics.CourseBlockGap })
             .position({ x: 0, y: block.y })
-          }, (block: LayoutBlock) => `w${week}-${dayIndex}-${block.key}-${block.color}`)
+          }, (block: LayoutBlock) => `w${week}-${dayIndex}-${this.store.classHeight}-${block.key}-${block.color}`)
         }
         .layoutWeight(1)
         .height(this.gridHeight())
-      }, (dayIndex: number) => `col-${this.daysCount()}-${dayIndex}`)
+      }, (dayIndex: number) => `col-${this.daysCount()}-${this.store.classHeight}-${dayIndex}`)
     }
     .width('100%')
     .height(this.gridHeight())
