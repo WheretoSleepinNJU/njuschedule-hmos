@@ -147,10 +147,9 @@ export struct CoursesView {
 
   private async deleteCourse(course: Course): Promise<void> {
     try {
-      await CourseRepository.delete(course.id);
+      await AppState.deleteCourse(course.id);
       this.sessionsShown = false;
       this.detailShown = false;
-      await AppState.bumpDataRevision();
       await this.reload();
     } catch (err) {
       console.error(`[Courses] delete failed: ${JSON.stringify(err)}`);

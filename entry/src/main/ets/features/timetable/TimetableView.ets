@@ -329,11 +329,10 @@ export struct TimetableView {
 
   private async deleteCourse(course: Course): Promise<void> {
     try {
-      await CourseRepository.delete(course.id);
+      await AppState.deleteCourse(course.id);
       this.detailShown = false;
       this.multiShown = false;
       this.freeCourseSheetShown = false;
-      await AppState.bumpDataRevision();
       await this.reload();
     } catch (err) {
       console.error(`[Timetable] 删除失败: ${JSON.stringify(err)}`);

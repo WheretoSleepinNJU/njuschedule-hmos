@@ -7,6 +7,7 @@
  * 迁移过程记录见仓库历史归档。
  */
 import { WidgetData } from '../data/WidgetData';
+import { CourseRepository } from '../data/CourseRepository';
 import { AppStore } from './AppStore';
 import { AppPreferences } from './AppPreferences';
 import { WeekUtil, TableWeekState } from '../data/WeekUtil';
@@ -156,6 +157,15 @@ export class AppState {
 
   static setDisplayWeek(week: number): void {
     AppState.store().tmpWeekIndex = week;
+  }
+
+  /** 删除课程并通知全局刷新：页面不要各自重复 delete + bumpDataRevision。 */
+  static async deleteCourse(courseId: number): Promise<number> {
+    const affected: number = await CourseRepository.delete(courseId);
+    if (affected > 0) {
+      await AppState.bumpDataRevision();
+    }
+    return affected;
   }
 
   /** 课程/课表/外观变化后调用：先递增 revision 通知 UI，再排队刷新小组件。 */

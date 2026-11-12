@@ -11,8 +11,19 @@
  */
 import { resolveNavStack } from '../../common/NavStackResolver';
 import { Feedback } from '../../common/ui/Feedback';
-import { HdsNavDestination, HdsNavigationMenuContentOptions, HdsNavigationTitleBarOptions } from '@kit.UIDesignKit';
-import { CapsuleSegmentButtonV2, ColorMetrics, LengthMetrics, SegmentButtonV2Items } from '@kit.ArkUI';
+import {
+  HdsNavDestination,
+  HdsNavigationMenuContentOptions,
+  HdsNavigationMenuItemOptions,
+  HdsNavigationTitleBarOptions
+} from '@kit.UIDesignKit';
+import {
+  CapsuleSegmentButtonV2,
+  ColorMetrics,
+  LengthMetrics,
+  SegmentButtonV2Items,
+  SymbolGlyphModifier
+} from '@kit.ArkUI';
 import { Course } from '../../data/models/Models';
 import { CourseRepository } from '../../data/CourseRepository';
 import { ColorPool } from '../../data/ColorPool';
@@ -549,6 +560,37 @@ export struct CourseEditPage {
     }
   }
 
+  // ---- 删除 ----
+
+  private confirmDelete(): void {
+    const course: Course | null = this.loadedCourse;
+    if (course === null || this.saving) {
+      return;
+    }
+    Feedback.confirmDanger(this.getUIContext(), '删除课程',
+      `确定删除「${course.name}」吗？删除后不可恢复。`, '删除', () => {
+        this.deleteCourse(course);
+      });
+  }
+
+  private async deleteCourse(course: Course): Promise<void> {
+    if (this.saving) {
+      return;
+    }
+    this.saving = true;
+    try {
+      const affected: number = await AppState.deleteCourse(course.id);
+      if (affected <= 0) {
+        throw new Error(`课程 ${course.id} 不存在，删除 0 行`);
+      }
+      this.navStack().pop();
+    } catch (err) {
+      this.formError = '删除失败，请重试';
+    } finally {
+      this.saving = false;
+    }
+  }
+
   // ---- UI ----
 
   @Builder
@@ -873,18 +915,30 @@ export struct CourseEditPage {
   }
 
   private titleBarOptions(): HdsNavigationTitleBarOptions {
-    const menu: HdsNavigationMenuContentOptions = {
-      value: [{
+    const items: HdsNavigationMenuItemOptions[] = [];
+    if (this.isEditing() && !this.loading && !this.loadFailed) {
+      items.push({
         content: {
-          icon: $r('sys.symbol.checkmark'),
-          label: '保存',
+          icon: new SymbolGlyphModifier($r('sys.symbol.trash')).fontColor([Colors.Error]),
+          label: '删除',
           isEnabled: !this.saving,
           action: () => {
-            this.save();
+            this.confirmDelete();
           }
         }
-      }]
-    };
+      });
+    }
+    items.push({
+      content: {
+        icon: $r('sys.symbol.checkmark'),
+        label: '保存',
+        isEnabled: !this.saving,
+        action: () => {
+          this.save();
+        }
+      }
+    });
+    const menu: HdsNavigationMenuContentOptions = { value: items };
     return hdsSubPageTitleBar(this.isEditing() ? '编辑课程' : '添加课程', '', menu);
   }
 
