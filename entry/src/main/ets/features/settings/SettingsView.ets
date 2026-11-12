@@ -198,77 +198,93 @@ export struct SettingsView {
   @Builder
   private tableSection(): void {
     ListItem() {
-      SettingsItemGroup({ title: '课表' }) {
-        SettingsRow({
-          icon: $r('sys.symbol.calendar'),
-          title: this.tableName === '' ? '当前课表' : this.tableName,
-          trailingText: '课表管理',
-          onTap: () => {
-            this.openLevelOnePage(ROUTE_TABLES);
+      Row() {
+        Column() {
+          SettingsItemGroup({ title: '课表' }) {
+            SettingsRow({
+              icon: $r('sys.symbol.calendar'),
+              title: this.tableName === '' ? '当前课表' : this.tableName,
+              trailingText: '课表管理',
+              onTap: () => {
+                this.openLevelOnePage(ROUTE_TABLES);
+              }
+            })
+            SettingsItemDivider()
+            SettingsRow({
+              icon: $r('sys.symbol.calendar_badge_clock'),
+              title: '当前周',
+              trailingText: `第 ${this.store.weekIndex} 周`,
+              onTap: () => {
+                this.openWeekPicker();
+              }
+            })
           }
-        })
-        SettingsItemDivider()
-        SettingsRow({
-          icon: $r('sys.symbol.calendar_badge_clock'),
-          title: '当前周',
-          trailingText: `第 ${this.store.weekIndex} 周`,
-          onTap: () => {
-            this.openWeekPicker();
-          }
-        })
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 800 })
       }
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
     }
   }
 
   @Builder
   private displaySection(): void {
     ListItem() {
-      SettingsItemGroup({ title: '显示' }) {
-        SettingsSwitchRow({
-          icon: $r('sys.symbol.calendar_badge_checkmark'),
-          title: '显示周末',
-          isOn: this.store.showWeekend,
-          onToggle: (isOn: boolean) => {
-            this.setShowWeekend(isOn);
+      Row() {
+        Column() {
+          SettingsItemGroup({ title: '显示' }) {
+            SettingsSwitchRow({
+              icon: $r('sys.symbol.calendar_badge_checkmark'),
+              title: '显示周末',
+              isOn: this.store.showWeekend,
+              onToggle: (isOn: boolean) => {
+                this.setShowWeekend(isOn);
+              }
+            })
+            SettingsItemDivider()
+            SettingsSwitchRow({
+              icon: $r('sys.symbol.clock'),
+              title: '显示节次时间',
+              isOn: this.store.showClassTime,
+              onToggle: (isOn: boolean) => {
+                this.setShowClassTime(isOn);
+              }
+            })
+            SettingsItemDivider()
+            SettingsSwitchRow({
+              icon: $r('sys.symbol.timer'),
+              title: '显示自由时间课程',
+              isOn: this.store.showFreeClass,
+              onToggle: (isOn: boolean) => {
+                this.setShowFreeClass(isOn);
+              }
+            })
+            SettingsItemDivider()
+            SettingsSwitchRow({
+              icon: $r('sys.symbol.calendar_1'),
+              title: '显示日期',
+              isOn: this.store.showDate,
+              onToggle: (isOn: boolean) => {
+                this.setShowDate(isOn);
+              }
+            })
+            SettingsItemDivider()
+            SettingsRow({
+              icon: $r('sys.symbol.arrow_up_and_down_square_portrait'),
+              title: '课程高度',
+              trailingText: `${this.store.classHeight}`,
+              onTap: () => {
+                this.openClassHeightPicker();
+              }
+            })
           }
-        })
-        SettingsItemDivider()
-        SettingsSwitchRow({
-          icon: $r('sys.symbol.clock'),
-          title: '显示节次时间',
-          isOn: this.store.showClassTime,
-          onToggle: (isOn: boolean) => {
-            this.setShowClassTime(isOn);
-          }
-        })
-        SettingsItemDivider()
-        SettingsSwitchRow({
-          icon: $r('sys.symbol.timer'),
-          title: '显示自由时间课程',
-          isOn: this.store.showFreeClass,
-          onToggle: (isOn: boolean) => {
-            this.setShowFreeClass(isOn);
-          }
-        })
-        SettingsItemDivider()
-        SettingsSwitchRow({
-          icon: $r('sys.symbol.calendar_1'),
-          title: '显示日期',
-          isOn: this.store.showDate,
-          onToggle: (isOn: boolean) => {
-            this.setShowDate(isOn);
-          }
-        })
-        SettingsItemDivider()
-        SettingsRow({
-          icon: $r('sys.symbol.arrow_up_and_down_square_portrait'),
-          title: '课程高度',
-          trailingText: `${this.store.classHeight}`,
-          onTap: () => {
-            this.openClassHeightPicker();
-          }
-        })
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 800 })
       }
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
     }
   }
 
@@ -283,39 +299,47 @@ export struct SettingsView {
   @Builder
   private moreSection(): void {
     ListItem() {
-      SettingsItemGroup({ title: '更多' }) {
-        SettingsRow({
-          icon: $r('sys.symbol.share'),
-          title: '分享当前课表',
-          onTap: () => {
-            this.openLevelOnePage('share');
+      Row() {
+        Column() {
+          SettingsItemGroup({ title: '更多' }) {
+            SettingsRow({
+              icon: $r('sys.symbol.share'),
+              title: '分享当前课表',
+              onTap: () => {
+                this.openLevelOnePage('share');
+              }
+            })
+            SettingsItemDivider()
+            SettingsRow({
+              icon: $r('sys.symbol.graduationcap'),
+              title: '讲座',
+              onTap: () => {
+                this.openLevelOnePage(ROUTE_LECTURES);
+              }
+            })
+            SettingsItemDivider()
+            SettingsRow({
+              icon: $r('sys.symbol.paintbrush'),
+              title: '自定义外观',
+              onTap: () => {
+                this.openLevelOnePage(ROUTE_MORE_SETTINGS);
+              }
+            })
+            SettingsItemDivider()
+            SettingsRow({
+              icon: $r('sys.symbol.info_circle'),
+              title: '关于',
+              onTap: () => {
+                this.openLevelOnePage(ROUTE_ABOUT);
+              }
+            })
           }
-        })
-        SettingsItemDivider()
-        SettingsRow({
-          icon: $r('sys.symbol.graduationcap'),
-          title: '讲座',
-          onTap: () => {
-            this.openLevelOnePage(ROUTE_LECTURES);
-          }
-        })
-        SettingsItemDivider()
-        SettingsRow({
-          icon: $r('sys.symbol.paintbrush'),
-          title: '自定义外观',
-          onTap: () => {
-            this.openLevelOnePage(ROUTE_MORE_SETTINGS);
-          }
-        })
-        SettingsItemDivider()
-        SettingsRow({
-          icon: $r('sys.symbol.info_circle'),
-          title: '关于',
-          onTap: () => {
-            this.openLevelOnePage(ROUTE_ABOUT);
-          }
-        })
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 800 })
       }
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
     }
   }
 
@@ -327,11 +351,8 @@ export struct SettingsView {
         this.moreSection()
       }
       .width('100%')
-      .constraintSize({ maxWidth: 800 })
       .layoutWeight(1)
       .padding({
-        left: Spacing.Md,
-        right: Spacing.Md,
         // HdsNavigation 标题栏与内容区默认堆叠，NavBar 内容同样需要让出标题栏高度，
         // 与官方 HdsNavigation 开发实例里的 Blank(TITLE_BAR_HEIGHT_MINI) 一致。
         top: HdsMetrics.TitleBarHeight + HdsMetrics.TitleBarBreathing + px2vp(this.store.windowTopInset),
@@ -345,6 +366,7 @@ export struct SettingsView {
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
+    .padding({ left: Spacing.Md, right: Spacing.Md })
     .backgroundColor(Colors.Background)
   }
 

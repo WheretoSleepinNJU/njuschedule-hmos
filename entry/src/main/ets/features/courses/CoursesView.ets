@@ -110,51 +110,59 @@ export struct CoursesView {
   /** 一门课的卡片：保留原信息排布，外层使用标准分组卡片。 */
   @Builder
   groupCard(group: CourseGroup) {
-    SettingsItemGroup() {
-      Column({ space: Spacing.Xs }) {
-        Row({ space: Spacing.Sm }) {
-          Column()
-            .width(10)
-            .height(10)
-            .borderRadius(Radius.Round)
-            .backgroundColor(group.color)
-          Text(group.name)
-            .fontSize(FontSize.Title)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(Colors.TextPrimary)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .layoutWeight(1)
-          StatusBadge({
-            text: WeeksFormat.importTypeLabel(group.importType),
-            tone: group.importType === LegacyConstant.ADD_MANUALLY ? BadgeTone.Neutral : BadgeTone.Primary
+    Row() {
+      Column() {
+        SettingsItemGroup() {
+          Column({ space: Spacing.Xs }) {
+            Row({ space: Spacing.Sm }) {
+              Column()
+                .width(10)
+                .height(10)
+                .borderRadius(Radius.Round)
+                .backgroundColor(group.color)
+              Text(group.name)
+                .fontSize(FontSize.Title)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(Colors.TextPrimary)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .layoutWeight(1)
+              StatusBadge({
+                text: WeeksFormat.importTypeLabel(group.importType),
+                tone: group.importType === LegacyConstant.ADD_MANUALLY ? BadgeTone.Neutral : BadgeTone.Primary
+              })
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+    
+            this.infoLine('教师', group.teacherText)
+            this.infoLine('地点', group.roomText)
+            this.infoLine('周次', group.weekText)
+    
+            if (group.sessions.length > 1) {
+              Divider()
+                .color(Colors.OutlineLight)
+                .margin({ top: Spacing.Xs, bottom: Spacing.Xs })
+              ForEach(group.sessions, (session: Course) => {
+                this.sessionLine(session)
+              }, (session: Course) => `${session.id}-${session.weekTime}-${session.startTime}`)
+            }
+          }
+          .alignItems(HorizontalAlign.Start)
+          .width('100%')
+          .padding(Spacing.Md)
+          .borderRadius(Radius.Xl)
+          .attributeModifier(PRESSED_SURFACE)
+          .onClick(() => {
+            this.openEdit(group);
           })
         }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        this.infoLine('教师', group.teacherText)
-        this.infoLine('地点', group.roomText)
-        this.infoLine('周次', group.weekText)
-
-        if (group.sessions.length > 1) {
-          Divider()
-            .color(Colors.OutlineLight)
-            .margin({ top: Spacing.Xs, bottom: Spacing.Xs })
-          ForEach(group.sessions, (session: Course) => {
-            this.sessionLine(session)
-          }, (session: Course) => `${session.id}-${session.weekTime}-${session.startTime}`)
-        }
       }
-      .alignItems(HorizontalAlign.Start)
       .width('100%')
-      .padding(Spacing.Md)
-      .borderRadius(Radius.Xl)
-      .attributeModifier(PRESSED_SURFACE)
-      .onClick(() => {
-        this.openEdit(group);
-      })
+      .constraintSize({ maxWidth: 800 })
     }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
   }
 
   @Builder
@@ -282,9 +290,7 @@ export struct CoursesView {
           }
         }
         .width('100%')
-        .constraintSize({ maxWidth: 800 })
         .layoutWeight(1)
-        .padding({ left: Spacing.Md, right: Spacing.Md })
         .cachedCount(2)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
@@ -294,6 +300,7 @@ export struct CoursesView {
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
+    .padding({ left: Spacing.Md, right: Spacing.Md })
     .backgroundColor(Colors.Background)
   }
 }
