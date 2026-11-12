@@ -444,63 +444,6 @@ export struct FreeCourseSheetContent {
   }
 }
 
-/** 同一课程多个时段的半模态内容（复刻自由时间课程的左右滑动卡片）。 */
-@ComponentV2
-export struct CourseSessionsSheetContent {
-  @Param sessions: Course[] = [];
-  @Param pool: number[] = [];
-  @Event onClose: () => void = () => {
-  };
-  @Event onOpenSession: (course: Course) => void = () => {
-  };
-  @Local sessionIndex: number = 0;
-
-  @Builder
-  private sessionsBody() {
-    Column({ space: Spacing.Lg }) {
-      Swiper() {
-        ForEach(this.sessions, (course: Course) => {
-          CourseInfoCard({
-            course: course,
-            pool: this.pool,
-            onOpen: (target: Course) => {
-              this.onOpenSession(target);
-            }
-          })
-        }, (course: Course) => `sessions-sheet-${course.id}`)
-      }
-      .width('100%')
-      .height(240)
-      .indicator(false)
-      .loop(false)
-      .onChange((index: number) => {
-        this.sessionIndex = index;
-      })
-
-      Text(`${this.sessionIndex + 1} / ${this.sessions.length}`)
-        .fontSize(FontSize.Caption)
-        .fontColor(Colors.TextTertiary)
-        .width('100%')
-        .textAlign(TextAlign.Center)
-    }
-    .width('100%')
-    .padding({ left: Spacing.Xl, right: Spacing.Xl, top: Spacing.Xl, bottom: Spacing.Xxl })
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  build() {
-    HdsSheetFrame({
-      title: '该课程有多个时段',
-      subtitle: `共 ${this.sessions.length} 个时段 · 左右滑动查看`,
-      onClose: () => {
-        this.onClose();
-      }
-    }) {
-      this.sessionsBody()
-    }
-  }
-}
-
 /** 底部半模态：切换课表 + 课程周数（HDS 半模态标题栏）。 */
 @ComponentV2
 export struct WeekPickerSheetContent {

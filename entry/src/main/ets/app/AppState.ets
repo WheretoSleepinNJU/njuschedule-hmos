@@ -8,6 +8,7 @@
  */
 import { WidgetData } from '../data/WidgetData';
 import { CourseRepository } from '../data/CourseRepository';
+import { Course } from '../data/models/Models';
 import { AppStore } from './AppStore';
 import { AppPreferences } from './AppPreferences';
 import { WeekUtil, TableWeekState } from '../data/WeekUtil';
@@ -159,13 +160,16 @@ export class AppState {
     AppState.store().tmpWeekIndex = week;
   }
 
-  /** 删除课程并通知全局刷新：页面不要各自重复 delete + bumpDataRevision。 */
-  static async deleteCourse(courseId: number): Promise<number> {
-    const affected: number = await CourseRepository.delete(courseId);
-    if (affected > 0) {
+  /**
+   * 删除同一门课的全部时段（整组事务删除）并通知全局刷新。
+   * 与上游 `EditCoursePresenter.delete` 对应：失败时不刷新，页面保留错误态。
+   */
+  static async deleteCourseGroup(originals: Course[]): Promise<boolean> {
+    const deleted: boolean = await CourseRepository.deleteMeetingGroup(originals);
+    if (deleted) {
       await AppState.bumpDataRevision();
     }
-    return affected;
+    return deleted;
   }
 
   /** 课程/课表/外观变化后调用：先递增 revision 通知 UI，再排队刷新小组件。 */

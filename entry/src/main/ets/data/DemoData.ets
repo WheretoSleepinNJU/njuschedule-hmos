@@ -30,28 +30,24 @@ const DEMO_TABLE_DATA: string = '{"class_time_list": [' +
   '{"start": "00:00", "end": "00:50"}]' +
   '}';
 
-function fullWeeks(): number[] {
+function weekRange(start: number, end: number, step: number = 1): number[] {
   const weeks: number[] = [];
-  for (let i = 1; i <= 22; i++) {
+  for (let i = start; i <= end; i += step) {
     weeks.push(i);
   }
   return weeks;
+}
+
+function fullWeeks(): number[] {
+  return weekRange(1, 22);
 }
 
 function oddWeeks(): number[] {
-  const weeks: number[] = [];
-  for (let i = 1; i <= 22; i += 2) {
-    weeks.push(i);
-  }
-  return weeks;
+  return weekRange(1, 22, 2);
 }
 
 function evenWeeks(): number[] {
-  const weeks: number[] = [];
-  for (let i = 2; i <= 22; i += 2) {
-    weeks.push(i);
-  }
-  return weeks;
+  return weekRange(2, 22, 2);
 }
 
 export class DemoData {
@@ -70,6 +66,12 @@ export class DemoData {
     courses.push(DemoData.course(tableId, '有时间冲突的课程1', allWeeks, 4, 2, 1, 0, '测试教师', '测试地点'));
     courses.push(DemoData.course(tableId, '有时间冲突的课程2', allWeeks, 4, 2, 1, 0, '测试教师', '测试地点'));
     courses.push(DemoData.course(tableId, '自由时间课程', allWeeks, 0, 0, 0, 0, '', '测试地点'));
+    // 同一门课的两个时段：演示「课程 + 多时段」的整组编辑与分组展示。
+    courses.push(DemoData.course(tableId, '多时段示例课程', allWeeks, 1, 1, 1, 0, '测试教师', '仙林校区-甲'));
+    courses.push(DemoData.course(tableId, '多时段示例课程', allWeeks, 3, 7, 1, 0, '测试教师', '仙林校区-乙'));
+    // 同一时间、不同周次的同门课：用来验证不会被误判成“同一时间多个课程”。
+    courses.push(DemoData.course(tableId, '同时间不同周次示例', weekRange(1, 4), 5, 9, 1, 0, '测试教师', '仙林校区-丙'));
+    courses.push(DemoData.course(tableId, '同时间不同周次示例', weekRange(6, 10), 5, 9, 1, 0, '测试教师', '仙林校区-丙'));
 
     await CourseRepository.insertMany(courses);
     return tableId;

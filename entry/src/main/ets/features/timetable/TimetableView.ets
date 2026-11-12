@@ -28,6 +28,8 @@ import { CourseRepository } from '../../data/CourseRepository';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { Course, CourseTable } from '../../data/models/Models';
 import { ScheduleModel } from '../../data/ScheduleModel';
+import { CourseGroups } from '../../data/CourseGroups';
+import { CourseDeleteFlow } from '../courses/CourseDeleteFlow';
 import { CourseBlock } from './CourseBlock';
 import { contentSheetOptions, pickerSheetOptions } from '../../common/ui/SheetOptions';
 import {
@@ -84,8 +86,6 @@ export struct TimetableView {
   @Local loading: boolean = true;
   @Local periods: ClassPeriod[] = [];
   @Local pool: number[] = [];
-  @Local activeCourses: Course[] = [];
-  @Local multiGroups: Course[][] = [];
   @Local freeCourses: Course[] = [];
   @Local todayWeekday: number = 1;
   /** 当前课表名（对齐系统日历标题：课表名 + 周次）。 */
@@ -174,8 +174,6 @@ export struct TimetableView {
     } catch (err) {
       console.error(`[Timetable] 加载失败: ${JSON.stringify(err)}`);
       this.allCourses = [];
-      this.activeCourses = [];
-      this.multiGroups = [];
       this.freeCourses = [];
     } finally {
       this.loading = false;
@@ -214,8 +212,6 @@ export struct TimetableView {
   /** 当前周数据用于自由时间栏 / 空态等浮层。 */
   private refreshCurrentWeekData(): void {
     const model: ScheduleModel = this.modelFor(this.store.tmpWeekIndex);
-    this.activeCourses = model.activeCourses;
-    this.multiGroups = model.multiCourses;
     this.freeCourses = model.freeCourses;
   }
 
@@ -265,20 +261,21 @@ export struct TimetableView {
       blocks.push(this.makeBlock(course, false, 1, []));
     }
     for (let i = 0; i < model.multiCourses.length; i++) {
-      const group: Course[] = model.multiCourses[i];
-      if (group.length === 0) {
+      const rawGroup: Course[] = model.multiCourses[i];
+      if (rawGroup.length === 0) {
         continue;
       }
-      const first: Course = group[0];
+      // 上游做法：多课程组按 CourseGroups 归一化后再展示。
+      // 同一门课的多个时段只算一门课，且本周代表放到首位。
+      const representatives: Course[] = CourseGroups.representativesForWeek(rawGroup, week);
+      if (representatives.length === 0) {
+        continue;
+      }
+      const first: Course = representatives[0];
       if (!this.store.showWeekend && first.weekTime > 5) {
         continue;
       }
-      // 本周不上的课不再灰显，直接不显示（多课冲突组只保留含本周课程的组）
-      const isThisWeek: boolean = first.weeks.indexOf(week) >= 0;
-      if (!isThisWeek) {
-        continue;
-      }
-      blocks.push(this.makeBlock(first, false, group.length, group));
+      blocks.push(this.makeBlock(first, false, representatives.length, representatives));
     }
     return blocks;
   }
@@ -322,21 +319,14 @@ export struct TimetableView {
   }
 
   private confirmDelete(course: Course): void {
-    Feedback.confirmDanger(this.getUIContext(), '删除课程', `确定删除「${course.name}」吗？`, '删除', () => {
-      this.deleteCourse(course);
-    });
-  }
-
-  private async deleteCourse(course: Course): Promise<void> {
-    try {
-      await AppState.deleteCourse(course.id);
+    CourseDeleteFlow.confirmDelete(this.getUIContext(), course, () => {
       this.detailShown = false;
       this.multiShown = false;
       this.freeCourseSheetShown = false;
-      await this.reload();
-    } catch (err) {
-      console.error(`[Timetable] 删除失败: ${JSON.stringify(err)}`);
-    }
+      this.reload();
+    }, () => {
+      Feedback.toast(this.getUIContext(), '删除失败，请重试');
+    });
   }
 
   // ------------------------------------------------------------------ 视图

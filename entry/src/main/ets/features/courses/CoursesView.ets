@@ -24,11 +24,12 @@ import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/desi
 import { AppStore } from '../../app/AppStore';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { Feedback } from '../../common/ui/Feedback';
-import { CourseSessionsSheetContent, DetailSheetContent } from '../timetable/TimetableSheets';
+import { DetailSheetContent } from '../timetable/TimetableSheets';
 import { StatusBadge, BadgeTone } from '../../common/ui/StatusBadge';
 import { WeeksFormat } from '../timetable/WeeksFormat';
 import { CourseFormat, CourseGroup } from './CourseFormat';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
+import { CourseDeleteFlow } from './CourseDeleteFlow';
 import { PRESSED_SURFACE } from '../../common/ui/PressableSurface';
 
 @ComponentV2
@@ -50,9 +51,6 @@ export struct CoursesView {
   /** 课程详情半模态（与课表页复用同一个 DetailSheetContent）。 */
   @Local detailShown: boolean = false;
   @Local detailCourse: Course = new Course();
-  /** 同一课程多个时段的独立半模态（类似自由时间课程列表）。 */
-  @Local sessionsShown: boolean = false;
-  @Local sessionCourses: Course[] = [];
   @Local periods: ClassPeriod[] = [];
   @Local pool: number[] = [];
   /** 课程 Tab 是否激活：切回时重新读取配色池。 */
@@ -117,57 +115,25 @@ export struct CoursesView {
     if (group.sessions.length === 0) {
       return;
     }
-    if (group.sessions.length > 1) {
-      this.sessionCourses = group.sessions;
-      this.sessionsShown = true;
-      return;
-    }
+    // 同一门课的多个时段已经在课程卡片中合并展示；详情只打开代表行，
+    // 编辑页会按数据层规则加载整组，不再弹“选择时段”半模态。
     this.detailCourse = group.sessions[0];
     this.detailShown = true;
   }
 
-  /** 从「该课程有多个时段」里点某个时段，打开原来的课程详情半模态。 */
-  private openSessionDetail(course: Course): void {
-    this.detailCourse = course;
-    this.detailShown = true;
-  }
-
   private openEdit(course: Course): void {
-    this.sessionsShown = false;
     this.detailShown = false;
     // CourseEditPage 保存成功后 await bumpDataRevision，列表由 @Monitor 刷新。
     this.navStack().pushPathByName('course-edit', new CourseEditParam(course.tableId, course.id));
   }
 
   private confirmDelete(course: Course): void {
-    Feedback.confirmDanger(this.getUIContext(), '删除课程', `确定删除「${course.name}」吗？删除后不可恢复。`, '删除', () => {
-      this.deleteCourse(course);
-    });
-  }
-
-  private async deleteCourse(course: Course): Promise<void> {
-    try {
-      await AppState.deleteCourse(course.id);
-      this.sessionsShown = false;
+    CourseDeleteFlow.confirmDelete(this.getUIContext(), course, () => {
       this.detailShown = false;
-      await this.reload();
-    } catch (err) {
-      console.error(`[Courses] delete failed: ${JSON.stringify(err)}`);
-    }
-  }
-
-  @Builder
-  private sessionsSheetContent() {
-    CourseSessionsSheetContent({
-      sessions: this.sessionCourses,
-      pool: this.pool,
-      onOpenSession: (course: Course) => {
-        this.openSessionDetail(course);
-      },
-      onClose: () => {
-        this.sessionsShown = false;
-      }
-    })
+      this.reload();
+    }, () => {
+      Feedback.toast(this.getUIContext(), '删除失败，请重试');
+    });
   }
 
   @Builder
@@ -355,7 +321,7 @@ export struct CoursesView {
             ListItem() {
               this.groupCard(group)
             }
-          }, (group: CourseGroup) => `${group.name}`)
+          }, (group: CourseGroup) => `${group.representativeId}-${group.name}`)
           ListItem() {
             Row()
               .width('100%')
@@ -371,12 +337,6 @@ export struct CoursesView {
         .edgeEffect(EdgeEffect.Spring)
       }
 
-      // 独立锚点：多时段列表半模态；详情半模态仍挂在根 Column 上。
-      Stack() {
-      }
-      .width(0)
-      .height(0)
-      .bindSheet($$this.sessionsShown, this.sessionsSheetContent(), contentSheetOptions(this.store.breakpoint))
     }
     .width('100%')
     .height('100%')

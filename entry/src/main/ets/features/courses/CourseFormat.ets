@@ -2,7 +2,7 @@
  * 课程模块内部工具（只被 features/courses 使用）。
  *
  * 职责：
- * - 把「同表同名」的多个 Course 行合并成一张课程卡片所需的分组数据；
+ * - 把数据层同一门课的多个 Course 行合并成一张课程卡片所需的分组数据；
  * - 表单侧周次选择（全部/单周/双周/自定义）与 `weeks: number[]` 的双向转换；
  * - 课程时间、教师、地点的展示文案与色值校验。
  *
@@ -12,6 +12,7 @@
 import { Course } from '../../data/models/Models';
 import { LegacyConfig, LegacyConstant } from '../../common/Constants';
 import { ColorPool } from '../../data/ColorPool';
+import { CourseGroups } from '../../data/CourseGroups';
 import { WeeksFormat } from '../timetable/WeeksFormat';
 
 /** 同门课（同表同名）全部时段合并后的一组，用于课程列表的一张卡片。 */
@@ -25,22 +26,11 @@ export class CourseGroup {
   weekText: string = '';
   /** 色块颜色，来自 `ColorPool.resolve`。 */
   color: string = '';
-  /** 打开详情用的课程行 `id`（取第一个时段）。 */
-  courseId: number = 0;
+  /** 该组代表行的数据库行 id（取第一个时段；不是 Course.courseId）。 */
+  representativeId: number = 0;
   /** 来源类型（取第一个时段），用于来源徽标。 */
   importType: number = LegacyConstant.ADD_MANUALLY;
   sessions: Course[] = [];
-}
-
-/** 星期选择项；`value = 0` 表示自由时间（不占节次）。 */
-export class WeekdayOption {
-  value: number = 1;
-  label: string = '';
-
-  constructor(value: number, label: string) {
-    this.value = value;
-    this.label = label;
-  }
 }
 
 /** 表单侧周次选择状态（扁平化字段，V2 下由 `@Local` 观察）。 */
@@ -55,32 +45,28 @@ export class WeekSelection {
 export class CourseFormat {
   // ---- 课程列表分组 ----
 
-  /** 按课程名分组；同名课程的多个时段合并，颜色取色池解析结果。 */
+  /** 按数据层同一门课规则分组；同名但班号/来源/教师不同的课程不会被误合并。 */
   static group(courses: Course[], pool: number[]): CourseGroup[] {
+    const meetingGroups: Course[][] = CourseGroups.collect(courses);
     const groups: CourseGroup[] = [];
-    for (let i = 0; i < courses.length; i++) {
-      const course: Course = courses[i];
-      let group: CourseGroup | null = null;
-      for (let j = 0; j < groups.length; j++) {
-        if (groups[j].name === course.name) {
-          group = groups[j];
-          break;
-        }
-      }
-      if (group === null) {
-        group = new CourseGroup();
-        group.name = course.name;
-        group.courseId = course.id;
-        group.importType = course.importType;
-        group.color = ColorPool.resolve(course, pool);
-        groups.push(group);
-      }
-      group.sessions.push(course);
+    for (let i = 0; i < meetingGroups.length; i++) {
+      const sessions: Course[] = meetingGroups[i];
+      const first: Course = sessions[0];
+      const group: CourseGroup = new CourseGroup();
+      group.name = first.name;
+      group.representativeId = first.id;
+      group.importType = first.importType;
+      group.color = ColorPool.resolve(first, pool);
+      group.sessions = sessions;
+      groups.push(group);
     }
     for (let i = 0; i < groups.length; i++) {
       CourseFormat.summarize(groups[i]);
     }
-    groups.sort((a: CourseGroup, b: CourseGroup): number => a.name.localeCompare(b.name));
+    groups.sort((a: CourseGroup, b: CourseGroup): number => {
+      const byName: number = a.name.localeCompare(b.name);
+      return byName !== 0 ? byName : a.representativeId - b.representativeId;
+    });
     return groups;
   }
 
@@ -107,7 +93,7 @@ export class CourseFormat {
   }
 
   /** 自由时间课程（weekTime = 0）排在所有星期之后。 */
-  private static compareSession(a: Course, b: Course): number {
+  static compareSession(a: Course, b: Course): number {
     const weekdayA: number = a.weekTime <= 0 ? 99 : a.weekTime;
     const weekdayB: number = b.weekTime <= 0 ? 99 : b.weekTime;
     if (weekdayA !== weekdayB) {
@@ -240,24 +226,6 @@ export class CourseFormat {
       weeks.push(week);
     }
     return weeks;
-  }
-
-  static periodNumbers(): number[] {
-    const periods: number[] = [];
-    for (let period = 1; period <= LegacyConfig.MAX_CLASSES; period++) {
-      periods.push(period);
-    }
-    return periods;
-  }
-
-  /** 星期一至星期日 + 自由时间（`value = 0` 排在最后）。 */
-  static weekdayOptions(): WeekdayOption[] {
-    const options: WeekdayOption[] = [];
-    for (let weekday = 1; weekday <= 7; weekday++) {
-      options.push(new WeekdayOption(weekday, LegacyConstant.WEEK_WITH_BIAS[weekday]));
-    }
-    options.push(new WeekdayOption(0, '自由时间'));
-    return options;
   }
 
   // ---- 颜色 ----
