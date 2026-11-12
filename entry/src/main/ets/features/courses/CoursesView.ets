@@ -29,6 +29,7 @@ import { StatusBadge, BadgeTone } from '../../common/ui/StatusBadge';
 import { WeeksFormat } from '../timetable/WeeksFormat';
 import { CourseFormat, CourseGroup } from './CourseFormat';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
+import { PRESSED_SURFACE } from '../../common/ui/PressableSurface';
 
 @ComponentV2
 export struct CoursesView {
@@ -230,6 +231,8 @@ export struct CoursesView {
       .alignItems(HorizontalAlign.Start)
       .width('100%')
       .padding(Spacing.Md)
+      .borderRadius(Radius.Xl)
+      .attributeModifier(PRESSED_SURFACE)
       .onClick(() => {
         this.openDetail(group);
       })
@@ -374,16 +377,12 @@ export struct CoursesView {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.sessionsShown, this.sessionsSheetContent(), contentSheetOptions(() => {
-        this.sessionsShown = false;
-      }))
+      .bindSheet($$this.sessionsShown, this.sessionsSheetContent(), contentSheetOptions())
     }
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
     .backgroundColor(Colors.Background)
-    .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions(() => {
-      this.detailShown = false;
-    }))
+    .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions())
   }
 }

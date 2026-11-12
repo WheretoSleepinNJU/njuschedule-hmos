@@ -6,15 +6,19 @@
  */
 import { Colors } from '../design/Tokens';
 
-/** 内容型半模态：FIT_CONTENT + 可拖动关闭 + 统一遮罩/背景。 */
-export function contentSheetOptions(onDisappear: () => void): SheetOptions {
+/**
+ * 内容型半模态：FIT_CONTENT + 可拖动关闭 + 统一遮罩/背景。
+ *
+ * 显隐状态由 bindSheet 的 $$ 双向绑定维护；不在 onDisappear 里重复置 false，
+ * 否则关闭动画结束时的旧回调可能覆盖刚发起的新一次打开。
+ */
+export function contentSheetOptions(): SheetOptions {
   return {
     height: SheetSize.FIT_CONTENT,
     dragBar: true,
     showClose: false,
     preferType: SheetType.BOTTOM,
     maskColor: Colors.Scrim,
-    onDisappear: onDisappear,
     onWillDismiss: (action: DismissSheetAction) => {
       action.dismiss();
     },
@@ -23,14 +27,13 @@ export function contentSheetOptions(onDisappear: () => void): SheetOptions {
 }
 
 /** 工具栏型半模态：固定 LARGE 高度。 */
-export function pickerSheetOptions(onDisappear: () => void): SheetOptions {
+export function pickerSheetOptions(): SheetOptions {
   return {
     height: SheetSize.LARGE,
     dragBar: false,
     showClose: false,
     preferType: SheetType.BOTTOM,
     maskColor: Colors.Scrim,
-    onDisappear: onDisappear,
     onWillDismiss: (action: DismissSheetAction) => {
       action.dismiss();
     },

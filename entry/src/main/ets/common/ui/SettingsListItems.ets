@@ -5,6 +5,7 @@
  */
 import { Colors, FontSize, Radius, Spacing } from '../design/Tokens';
 import { AppStore } from '../../app/AppStore';
+import { PRESSED_SURFACE } from './PressableSurface';
 
 /** 设置分组卡片：官方设置应用样式，圆角 24、内边距 4。 */
 @ComponentV2
@@ -116,8 +117,6 @@ export struct SettingsRow {
   @Event onTap: () => void = () => {
   };
 
-  @Local isTouched: boolean = false;
-
   build() {
     Row({ space: Spacing.Md }) {
       if (this.icon !== undefined) {
@@ -169,17 +168,9 @@ export struct SettingsRow {
     .constraintSize({ minHeight: 56 })
     .padding({ left: Spacing.Sm, right: Spacing.Sm })
     .borderRadius(Radius.Xl)
-    .backgroundColor(this.isTouched ? Colors.SurfaceHigh : Colors.Surface)
+    .attributeModifier(PRESSED_SURFACE)
     .alignItems(VerticalAlign.Center)
-    .onTouch((event: TouchEvent) => {
-      if (event.type === TouchType.Down) {
-        this.isTouched = true;
-      } else if (event.type === TouchType.Up) {
-        this.isTouched = false;
-      }
-    })
     .onClick(() => {
-      this.isTouched = false;
       this.onTap();
     })
   }

@@ -667,33 +667,25 @@ export struct TimetableView {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions(() => {
-        this.detailShown = false;
-      }))
+      .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions())
 
       Stack() {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.multiShown, this.multiSheetContent(), contentSheetOptions(() => {
-        this.multiShown = false;
-      }))
+      .bindSheet($$this.multiShown, this.multiSheetContent(), contentSheetOptions())
 
       Stack() {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.store.weekPickerOpen, this.weekPickerSheetContent(), pickerSheetOptions(() => {
-        this.store.weekPickerOpen = false;
-      }))
+      .bindSheet($$this.store.weekPickerOpen, this.weekPickerSheetContent(), pickerSheetOptions())
 
       Stack() {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.freeCourseSheetShown, this.freeCourseSheetContent(), contentSheetOptions(() => {
-        this.freeCourseSheetShown = false;
-      }))
+      .bindSheet($$this.freeCourseSheetShown, this.freeCourseSheetContent(), contentSheetOptions())
     }
     .width('100%')
     .height('100%')
