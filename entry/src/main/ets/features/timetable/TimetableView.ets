@@ -30,6 +30,7 @@ import { Course, CourseTable } from '../../data/models/Models';
 import { ScheduleModel } from '../../data/ScheduleModel';
 import { CourseGroups } from '../../data/CourseGroups';
 import { CourseDeleteFlow } from '../courses/CourseDeleteFlow';
+import { ShellRouter } from '../../common/ShellRouter';
 import { CourseBlock } from './CourseBlock';
 import { contentSheetOptions, pickerSheetOptions } from '../../common/ui/SheetOptions';
 import {
@@ -302,10 +303,8 @@ export struct TimetableView {
     this.detailShown = false;
     this.multiShown = false;
     this.freeCourseSheetShown = false;
-    this.pageStack.pushPathByName('course-edit', new CourseEditParam(this.store.tableId, course.id),
-      (popInfo: PopInfo) => {
-        this.reload();
-      });
+    ShellRouter.replaceOrPush(this.pageStack, 'course-edit',
+      new CourseEditParam(this.store.tableId, course.id));
   }
 
   private openDetail(course: Course): void {
@@ -520,7 +519,7 @@ export struct TimetableView {
       onClose: () => { this.store.weekPickerOpen = false; },
       onSelectTable: (tableId: number) => { this.sheetSelectedTableId = tableId; },
       onSelectWeek: (week: number) => { this.sheetSelectedWeek = week; },
-      onOpenTables: () => { this.store.weekPickerOpen = false; this.pageStack.pushPathByName('tables', null); },
+      onOpenTables: () => { this.store.weekPickerOpen = false; ShellRouter.push(this.pageStack, 'tables', null); },
       onConfirm: () => { this.applySheetSelection(); }
     })
   }

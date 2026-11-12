@@ -19,7 +19,6 @@ import { Colors, HdsMetrics, Spacing, TimetableMetrics } from '../../common/desi
 import { Feedback } from '../../common/ui/Feedback';
 import { applyTextPickerAccent } from '../../common/ui/TextPickerStyle';
 import { pushPageOnce } from '../../common/NavStackResolver';
-import { SETTINGS_EMPTY_ROUTE } from '../../common/RouteParams';
 import { CourseTable } from '../../data/models/Models';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { WeekUtil } from '../../data/WeekUtil';
@@ -103,23 +102,12 @@ export struct SettingsView {
 
   /**
    * 一级设置页：分享/讲座/自定义外观/关于/课表管理。
-   * 宽屏分栏时右侧只保留当前一级页面，返回直接回到设置根（右侧空白），
-   * 不会记住上一级详情页。
+   * 宽屏分栏时右侧只保留当前一级页面；返回后恢复设置根的全宽视图。
    */
   private openLevelOnePage(name: string): void {
     try {
       const names: string[] = this.pageStack.getAllPathName();
       if (names.length > 0 && names[names.length - 1] === name) {
-        return;
-      }
-      if (names.length === 1 && names[0] === SETTINGS_EMPTY_ROUTE) {
-        pushPageOnce(this.pageStack, name);
-        return;
-      }
-      if (names.length > 1 && names[0] === SETTINGS_EMPTY_ROUTE) {
-        this.pageStack.clear(false);
-        this.pageStack.pushPathByName(SETTINGS_EMPTY_ROUTE, null, false);
-        pushPageOnce(this.pageStack, name);
         return;
       }
       if (names.length > 0) {

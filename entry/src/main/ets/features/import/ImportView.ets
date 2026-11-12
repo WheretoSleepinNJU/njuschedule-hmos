@@ -19,6 +19,7 @@ import { AppStore } from '../../app/AppStore';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { DemoData } from '../../data/DemoData';
+import { ShellRouter } from '../../common/ShellRouter';
 import { ImportWebParam } from './ImportParams';
 import { SchoolConfig } from './SchoolConfig';
 import { SchoolRepository } from './SchoolRepository';
@@ -76,7 +77,7 @@ export struct ImportView {
       Feedback.toast(this.getUIContext(), '该学校当前不可用');
       return;
     }
-    this.navStack().pushPathByName(ROUTE_IMPORT_WEB, new ImportWebParam(school));
+    ShellRouter.push(this.navStack(), ROUTE_IMPORT_WEB, new ImportWebParam(school));
   }
 
   /** 旧版 getDemoClasses 的入口：创建 Demo 课表并切为当前课表。 */
@@ -121,7 +122,7 @@ export struct ImportView {
           title: '从分享码导入',
           subtitle: '粘贴同学分享的 ncs://qr 课表编码',
           onTap: () => {
-            this.navStack().pushPathByName('import-code', null);
+            ShellRouter.push(this.navStack(), 'import-code', null);
           }
         })
       }

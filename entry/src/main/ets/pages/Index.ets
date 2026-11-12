@@ -3,7 +3,8 @@
  *
  * 结构：HdsNavigation 不显示根标题栏，HdsTabs 提供底部胶囊导航；
  * 三个一级 Tab 各自用 HdsNavDestination 提供标题栏。
- * 设置 Tab 在宽屏进入 Auto/Split，设置详情与普通子页面统一走 NavPathStack。
+ * 宽屏默认保持单栏全宽；只有打开编辑/详情等子页面时才进入 Split，
+ * 左侧保留当前 Tab，右侧显示子页面；关闭后恢复全宽。窄屏始终 Stack。
  *
  * 子页面自行提供标题栏，
  * 这里只负责分发。
@@ -23,6 +24,7 @@ import { CourseEditParam } from '../common/RouteParams';
 import { AppState } from '../app/AppState';
 import { AppStore } from '../app/AppStore';
 import { HdsTabPage } from '../common/ui/HdsTabPage';
+import { ShellRouter } from '../common/ShellRouter';
 import { DesktopSideBar } from '../common/ui/DesktopSideBar';
 
 import { CourseTableRepository } from '../data/CourseTableRepository';
@@ -43,7 +45,6 @@ import { SharePage } from '../features/share/SharePage';
 import { ManageTablesPage } from '../features/settings/ManageTablesPage';
 import { MoreSettingsPage } from '../features/settings/MoreSettingsPage';
 import { SettingsView } from '../features/settings/SettingsView';
-import { SETTINGS_EMPTY_ROUTE } from '../common/RouteParams';
 import { TimetableView } from '../features/timetable/TimetableView';
 
 @Entry
@@ -65,6 +66,8 @@ struct Index {
   ];
   /** 2in1/PC 使用侧边导航；平板和手机保留底部胶囊。 */
   private readonly is2in1: boolean = IS_2IN1;
+  /** 宽屏 Split 的左侧主栏宽度，与 HdsNavigation.navBarWidth 保持一致。 */
+  private readonly splitNavWidth: number = 420;
   /** 「课程」Tab 标题栏 + 菜单是否展开。 */
   @Local coursesMenuOpen: boolean = false;
 
@@ -73,7 +76,7 @@ struct Index {
   /** 当前课表名（标题栏副标题显示「课表名 + 第 N 周」）。 */
   @Local tableName: string = '我的课表';
   @Local activeTabIndex: number = 0;
-  /** 设置 Tab 在宽屏进入 Auto/Split，其余 Tab 保持 Stack。 */
+  /** 宽屏无子页面时 Stack，打开子页面时 Auto/Split；窄屏始终 Stack。 */
   @Local navigationMode: NavigationMode = NavigationMode.Stack;
   /** HDS 导航是否停留在根页面（没有子页面）。 */
   @Local navStackAtRoot: boolean = true;
@@ -91,9 +94,35 @@ struct Index {
     this.hdsTabsController.bindScroller(1, this.coursesScroller);
     this.hdsTabsController.bindScroller(2, this.settingsScroller);
     // 跟踪子页面进出：只有根页面显示标题栏副标题热区，避免挡住子页面返回键。
+    ShellRouter.setBridge({
+      enterChild: (): boolean => {
+        if (!this.isWideShell() || this.pageStack.getAllPathName().length > 0) {
+          return false;
+        }
+        this.navigationMode = NavigationMode.Split;
+        return true;
+      },
+      exitChild: (): void => {
+        const depth: number = this.pageStack.getAllPathName().length;
+        if (!this.isWideShell() || depth !== 1) {
+          this.pageStack.pop();
+          return;
+        }
+        // 官方做法：宽屏从子页面回首页，关闭过场动画，延迟恢复全宽与路由动画。
+        this.pageStack.disableAnimation(true);
+        this.pageStack.pop();
+        setTimeout(() => {
+          this.navigationMode = NavigationMode.Stack;
+          this.pageStack.disableAnimation(false);
+        }, 20);
+      }
+    });
     this.pageStack.setInterception({
       didShow: (from: NavDestinationContext | NavBar, to: NavDestinationContext | NavBar) => {
         this.navStackAtRoot = to === 'navBar';
+        if (this.isWideShell() && to === 'navBar') {
+          this.navigationMode = NavigationMode.Stack;
+        }
       }
     });
     this.loadTableName();
@@ -131,33 +160,15 @@ struct Index {
     this.updateBreakpoint();
   }
 
-  /** Settings Split 的栈底空页：模式切换或设置页真正显示时触发一次。 */
-  private ensureSettingsBase(): void {
-    if (!this.isWideShell() || this.activeTabIndex !== 2) {
-      return;
-    }
-    if (this.pageStack.getAllPathName().length === 0) {
-      this.pageStack.pushPathByName(SETTINGS_EMPTY_ROUTE, null, false);
-    }
-  }
-
   @Monitor('store.breakpoint')
   private onBreakpointChanged(_monitor: IMonitor): void {
     if (!this.isWideShell()) {
       this.navigationMode = NavigationMode.Stack;
-      if (this.activeTabIndex === 2) {
-        this.pageStack.clear();
-      }
       return;
     }
-    if (this.activeTabIndex === 2) {
-      this.navigationMode = NavigationMode.Auto;
-      this.pageStack.clear();
-      this.pageStack.pushPathByName(SETTINGS_EMPTY_ROUTE, null, false);
-    } else {
-      this.navigationMode = NavigationMode.Stack;
-      this.pageStack.clear();
-    }
+    // 无子页面时保持全宽主页面；已有子页面时进入分栏。
+    this.navigationMode = this.pageStack.getAllPathName().length > 0 ?
+      NavigationMode.Split : NavigationMode.Stack;
   }
 
   private contentTopSpace(): number {
@@ -190,12 +201,12 @@ struct Index {
 
   private openImport(): void {
     this.coursesMenuOpen = false;
-    this.pageStack.pushPathByName('import', null);
+    ShellRouter.push(this.pageStack, 'import', null);
   }
 
   private openCreateCourse(): void {
     this.coursesMenuOpen = false;
-    this.pageStack.pushPathByName('course-edit', new CourseEditParam(this.store.tableId, 0));
+    ShellRouter.replaceOrPush(this.pageStack, 'course-edit', new CourseEditParam(this.store.tableId, 0));
   }
 
   private courseMenuItems(): MenuElement[] {
@@ -278,14 +289,6 @@ struct Index {
       SharePage({})
     } else if (name === 'import-code') {
       ImportCodePage({pageStack: this.pageStack})
-    } else if (name === SETTINGS_EMPTY_ROUTE) {
-      HdsNavDestination() {
-        Column()
-          .width('100%')
-          .height('100%')
-          .backgroundColor(Colors.Background)
-      }
-      .hideTitleBar(true)
     }
   }
 
@@ -300,18 +303,11 @@ struct Index {
     const previous: number = this.activeTabIndex;
     this.activeTabIndex = index;
     this.coursesMenuOpen = false;
+    this.navigationMode = NavigationMode.Stack;
     if (this.isWideShell()) {
-      if (index === 2) {
-        this.navigationMode = NavigationMode.Auto;
-      } else {
-        this.navigationMode = NavigationMode.Stack;
-      }
       this.pageStack.clear();
-    } else {
-      this.navigationMode = NavigationMode.Stack;
-      if (previous === 2) {
-        this.pageStack.clear();
-      }
+    } else if (previous === 2) {
+      this.pageStack.clear();
     }
     if (index < 2) {
       this.hdsTabsController.changeIndex(index);
@@ -360,9 +356,6 @@ struct Index {
         SettingsView({ pageStack: this.pageStack, scroller: this.settingsScroller })
       }
     }
-    .onWillShow(() => {
-      this.ensureSettingsBase();
-    })
     .tabBar(this.bottomTabBar($r('sys.symbol.gearshape'), this.tabLabels[2]))
   }
 
@@ -394,20 +387,15 @@ struct Index {
     .backgroundColor(Colors.Background)
   }
 
-  /** 根 Navigation：不显示标题栏；仅设置 Tab 在宽屏进入 Auto/Split。 */
+  /** 根 Navigation：宽屏仅在有子页面时切换 Auto/Split。 */
   @Builder
   private contentNavigation() {
     HdsNavigation(this.pageStack) {
       this.narrowTabs()
     }
     .mode(this.navigationMode)
-    .navBarWidth(420)
+    .navBarWidth(this.splitNavWidth)
     .hideTitleBar(true)
-    .onNavigationModeChange((mode: NavigationMode) => {
-      if (mode === NavigationMode.Split) {
-        this.ensureSettingsBase();
-      }
-    })
     .navDestination(this.destinationBuilder)
     .width('100%')
     .height('100%')
@@ -429,7 +417,7 @@ struct Index {
           .width(1)
           .height(1)
           .position({
-            x: Math.max(0, this.getUIContext().px2vp(this.store.windowWidth) - 32),
+            x: Math.max(0, (this.isWideShell() && this.pageStack.getAllPathName().length > 0 ? this.splitNavWidth : this.getUIContext().px2vp(this.store.windowWidth)) - 32),
             y: this.contentTopSpace() - 2
           })
           .bindMenu(this.coursesMenuOpen, this.courseMenuItems(), {
@@ -444,7 +432,7 @@ struct Index {
       // 子页面或非课表 Tab 时隐藏，避免遮挡返回键和其他标题栏内容。
       if (this.activeTabIndex === 0 && this.navStackAtRoot) {
         Row()
-          .width('100%')
+          .width(this.isWideShell() && this.pageStack.getAllPathName().length > 0 ? this.splitNavWidth : '100%')
           .height(30)
           .position({ x: 0, y: this.contentTopSpace() - 30 })
           .hitTestBehavior(HitTestMode.Default)

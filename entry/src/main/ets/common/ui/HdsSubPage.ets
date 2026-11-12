@@ -16,6 +16,7 @@
  * 让内容从标题栏下方开始、继续滚动时进入标题栏下方产生模糊。
  */
 import { hdsMaterial, HdsNavigationMenuContentOptions, HdsNavigationTitle, HdsNavigationTitleBarOptions, ScrollEffectType } from '@kit.UIDesignKit';
+import { ShellRouter } from '../ShellRouter';
 
 /** 生成标准子页面标题栏配置：系统渐变模糊 + 自适应光感材质（与主 HdsNavigation 一致）。 */
 export function hdsSubPageTitleBar(title: string, subtitle: string = '',
@@ -27,7 +28,13 @@ export function hdsSubPageTitleBar(title: string, subtitle: string = '',
   const options: HdsNavigationTitleBarOptions = {
     avoidLayoutSafeArea: true,
     content: {
-      title: titleObj
+      title: titleObj,
+      backIcon: {
+        icon: $r('sys.media.ohos_ic_public_arrow_left'),
+        action: () => {
+          ShellRouter.back();
+        }
+      }
     },
     style: {
       scrollEffectOpts: {

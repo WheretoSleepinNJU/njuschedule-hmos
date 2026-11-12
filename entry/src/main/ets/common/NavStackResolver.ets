@@ -1,3 +1,5 @@
+import { ShellRouter } from './ShellRouter';
+
 /**
  * 子页面导航栈解析：`HdsNavDestination.onReady` 之前用外壳传入的 `@Param pageStack`，
  * onReady 之后用 NavDestinationContext.pathStack。各子页统一调用，避免重复实现。
@@ -16,9 +18,5 @@ export function resolveNavStack(stack: NavPathStack | null, fallback: NavPathSta
  * 适用于设置等“主从/层级”页面，避免连续点击同一条目造成无限返回。
  */
 export function pushPageOnce(stack: NavPathStack, name: string, param: Object | null = null): void {
-  try {
-    stack.pushPath(new NavPathInfo(name, param), { launchMode: LaunchMode.POP_TO_SINGLETON });
-  } catch (err) {
-    console.warn(`[NavStack] push ${name} failed: ${JSON.stringify(err)}`);
-  }
+  ShellRouter.pushOnce(stack, name, param);
 }

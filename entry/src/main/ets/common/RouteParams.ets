@@ -14,6 +14,3 @@ export class CourseEditParam {
     this.courseId = courseId;
   }
 }
-
-/** 宽屏设置分栏右侧的空状态路由。 */
-export const SETTINGS_EMPTY_ROUTE: string = 'settings-empty';

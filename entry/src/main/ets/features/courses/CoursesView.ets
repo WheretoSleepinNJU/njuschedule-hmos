@@ -2,7 +2,7 @@
  * 「课程」Tab 页：列出当前课表的全部课程。
  *
  * 行为基准：旧版课表里同名课程是多个 Course 行（每个时段一行），这里按课程名
- * 合并成一张卡片，显示教师 / 地点 / 周次摘要；点卡片打开与课表页相同的课程详情半模态。
+ * 合并成一张卡片，显示教师 / 地点 / 周次摘要；点卡片直接进入课程编辑页。
  *
  * 数据刷新：
  * - `store.dataRevision`：增删改 / 导入后自增，列表重载（编辑页写入）；
@@ -13,23 +13,19 @@
  */
 import { AppState } from '../../app/AppState';
 import { Course } from '../../data/models/Models';
-import { contentSheetOptions } from '../../common/ui/SheetOptions';
 import { ArrayDataSource } from '../../common/ui/ArrayDataSource';
 import { CourseRepository } from '../../data/CourseRepository';
-import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { ColorPool } from '../../data/ColorPool';
-import { ClassPeriod, LegacyConstant } from '../../common/Constants';
 import { CourseEditParam } from '../../common/RouteParams';
+import { LegacyConstant } from '../../common/Constants';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { AppStore } from '../../app/AppStore';
 import { EmptyState } from '../../common/ui/EmptyState';
-import { Feedback } from '../../common/ui/Feedback';
-import { DetailSheetContent } from '../timetable/TimetableSheets';
 import { StatusBadge, BadgeTone } from '../../common/ui/StatusBadge';
 import { WeeksFormat } from '../timetable/WeeksFormat';
 import { CourseFormat, CourseGroup } from './CourseFormat';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
-import { CourseDeleteFlow } from './CourseDeleteFlow';
+import { ShellRouter } from '../../common/ShellRouter';
 import { PRESSED_SURFACE } from '../../common/ui/PressableSurface';
 
 @ComponentV2
@@ -48,11 +44,6 @@ export struct CoursesView {
   private groupsSource: ArrayDataSource<CourseGroup> = new ArrayDataSource<CourseGroup>();
   @Local loaded: boolean = false;
   @Local loadError: string = '';
-  /** 课程详情半模态（与课表页复用同一个 DetailSheetContent）。 */
-  @Local detailShown: boolean = false;
-  @Local detailCourse: Course = new Course();
-  @Local periods: ClassPeriod[] = [];
-  @Local pool: number[] = [];
   /** 课程 Tab 是否激活：切回时重新读取配色池。 */
   @Param active: boolean = true;
 
@@ -89,8 +80,6 @@ export struct CoursesView {
     const tableId: number = AppState.effectiveTableId(this.tableId);
     try {
       const pool: number[] = await ColorPool.get();
-      this.pool = pool;
-      this.periods = await CourseTableRepository.getClassTimeList(tableId);
       const courses: Course[] = await CourseRepository.getAll(tableId);
       this.groups = CourseFormat.group(courses, pool);
       this.groupsSource.setData(this.groups);
@@ -111,47 +100,11 @@ export struct CoursesView {
     return this.pageStack;
   }
 
-  private openDetail(group: CourseGroup): void {
-    if (group.sessions.length === 0) {
-      return;
-    }
-    // 同一门课的多个时段已经在课程卡片中合并展示；详情只打开代表行，
-    // 编辑页会按数据层规则加载整组，不再弹“选择时段”半模态。
-    this.detailCourse = group.sessions[0];
-    this.detailShown = true;
-  }
-
-  private openEdit(course: Course): void {
-    this.detailShown = false;
-    // CourseEditPage 保存成功后 await bumpDataRevision，列表由 @Monitor 刷新。
-    this.navStack().pushPathByName('course-edit', new CourseEditParam(course.tableId, course.id));
-  }
-
-  private confirmDelete(course: Course): void {
-    CourseDeleteFlow.confirmDelete(this.getUIContext(), course, () => {
-      this.detailShown = false;
-      this.reload();
-    }, () => {
-      Feedback.toast(this.getUIContext(), '删除失败，请重试');
-    });
-  }
-
-  @Builder
-  private detailSheetContent() {
-    DetailSheetContent({
-      course: this.detailCourse,
-      periods: this.periods,
-      pool: this.pool,
-      onClose: () => {
-        this.detailShown = false;
-      },
-      onEdit: (course: Course) => {
-        this.openEdit(course);
-      },
-      onDelete: (course: Course) => {
-        this.confirmDelete(course);
-      }
-    })
+  private openEdit(group: CourseGroup): void {
+    // 同一门课的多个时段已在卡片上合并展示；编辑页按数据层规则加载整组。
+    const representative: Course = group.sessions[0];
+    ShellRouter.replaceOrPush(this.navStack(), 'course-edit',
+      new CourseEditParam(representative.tableId, representative.id));
   }
 
   /** 一门课的卡片：保留原信息排布，外层使用标准分组卡片。 */
@@ -199,7 +152,7 @@ export struct CoursesView {
       .borderRadius(Radius.Xl)
       .attributeModifier(PRESSED_SURFACE)
       .onClick(() => {
-        this.openDetail(group);
+        this.openEdit(group);
       })
     }
   }
@@ -342,6 +295,5 @@ export struct CoursesView {
     .height('100%')
     .alignItems(HorizontalAlign.Center)
     .backgroundColor(Colors.Background)
-    .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions(this.store.breakpoint))
   }
 }
