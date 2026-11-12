@@ -377,12 +377,12 @@ export struct CoursesView {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.sessionsShown, this.sessionsSheetContent(), contentSheetOptions())
+      .bindSheet($$this.sessionsShown, this.sessionsSheetContent(), contentSheetOptions(this.store.breakpoint))
     }
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
     .backgroundColor(Colors.Background)
-    .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions())
+    .bindSheet($$this.detailShown, this.detailSheetContent(), contentSheetOptions(this.store.breakpoint))
   }
 }
