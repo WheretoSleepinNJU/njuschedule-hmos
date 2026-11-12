@@ -21,6 +21,7 @@ import {
 } from '@kit.UIDesignKit';
 import { ClassPeriod, LegacyConfig } from '../../common/Constants';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
+import { IS_2IN1 } from '../../common/DeviceType';
 import { ColorPool } from '../../data/ColorPool';
 import { Course, CourseTable } from '../../data/models/Models';
 import { WeeksFormat } from './WeeksFormat';
@@ -322,13 +323,13 @@ export struct DetailSheetContent {
 /** 同一时段多门课程的半模态内容（卡片样式与自由时间课程一致）。 */
 @ComponentV2
 export struct MultiSheetContent {
+  @Local store: AppStore = AppStore.connect();
   @Param group: Course[] = [];
   @Param pool: number[] = [];
   @Event onSelect: (course: Course) => void = () => {
   };
   @Event onClose: () => void = () => {
   };
-  @Local multiIndex: number = 0;
 
   @Builder
   private multiBody() {
@@ -346,17 +347,15 @@ export struct MultiSheetContent {
       }
       .width('100%')
       .height(240)
-      .indicator(false)
       .loop(false)
-      .onChange((index: number) => {
-        this.multiIndex = index;
-      })
-
-      Text(`${this.multiIndex + 1} / ${this.group.length}`)
-        .fontSize(FontSize.Caption)
-        .fontColor(Colors.TextTertiary)
-        .width('100%')
-        .textAlign(TextAlign.Center)
+      .displayArrow(IS_2IN1)
+      .indicator(new DotIndicator()
+        .itemWidth(6)
+        .itemHeight(6)
+        .selectedItemWidth(6)
+        .selectedItemHeight(6)
+        .color(Colors.Outline)
+        .selectedColor(this.store.accentDisplay))
     }
     .width('100%')
     .padding({ left: Spacing.Xl, right: Spacing.Xl, top: Spacing.Xl, bottom: Spacing.Xxl })
@@ -379,12 +378,10 @@ export struct MultiSheetContent {
 /** 自由时间课程列表半模态内容（左右滑动分页，点卡片打开详情）。 */
 @ComponentV2
 export struct FreeCourseSheetContent {
+  @Local store: AppStore = AppStore.connect();
   @Param courses: Course[] = [];
-  @Param sheetIndex: number = 0;
   @Param pool: number[] = [];
   @Event onClose: () => void = () => {
-  };
-  @Event onIndexChange: (index: number) => void = () => {
   };
   @Event onOpenCourse: (course: Course) => void = () => {
   };
@@ -413,17 +410,15 @@ export struct FreeCourseSheetContent {
         }
         .width('100%')
         .height(240)
-        .indicator(false)
         .loop(false)
-        .onChange((index: number) => {
-          this.onIndexChange(index);
-        })
-
-        Text(`${this.sheetIndex + 1} / ${this.courses.length}`)
-          .fontSize(FontSize.Caption)
-          .fontColor(Colors.TextTertiary)
-          .width('100%')
-          .textAlign(TextAlign.Center)
+        .displayArrow(IS_2IN1)
+        .indicator(new DotIndicator()
+          .itemWidth(6)
+          .itemHeight(6)
+          .selectedItemWidth(6)
+          .selectedItemHeight(6)
+          .color(Colors.Outline)
+          .selectedColor(this.store.accentDisplay))
       }
     }
     .width('100%')

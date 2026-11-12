@@ -82,7 +82,6 @@ export struct TimetableView {
 
   /** 自由时间课程半模态开关（由右下角时钟按钮打开）。 */
   @Local freeCourseSheetShown: boolean = false;
-  @Local freeSheetIndex: number = 0;
 
   @Local loading: boolean = true;
   @Local periods: ClassPeriod[] = [];
@@ -504,9 +503,8 @@ export struct TimetableView {
   @Builder
   private freeCourseSheetContent() {
     FreeCourseSheetContent({
-      courses: this.freeCourses, sheetIndex: this.freeSheetIndex, pool: this.pool,
+      courses: this.freeCourses, pool: this.pool,
       onClose: () => { this.freeCourseSheetShown = false; },
-      onIndexChange: (index: number) => { this.freeSheetIndex = index; },
       onOpenCourse: (course: Course) => { this.openDetail(course); }
     })
   }
@@ -636,7 +634,6 @@ export struct TimetableView {
             FreeCourseEntryButton({
               count: this.freeCourses.length,
               onTap: (): void => {
-                this.freeSheetIndex = 0;
                 this.freeCourseSheetShown = true;
               }
             })
