@@ -1,11 +1,11 @@
 /**
  * 课表背景缩略图卡片：内置预设与自定义图片共用缩略图、选中描边与点击回弹；
- * 自定义图片额外支持长按/右键菜单（重命名、删除）。
+ * 自定义图片额外支持图片长按/右键菜单（重命名、删除）。
  */
-import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { AppStore } from '../../app/AppStore';
 import { Colors, FontSize, Radius, Spacing } from '../../common/design/Tokens';
 import { BackgroundImage, CustomBackground } from '../../data/BackgroundImage';
+import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
 
 const THUMB_WIDTH: number = 72;
 const THUMB_HEIGHT: number = 108;
@@ -93,29 +93,35 @@ export struct CustomBackgroundCard {
   @Builder
   private menu(_responseType: ResponseType): void {
     Menu() {
-      MenuItem({
-        content: '重命名',
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.pencil_line'))
-      })
+      MenuItem({ content: '重命名' })
         .onClick(this.onRename)
-      MenuItem({
-        content: '删除',
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash'))
-          .fontColor([Colors.Error])
-      })
+      MenuItem({ content: '删除' })
+        .contentFontColor(Colors.Error)
         .onClick(this.onDelete)
     }
+    .menuItemDivider(menuItemDividerStyle())
   }
 
   build() {
     Column({ space: Spacing.Xs }) {
-      BackgroundThumb({
-        source: BackgroundImage.thumbnailUri(this.item.path),
-        selected: this.isSelected(),
-        onTap: () => {
-          this.onTap();
-        }
+      // 长按/右键只绑定在图片上：预览只会放大截图，不包含下方标题。
+      Row() {
+        BackgroundThumb({
+          source: BackgroundImage.thumbnailUri(this.item.path),
+          selected: this.isSelected(),
+          onTap: () => {
+            this.onTap();
+          }
+        })
+      }
+      .width(THUMB_WIDTH)
+      .height(THUMB_HEIGHT)
+      .bindContextMenuWithResponse(this.menu, {
+        preview: MenuPreviewMode.IMAGE,
+        previewBorderRadius: Radius.Md,
+        previewAnimationOptions: { scale: [1, 1.05] }
       })
+
       Text(this.item.name)
         .fontSize(FontSize.Caption)
         .fontColor(this.isSelected() ? this.store.accentDisplay : Colors.TextTertiary)
@@ -124,8 +130,5 @@ export struct CustomBackgroundCard {
         .width(THUMB_WIDTH)
         .textAlign(TextAlign.Center)
     }
-    .bindContextMenuWithResponse(this.menu, {
-      preview: MenuPreviewMode.IMAGE
-    })
   }
 }

@@ -6,7 +6,7 @@
  * - 右上角 +：教务导入（与课程页共用 import 入口）/ 新建课表菜单
  * - 重命名（命名弹窗，数据保留在 data 字段）
  * - 删除（CourseTableRepository.delete 级联删除课程，AlertDialog 二次确认）
- * - 切换当前课表（AppPreferences.setTableId + AppState.setCurrentTable，返回时外壳自动刷新）
+ * - 切换当前课表（卡片下拉菜单触发，原地刷新列表，不退出页面）
  */
 import {
   HdsNavDestination,
@@ -14,9 +14,8 @@ import {
   HdsNavigationTitleBarOptions,
   IconStyleMode
 } from '@kit.UIDesignKit';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { AppState } from '../../app/AppState';
-import { Colors, HdsMetrics, Spacing } from '../../common/design/Tokens';
+import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { CourseTable } from '../../data/models/Models';
@@ -24,69 +23,69 @@ import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { AppStore } from '../../app/AppStore';
 import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ShellRouter } from '../../common/ShellRouter';
-import { IS_2IN1 } from '../../common/DeviceType';
 import { NameDialog } from './NameDialog';
-import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
+import { SettingsItemDivider, SettingsItemGroup } from '../../common/ui/SettingsListItems';
 import { NameDialogController } from '../../common/ui/NameDialogController';
+import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
 
 /**
- * 单张课表卡片。
- *
- * 独立组件持有自己的 @Builder 菜单，才能把方法引用直接传给
- * bindContextMenuWithResponse（其参数类型为 CustomBuilderT<ResponseType>）。
- * 不要把内联箭头函数传给该接口：运行时不会被识别为合法菜单构造器，
- * 表现为长按/右键都没有菜单。
+ * 单张课表卡片：标题 + 右侧「当前使用/点击展开」下拉菜单。
  */
 @ComponentV2
 struct CourseTableCard {
   @Param table: CourseTable = new CourseTable();
   @Param isCurrent: boolean = false;
-  @Event onTap: () => void = () => {
+  @Event onSwitch: () => void = () => {
   };
   @Event onRename: () => void = () => {
   };
   @Event onDelete: () => void = () => {
   };
 
-  // 触发方式由框架传入；当前长按和右键使用相同菜单，保留参数以匹配 CustomBuilderT<ResponseType>。
   @Builder
-  private tableMenu(_responseType: ResponseType): void {
+  private tableMenu(): void {
     Menu() {
-      MenuItem({
-        content: '重命名',
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.pencil_line'))
-      })
+      MenuItem({ content: '切换课表' })
+        .enabled(!this.isCurrent)
+        .onClick(this.onSwitch)
+      MenuItem({ content: '重命名' })
         .onClick(this.onRename)
-      if (!this.isCurrent) {
-        MenuItem({
-          content: '删除课表',
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash'))
-            .fontColor([Colors.Error])
-        })
-          .onClick(this.onDelete)
-      }
+      MenuItem({ content: '删除课表' })
+        .contentFontColor(Colors.Error)
+        .onClick(this.onDelete)
     }
-  }
-
-  private subtitleText(): string {
-    const editHint: string = IS_2IN1 ? '右键编辑' : '长按编辑';
-    return this.isCurrent ? `当前使用，${editHint}` : `点击切换为当前课表，${editHint}`;
+    .menuItemDivider(menuItemDividerStyle())
   }
 
   build() {
-    Stack() {
-      SettingsRow({
-        icon: $r('sys.symbol.calendar'),
-        title: this.table.name,
-        subtitle: this.subtitleText(),
-        trailingText: this.isCurrent ? '当前' : '',
-        onTap: this.onTap
-      })
+    Row({ space: Spacing.Md }) {
+      SymbolGlyph($r('sys.symbol.calendar'))
+        .fontSize(24)
+        .fontColor([Colors.TextSecondary])
+      Text(this.table.name)
+        .fontSize(FontSize.Body)
+        .fontColor(Colors.TextPrimary)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .layoutWeight(1)
+
+      Row({ space: Spacing.Xs }) {
+        Text(this.isCurrent ? '当前使用' : '点击展开')
+          .fontSize(FontSize.BodySm)
+          .fontColor(Colors.TextTertiary)
+        SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
+          .fontSize(FontSize.Body)
+          .fontColor([Colors.TextTertiary])
+      }
+      .padding(Spacing.Sm)
+      .bindMenu(this.tableMenu)
     }
     .width('100%')
-    .bindContextMenuWithResponse(this.tableMenu, {
-      preview: MenuPreviewMode.IMAGE
-    })
+    .constraintSize({ minHeight: 56 })
+    .padding({ left: Spacing.Sm, right: Spacing.Sm })
+    .backgroundColor(Colors.Surface)
+    .borderRadius(Radius.Xl)
+    .alignItems(VerticalAlign.Center)
   }
 }
 
@@ -112,6 +111,11 @@ export struct ManageTablesPage {
     this.closeNameDialog();
   }
 
+  /** 教务导入等外部数据变化后自动刷新列表，无需退出页面再进入。 */
+  @Monitor('store.dataRevision')
+  private onDataRevisionChanged(_monitor: IMonitor): void {
+    this.loadTables();
+  }
 
   private async loadTables(): Promise<void> {
     try {
@@ -265,7 +269,6 @@ export struct ManageTablesPage {
     }
     await this.switchTableData(table.id);
     Feedback.toast(this.getUIContext(), `已切换到「${table.name}」`);
-    this.pageStack.pop();
   }
 
   // ---- UI ----
@@ -319,7 +322,7 @@ export struct ManageTablesPage {
                     CourseTableCard({
                       table: table,
                       isCurrent: table.id === this.store.tableId,
-                      onTap: () => {
+                      onSwitch: () => {
                         this.switchTable(table);
                       },
                       onRename: () => {

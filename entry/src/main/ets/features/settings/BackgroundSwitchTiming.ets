@@ -4,14 +4,16 @@
  * 只负责时机偏好（prefs 持久化、天数选择器）与对应设置行；
  * 实际的换图逻辑在 `BackgroundImage.rotateOnLeave()`。
  */
-import { CapsuleSegmentButtonV2, ColorMetrics, LengthMetrics, SegmentButtonV2Items } from '@kit.ArkUI';
 import { AppPreferences, PrefKeys } from '../../app/AppPreferences';
 import { AppStore } from '../../app/AppStore';
 import { Colors, FontSize, Spacing } from '../../common/design/Tokens';
 import { applyTextPickerAccent } from '../../common/ui/TextPickerStyle';
 import { SettingsItemDivider, SettingsRow } from '../../common/ui/SettingsListItems';
+import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
 
 const MAX_SWITCH_DAYS: number = 365;
+/** 切换时机选项（下标与 switchModeIndex 一致）。 */
+const SWITCH_MODE_LABELS: string[] = ['退出课表页', '自定义天数'];
 
 @ComponentV2
 export struct BackgroundSwitchTiming {
@@ -19,11 +21,6 @@ export struct BackgroundSwitchTiming {
   /** 0=退出课表页，1=自定义天数。 */
   @Local switchModeIndex: number = 0;
   @Local switchDays: number = 1;
-  /** 切换时机分段按钮（与深浅色选择器同款胶囊样式）。 */
-  private switchModeItems: SegmentButtonV2Items = new SegmentButtonV2Items([
-    { text: '退出课表页' },
-    { text: '自定义天数' }
-  ]);
 
   aboutToAppear(): void {
     this.loadSwitchSettings();
@@ -40,8 +37,18 @@ export struct BackgroundSwitchTiming {
     }
   }
 
-  private async applySwitchMode(index: number): Promise<void> {
-    this.switchModeIndex = index;
+  /** 切换时机：显式动画驱动「切换间隔」行展开/收起，偏好异步持久化。 */
+  private applySwitchMode(index: number): void {
+    if (index === this.switchModeIndex) {
+      return;
+    }
+    this.getUIContext().animateTo({ duration: 300, curve: Curve.Smooth }, () => {
+      this.switchModeIndex = index;
+    });
+    this.persistSwitchMode(index);
+  }
+
+  private async persistSwitchMode(index: number): Promise<void> {
     try {
       await AppPreferences.put(PrefKeys.BackgroundSwitchMode, index === 1 ? 'days' : 'exit');
     } catch (err) {
@@ -74,58 +81,62 @@ export struct BackgroundSwitchTiming {
     }
   }
 
+  @Builder
+  private switchModeMenu() {
+    Menu() {
+      ForEach(SWITCH_MODE_LABELS, (label: string, index: number) => {
+        MenuItem({ content: label })
+          .onClick(() => {
+            this.applySwitchMode(index);
+          })
+      }, (label: string) => label)
+    }
+    .menuItemDivider(menuItemDividerStyle())
+  }
+
   build() {
     Column() {
-      Column() {
-        Row({ space: Spacing.Md }) {
-          SymbolGlyph($r('sys.symbol.clock'))
-            .fontSize(24)
-            .fontColor([Colors.TextSecondary])
-          Column({ space: 2 }) {
-            Text('切换时机')
-              .fontSize(FontSize.Body)
-              .fontColor(Colors.TextPrimary)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width('100%')
-          }
-          .alignItems(HorizontalAlign.Start)
+      Row({ space: Spacing.Md }) {
+        SymbolGlyph($r('sys.symbol.clock'))
+          .fontSize(24)
+          .fontColor([Colors.TextSecondary])
+        Text('切换时机')
+          .fontSize(FontSize.Body)
+          .fontColor(Colors.TextPrimary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
           .layoutWeight(1)
-        }
-        .width('100%')
-        .constraintSize({ minHeight: 56 })
-        .alignItems(VerticalAlign.Center)
 
         Row() {
-          CapsuleSegmentButtonV2({
-            items: this.switchModeItems,
-            selectedIndex: this.switchModeIndex,
-            $selectedIndex: (index: number): void => {
-              this.applySwitchMode(index);
-            },
-            buttonBackgroundColor: ColorMetrics.resourceColor(Colors.SurfaceHigh),
-            itemSelectedBackgroundColor: ColorMetrics.resourceColor(Colors.Surface),
-            itemFontColor: ColorMetrics.resourceColor(Colors.TextSecondary),
-            itemSelectedFontColor: ColorMetrics.resourceColor(Colors.TextPrimary),
-            itemFontSize: LengthMetrics.fp(FontSize.BodySm),
-            itemSelectedFontSize: LengthMetrics.fp(FontSize.BodySm)
+          Text(SWITCH_MODE_LABELS[this.switchModeIndex])
+            .fontSize(FontSize.BodySm)
+            .fontColor(Colors.TextSecondary)
+            .margin({ right: Spacing.Sm })
+          SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
+            .fontSize(FontSize.Body)
+            .fontColor([Colors.TextTertiary])
+        }
+        .bindMenu(this.switchModeMenu())
+      }
+      .width('100%')
+      .constraintSize({ minHeight: 56 })
+      .padding({ left: Spacing.Sm, right: Spacing.Sm })
+      .alignItems(VerticalAlign.Center)
+
+      if (this.switchModeIndex === 1) {
+        Column() {
+          SettingsItemDivider()
+          SettingsRow({
+            icon: $r('sys.symbol.calendar_badge_clock'),
+            title: '切换间隔',
+            trailingText: `${this.switchDays} 天`,
+            onTap: () => {
+              this.openSwitchDaysPicker();
+            }
           })
         }
         .width('100%')
-      }
-      .width('100%')
-      .padding({ left: Spacing.Sm, right: Spacing.Sm, bottom: Spacing.Md })
-
-      if (this.switchModeIndex === 1) {
-        SettingsItemDivider()
-        SettingsRow({
-          icon: $r('sys.symbol.calendar_badge_clock'),
-          title: '切换间隔',
-          trailingText: `${this.switchDays} 天`,
-          onTap: () => {
-            this.openSwitchDaysPicker();
-          }
-        })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 220, curve: Curve.Smooth }))
       }
     }
     .width('100%')
