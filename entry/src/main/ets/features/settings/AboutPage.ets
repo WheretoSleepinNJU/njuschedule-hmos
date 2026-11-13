@@ -9,6 +9,7 @@
 import { HdsNavDestination } from '@kit.UIDesignKit';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { readVersionName } from '../../common/AppVersion';
+import { DailyLuck } from '../../common/DailyLuck';
 import { openUrl } from '../../common/ui/OpenLink';
 import { Feedback } from '../../common/ui/Feedback';
 import { pushPageOnce } from '../../common/NavStackResolver';
@@ -40,6 +41,8 @@ export struct AboutPage {
   @Local version: string = FALLBACK_VERSION;
 
   private scroller: Scroller = new Scroller();
+  /** 彩蛋：版本行连点次数，满 6 次弹出今日人品。 */
+  private versionTapCount: number = 0;
 
   aboutToAppear(): void {
     this.loadVersion();
@@ -47,6 +50,26 @@ export struct AboutPage {
 
   private async loadVersion(): Promise<void> {
     this.version = await readVersionName(FALLBACK_VERSION);
+  }
+
+  /** 彩蛋：关于页版本条目连点 6 次，弹出当日固定的「今日人品」。 */
+  private onVersionTap(): void {
+    this.versionTapCount += 1;
+    if (this.versionTapCount < 6) {
+      return;
+    }
+    this.versionTapCount = 0;
+    this.getUIContext().showAlertDialog({
+      title: '今日人品',
+      message: `今日人品值：${DailyLuck.today()}`,
+      autoCancel: true,
+      confirm: {
+        value: '好',
+        fontColor: this.store.accentDisplay,
+        action: () => {
+        }
+      }
+    });
   }
 
   /** 待补充链接行：留空时只提示，不复制空串。 */
@@ -161,7 +184,10 @@ export struct AboutPage {
           icon: $r('sys.symbol.info_circle'),
           title: '版本',
           trailingText: `v${this.version}`,
-          showArrow: false
+          showArrow: false,
+          onTap: () => {
+            this.onVersionTap();
+          }
         })
         SettingsItemDivider()
         SettingsRow({
