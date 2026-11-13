@@ -212,7 +212,10 @@ struct Index {
 
   /** 课表 Tab 副标题（与标题栏配置共用，避免两处字符串不一致）。 */
   private timetableSubtitle(): string {
-    return `${this.tableName} · 第 ${this.store.tmpWeekIndex} 周`;
+    const displayedWeek: number = this.store.tmpWeekIndex;
+    // 浏览非当前周时在副标题上提示，返回本周后自动消失。
+    const offWeekSuffix: string = displayedWeek === this.store.weekIndex ? '' : ' [非本周]';
+    return `${this.tableName} · 第 ${displayedWeek} 周${offWeekSuffix}`;
   }
 
   /**
