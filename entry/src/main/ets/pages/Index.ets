@@ -20,6 +20,7 @@ import {
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { IS_2IN1 } from '../common/DeviceType';
+import { TimeGreeting } from '../common/TimeGreeting';
 import { CourseEditParam } from '../common/RouteParams';
 import { AppState } from '../app/AppState';
 import { AppStore } from '../app/AppStore';
@@ -30,7 +31,7 @@ import { DesktopSideBar } from '../common/ui/DesktopSideBar';
 import { CourseTableRepository } from '../data/CourseTableRepository';
 import { CourseTable } from '../data/models/Models';
 import { BreakpointName, breakpointNameOf, isTabletBreakpoint } from '../common/design/Breakpoints';
-import { Colors, HdsMetrics } from '../common/design/Tokens';
+import { Colors, FontSize, HdsMetrics, Spacing } from '../common/design/Tokens';
 import { CourseEditPage } from '../features/courses/CourseEditPage';
 import { CoursesView } from '../features/courses/CoursesView';
 import { ImportView } from '../features/import/ImportView';
@@ -46,6 +47,9 @@ import { ManageTablesPage } from '../features/settings/ManageTablesPage';
 import { MoreSettingsPage } from '../features/settings/MoreSettingsPage';
 import { SettingsView } from '../features/settings/SettingsView';
 import { TimetableView } from '../features/timetable/TimetableView';
+
+/** 跨时辰检查间隔：每分钟刷新一次问候标题。 */
+const GREETING_REFRESH_INTERVAL_MS: number = 60 * 1000;
 
 @Entry
 @ComponentV2
@@ -70,6 +74,8 @@ struct Index {
   private readonly splitNavWidth: number = 420;
   /** 「课程」Tab 标题栏 + 菜单是否展开。 */
   @Local coursesMenuOpen: boolean = false;
+  /** 课表 Tab 主标题：按时辰变化的问候。 */
+  @Local greeting: string = TimeGreeting.current();
 
   /** V2 全局 Store。 */
   @Local store: AppStore = AppStore.connect();
@@ -84,6 +90,8 @@ struct Index {
   private boundTimetableScroller: Scroller | undefined = undefined;
   /** 课表 Tab 当前周页面滚动容器，供 HdsNavDestination 标题栏模糊联动。 */
   @Local timetableTabScrollables: Scroller[] = [];
+  /** 跨时辰刷新问候的定时器（-1 表示未启动）。 */
+  private greetingTimer: number = -1;
 
   aboutToAppear(): void {
     for (let i = 0; i < 25; i++) {
@@ -127,15 +135,41 @@ struct Index {
     });
     this.loadTableName();
     this.updateBreakpoint();
+    this.startGreetingTicker();
+  }
+
+  /** 页面重新显示（含从后台回前台）时立即刷新问候。 */
+  onPageShow(): void {
+    this.refreshGreeting();
   }
 
   aboutToDisappear(): void {
+    this.stopGreetingTicker();
     this.hdsTabsController.unbindScroller(this.coursesScroller);
     this.hdsTabsController.unbindScroller(this.settingsScroller);
     if (this.boundTimetableScroller !== undefined) {
       this.hdsTabsController.unbindScroller(this.boundTimetableScroller);
       this.boundTimetableScroller = undefined;
     }
+  }
+
+  private startGreetingTicker(): void {
+    this.refreshGreeting();
+    this.greetingTimer = setInterval(() => {
+      this.refreshGreeting();
+    }, GREETING_REFRESH_INTERVAL_MS);
+  }
+
+  private stopGreetingTicker(): void {
+    if (this.greetingTimer < 0) {
+      return;
+    }
+    clearInterval(this.greetingTimer);
+    this.greetingTimer = -1;
+  }
+
+  private refreshGreeting(): void {
+    this.greeting = TimeGreeting.current();
   }
 
   /** 课表页切换周页面时，把当前页的 Scroller 重新绑定给 HdsTabs，并同步给 HdsNavigation 标题栏模糊。 */
@@ -174,6 +208,37 @@ struct Index {
   private contentTopSpace(): number {
     // 沉浸布局下内容从窗口顶部开始，需要额外让出状态栏高度
     return HdsMetrics.TitleBarHeight + HdsMetrics.TitleBarBreathing + px2vp(this.store.windowTopInset);
+  }
+
+  /** 课表 Tab 副标题（与标题栏配置共用，避免两处字符串不一致）。 */
+  private timetableSubtitle(): string {
+    return `${this.tableName} · 第 ${this.store.tmpWeekIndex} 周`;
+  }
+
+  /**
+   * 课表页标题 + 副标题的横向触发区宽度。
+   * 起始内间距取 HDS 标题栏官方默认值（<600vp 16、<840vp 24、≥840vp 32），
+   * 再按文字实测宽度加余量，并限制在页面宽度内。
+   */
+  private titleHotZoneWidth(): number {
+    const pageWidth: number = px2vp(this.store.windowWidth);
+    let startPadding: number = 16;
+    if (pageWidth >= 840) {
+      startPadding = 32;
+    } else if (pageWidth >= 600) {
+      startPadding = 24;
+    }
+    const measure = this.getUIContext().getMeasureUtils();
+    const titleWidth: number = px2vp(measure.measureText({
+      textContent: this.greeting,
+      fontSize: FontSize.Headline,
+      fontWeight: FontWeight.Medium
+    }));
+    const subtitleWidth: number = px2vp(measure.measureText({
+      textContent: this.timetableSubtitle(),
+      fontSize: FontSize.BodySm
+    }));
+    return Math.min(pageWidth, startPadding + Math.max(titleWidth, subtitleWidth) + Spacing.Xl);
   }
 
   private updateBreakpoint(): void {
@@ -311,6 +376,9 @@ struct Index {
     } else if (previous === 2) {
       this.pageStack.clear();
     }
+    if (index === 0) {
+      this.refreshGreeting();
+    }
     if (index < 2) {
       this.hdsTabsController.changeIndex(index);
     }
@@ -320,8 +388,8 @@ struct Index {
   private tabContents() {
     TabContent() {
       HdsTabPage({
-        title: '呢喃课表',
-        subtitle: `${this.tableName} · 第 ${this.store.tmpWeekIndex} 周`,
+        title: this.greeting,
+        subtitle: this.timetableSubtitle(),
         scrollables: this.timetableTabScrollables
       }) {
         TimetableView({
@@ -339,8 +407,7 @@ struct Index {
 
     TabContent() {
       HdsTabPage({
-        title: '呢喃课表',
-        subtitle: this.tabLabels[1],
+        title: this.tabLabels[1],
         menu: this.courseMenuContent(),
         scrollables: [this.coursesScroller]
       }) {
@@ -352,8 +419,7 @@ struct Index {
 
     TabContent() {
       HdsTabPage({
-        title: '呢喃课表',
-        subtitle: this.tabLabels[2],
+        title: this.tabLabels[2],
         scrollables: [this.settingsScroller]
       }) {
         SettingsView({ pageStack: this.pageStack, scroller: this.settingsScroller })
@@ -431,14 +497,13 @@ struct Index {
           })
       }
 
-      // 课表页副标题热区：放在 HDS 标题栏之上，避免标题栏材质/滚动状态影响命中率；
+      // 课表页标题/副标题热区：只覆盖标题文字与副标题的横向范围，不再占满整条标题栏；
       // 子页面或非课表 Tab 时隐藏，避免遮挡返回键和其他标题栏内容。
       if (this.activeTabIndex === 0 && this.navStackAtRoot) {
         Row()
-          .width(this.isWideShell() && this.pageStack.getAllPathName().length > 0 ? this.splitNavWidth : '100%')
-          .height(30)
-          .position({ x: 0, y: this.contentTopSpace() - 30 })
-          .hitTestBehavior(HitTestMode.Default)
+          .width(this.titleHotZoneWidth())
+          .height(HdsMetrics.TitleBarHeight)
+          .position({ x: 0, y: px2vp(this.store.windowTopInset) })
           .onClick(() => {
             AppState.setWeekPickerOpen(true);
           })
