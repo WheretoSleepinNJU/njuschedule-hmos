@@ -243,7 +243,7 @@ export struct SharePage {
         }
       }]
     };
-    return hdsSubPageTitleBar('分享课表', '二维码 / 分享码与旧版南哪课表互通', menu);
+    return hdsSubPageTitleBar('分享课表', '二维码 / 分享码与南哪课表互通', menu);
   }
 
   private actionMenuItems(): MenuElement[] {
