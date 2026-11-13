@@ -1,12 +1,12 @@
 /**
  * 从分享码导入课表：粘贴旧版/新版分享码（`ncs://qr/v2/...`）→ 解码 → 新建课表并写入课程。
+ * 扫码与导入入口统一放在标题栏菜单（左扫码、右勾选），页面本体只保留输入框与提示。
  *
  * 解码逻辑在 `data/ShareCodec.ets`（与旧版 `ncs://qr/v2` 协议完全兼容），
  * 课程字段映射复用教务导入模块的 `ImportCourseCodec`，保证两条导入路径同源。
  */
-import { HdsNavDestination } from '@kit.UIDesignKit';
+import { HdsNavDestination, HdsNavigationMenuContentOptions, HdsNavigationTitleBarOptions, IconStyleMode } from '@kit.UIDesignKit';
 import { common } from '@kit.AbilityKit';
-import { pasteboard } from '@kit.BasicServicesKit';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { AppState } from '../../app/AppState';
 import {} from '../../app/AppPreferences';
@@ -185,25 +185,31 @@ export struct ImportCodePage {
     return code;
   }
 
-  private async pasteFromClipboard(): Promise<void> {
-    try {
-      const board: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard();
-      const data: pasteboard.PasteData = await board.getData();
-      const text: string | undefined = data.getPrimaryText();
-      if (text !== undefined && text !== '') {
-        this.codeInput = text.trim();
-        Feedback.toast(this.getUIContext(), '已粘贴分享码');
-        return;
-      }
-      Feedback.toast(this.getUIContext(), '剪贴板里没有文本');
-    } catch (err) {
-      // 正常路径由 PasteButton 授权后读取；异常时引导用户走系统长按粘贴。
-      const error: BusinessError = err as BusinessError;
-      console.warn(`[ImportCode] clipboard read blocked: code=${error.code} message=${error.message}`);
-      Feedback.toast(this.getUIContext(), '请长按输入框，选择「粘贴」');
-    }
+  /** 标题栏菜单：左扫码、右勾选导入；页面本体不提供任何按钮。 */
+  private titleBarOptions(): HdsNavigationTitleBarOptions {
+    const menu: HdsNavigationMenuContentOptions = {
+      value: [{
+        content: {
+          icon: $r('sys.symbol.line_viewfinder'),
+          type: IconStyleMode.NORMAL,
+          isEnabled: !this.busy && !this.scanning,
+          action: () => {
+            this.startScan();
+          }
+        }
+      }, {
+        content: {
+          icon: $r('sys.symbol.checkmark'),
+          type: IconStyleMode.NORMAL,
+          isEnabled: !this.busy && !this.scanning,
+          action: () => {
+            this.importCode();
+          }
+        }
+      }]
+    };
+    return hdsSubPageTitleBar('从分享码导入', '粘贴同学分享的课表编码', menu);
   }
-
 
   build() {
     HdsNavDestination() {
@@ -225,38 +231,10 @@ export struct ImportCodePage {
               .onChange((value: string) => {
                 this.codeInput = value;
               })
-            Text('提示：也可以长按输入框，使用系统菜单粘贴。')
+            Text('提示：长按输入框，使用系统菜单粘贴。')
               .fontSize(FontSize.Caption)
               .fontColor(Colors.TextTertiary)
               .width('100%')
-            Row({ space: Spacing.Md }) {
-              // 官方安全控件：点击即获得一次性剪贴板读取授权（无需声明 READ_PASTEBOARD，也不弹权限窗）
-              Row() {
-                PasteButton({ icon: PasteIconStyle.LINES, text: PasteDescription.PASTE })
-                  .width('100%')
-                  .height(40)
-                  .onClick((event: ClickEvent, result: PasteButtonOnClickResult) => {
-                    if (result === PasteButtonOnClickResult.SUCCESS) {
-                      this.pasteFromClipboard();
-                    } else {
-                      Feedback.toast(this.getUIContext(), '未获得剪贴板授权');
-                    }
-                  })
-              }
-              .layoutWeight(1)
-              Button('清空')
-                .width(80)
-                .height(40)
-                .fontSize(FontSize.BodySm)
-                .backgroundColor(Colors.SurfaceHigh)
-                .fontColor(Colors.TextSecondary)
-                .onClick(() => {
-                  this.codeInput = '';
-                  this.errorText = '';
-                  this.previewText = '';
-                })
-            }
-            .width('100%')
           }
 
           if (this.errorText !== '') {
@@ -271,30 +249,6 @@ export struct ImportCodePage {
               .fontColor(Colors.Success)
               .width('100%')
           }
-
-          Row({ space: Spacing.Md }) {
-            Button(this.scanning ? '扫码中…' : '扫码导入')
-              .layoutWeight(1)
-              .height(44)
-              .fontSize(FontSize.Body)
-              .backgroundColor(Colors.SurfaceHigh)
-              .fontColor(Colors.TextPrimary)
-              .enabled(!this.busy && !this.scanning)
-              .onClick(() => {
-                this.startScan();
-              })
-            Button(this.busy ? '导入中…' : '导入课表')
-              .layoutWeight(1)
-              .height(44)
-              .fontSize(FontSize.Body)
-              .backgroundColor(this.store.accentDisplay)
-              .fontColor(this.store.accentOn)
-              .enabled(!this.busy && !this.scanning)
-              .onClick(() => {
-                this.importCode();
-              })
-          }
-          .width('100%')
 
           if (this.scanHint !== '') {
             Text(this.scanHint)
@@ -322,7 +276,7 @@ export struct ImportCodePage {
       .height('100%')
       .backgroundColor(Colors.Background)
     }
-    .titleBar(hdsSubPageTitleBar('从分享码导入', '粘贴同学分享的课表编码'))
+    .titleBar(this.titleBarOptions())
     .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.subScroller])
   }
