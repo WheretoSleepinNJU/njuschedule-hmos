@@ -66,6 +66,8 @@ export struct TimetableView {
   /** 当前周页面的滚动容器变化回调（外壳据此把 Scroller 绑定给 HdsTabs，保持滚动联动）。 */
   @Event onActiveScrollerChange: (scroller: Scroller) => void = () => {
   };
+  /** 课表 Tab 是否激活：离开课表时轮播背景图。 */
+  @Param active: boolean = true;
   /** 所有课程（不按周过滤）：每个周页面自行构建，等价旧版 presenter.refreshClasses(tableIndex, weekN)。 */
   @Local allCourses: Course[] = [];
   private weekSwiper: SwiperController = new SwiperController();
@@ -105,6 +107,21 @@ export struct TimetableView {
     this.onActiveScrollerChange(this.pageScroller(this.store.tmpWeekIndex));
     this.loadBackground();
     this.reload();
+  }
+
+  @Monitor('active')
+  private onActiveChanged(_monitor: IMonitor): void {
+    // 离开课表时先轮播到下一张，返回时代码与图片都已就绪，避免进入瞬间旧图一闪而过。
+    if (!this.active) {
+      this.rotateBackgroundOnLeave();
+    }
+  }
+
+  /** 离开课表前在选中背景图里轮播到下一张，返回时新图已就绪。 */
+  private rotateBackgroundOnLeave(): void {
+    BackgroundImage.rotateOnLeave().catch((err: Error) => {
+      console.warn(`[TimetableView] rotate background failed: ${err.message}`);
+    });
   }
 
   @Monitor('store.backgroundImagePath')

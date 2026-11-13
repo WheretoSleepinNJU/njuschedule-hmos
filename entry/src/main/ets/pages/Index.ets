@@ -302,6 +302,8 @@ struct Index {
     }
     const previous: number = this.activeTabIndex;
     this.activeTabIndex = index;
+    // 同步给 Ability：退到后台时据此决定是否轮播背景。
+    AppState.setActiveTabIndex(index);
     this.coursesMenuOpen = false;
     this.navigationMode = NavigationMode.Stack;
     if (this.isWideShell()) {
@@ -326,6 +328,7 @@ struct Index {
           pageStack: this.pageStack,
           scroller: this.timetableScroller,
           weekScrollers: this.weekScrollers,
+          active: this.activeTabIndex === 0,
           onActiveScrollerChange: (scroller: Scroller) => {
             this.bindTimetableScroller(scroller);
           }

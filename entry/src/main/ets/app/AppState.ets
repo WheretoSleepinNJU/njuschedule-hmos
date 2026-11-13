@@ -73,6 +73,14 @@ export class AppState {
     AppState.store().backgroundImagePath = path;
   }
 
+  static setBackgroundSelectedKeys(keys: string[]): void {
+    AppState.store().backgroundSelectedKeys = keys;
+  }
+
+  static setActiveTabIndex(index: number): void {
+    AppState.store().activeTabIndex = index;
+  }
+
   static setShowWeekend(value: boolean): void {
     AppState.store().showWeekend = value;
   }

@@ -4,7 +4,7 @@
  * 汇总所有外观相关设置：
  * - 外观模式：跟随系统 / 浅色 / 深色（Appearance.apply）
  * - 主题色：9 个预设 + 自定义 #RRGGBB（ThemeAccent）
- * - 课表背景：内置预设 / 相册选择 / 移除（BackgroundImage）
+ * - 课表背景：内置预设 + 自定义多图（多选轮播、切换时机、长按重命名/删除）
  * - 课程样式：重置课程配色（ColorPool.shuffle）
  *
  * 分享与迁移、危险操作已外迁到设置初始页（SettingsView）。
@@ -20,7 +20,12 @@ import { ThemeAccent } from '../../app/ThemeAccent';
 import { Appearance } from '../../app/Appearance';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
-import { BackgroundImage } from '../../data/BackgroundImage';
+import { NameDialogController } from '../../common/ui/NameDialogController';
+import { BackgroundImage, CustomBackground } from '../../data/BackgroundImage';
+import { CustomBackgroundCard, PresetBackgroundCard } from './BackgroundCards';
+import { BackgroundSwitchTiming } from './BackgroundSwitchTiming';
+import { ThemeColorCard } from './ThemeColorCard';
+import { NameDialog } from './NameDialog';
 import { WidgetData } from '../../data/WidgetData';
 import { ColorPool } from '../../data/ColorPool';
 import { CourseColorPalette, CourseColorPalettes } from '../../data/CourseColorPalettes';
@@ -34,9 +39,9 @@ const THEME_DESCS: string[] = ['默认清爽蓝', '低饱和松绿', '沉稳深�
 export struct MoreSettingsPage {
   /** V2 全局 Store（主题色 / 外观模式 / 背景图 / 课表选择）。 */
   @Local store: AppStore = AppStore.connect();
-  /** 当前选中的内置背景（本地状态：点击后立即反馈勾选，不依赖 AppStorage 的异步刷新）。 */
-  @Local selectedPreset: string = '';
   @Local customHexInput: string = '';
+  /** 用户自定义背景图（追加在内置预设之后）。 */
+  @Local customImages: CustomBackground[] = [];
   /** 外观模式分段按钮（系统预置 CapsuleSegmentButtonV2 单选胶囊样式）。 */
   private appearanceItems: SegmentButtonV2Items = new SegmentButtonV2Items([
     { text: '跟随系统' },
@@ -48,18 +53,17 @@ export struct MoreSettingsPage {
   @Local selectedPaletteId: string = CourseColorPalettes.DEFAULT_ID;
 
   private scroller: Scroller = new Scroller();
+  private imageDialog: NameDialogController = new NameDialogController();
 
   aboutToAppear(): void {
-    this.selectedPreset = BackgroundImage.currentPreset();
     this.customHexInput = ThemeAccent.currentCustomHex();
     this.loadPaletteSelection();
+    this.loadCustomImages();
   }
 
-  @Monitor('store.backgroundImagePath')
-  private onBackgroundPathChanged(_monitor: IMonitor): void {
-    this.selectedPreset = BackgroundImage.currentPreset();
+  aboutToDisappear(): void {
+    this.closeImageNameDialog();
   }
-
 
   private async loadPaletteSelection(): Promise<void> {
     this.selectedPaletteId = await ColorPool.getPaletteId();
@@ -128,6 +132,7 @@ export struct MoreSettingsPage {
     .onClick(() => {
       this.selectPalette(palette.id);
     })
+    .clickEffect({ level: ClickEffectLevel.LIGHT })
   }
 
   private async resetCourseColors(): Promise<void> {
@@ -203,93 +208,70 @@ export struct MoreSettingsPage {
     ListItem() {
       SettingsItemGroup({ title: '主题配色' }) {
         Column({ space: Spacing.Md }) {
-    Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
-      ForEach(ThemeAccent.PRESETS, (hex: string, index: number) => {
-        Stack({ alignContent: Alignment.BottomEnd }) {
-          Column({ space: Spacing.Sm }) {
-            this.themePreview(hex)
-            Text(THEME_NAMES[index])
-              .fontSize(FontSize.Body)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(Colors.TextPrimary)
-              .width('100%')
-              .maxLines(1)
-            Text(THEME_DESCS[index])
-              .fontSize(FontSize.Caption)
-              .fontColor(Colors.TextTertiary)
-              .width('100%')
-              .maxLines(1)
+          Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
+            ForEach(ThemeAccent.PRESETS, (hex: string, index: number) => {
+              ThemeColorCard({
+                hex: hex,
+                index: index,
+                name: THEME_NAMES[index],
+                desc: THEME_DESCS[index],
+                custom: false,
+                onTap: () => {
+                  this.applyTheme(index);
+                }
+              })
+            }, (hex: string, index: number) => `theme-card-${index}`)
+            ThemeColorCard({
+              hex: '',
+              index: ThemeAccent.CUSTOM_INDEX,
+              name: '自定义配色',
+              desc: '自由选择',
+              custom: true,
+              onTap: () => {
+                this.selectCustomColor();
+              }
+            })
           }
           .width('100%')
-          .padding(Spacing.Md)
-          .backgroundColor(Colors.Surface)
-          .borderRadius(Radius.Xl)
-          .border({
-            width: this.store.themeAccentIndex === index ? 2 : 1,
-            color: this.store.themeAccentIndex === index ? this.store.accentDisplay : Colors.OutlineLight
-          })
-          .alignItems(HorizontalAlign.Start)
-          .onClick(() => {
-            this.applyTheme(index);
-          })
 
-          if (this.store.themeAccentIndex === index) {
-            Row() {
-              SymbolGlyph($r('sys.symbol.checkmark'))
-                .fontSize(14)
-                .fontColor([Colors.TextOnPrimary])
+          if (this.store.themeAccentIndex === ThemeAccent.CUSTOM_INDEX) {
+            Column({ space: Spacing.Sm }) {
+              SettingsItemDivider({ startMargin: 12 })
+              Row({ space: Spacing.Sm }) {
+                Text('自定义配色')
+                  .fontSize(FontSize.Body)
+                  .fontColor(Colors.TextPrimary)
+                Blank()
+                Text(this.store.themeCustomColor)
+                  .fontSize(FontSize.Caption)
+                  .fontColor(Colors.TextTertiary)
+              }
+              .width('100%')
+
+              Row({ space: Spacing.Sm }) {
+                TextInput({ text: this.customHexInput, placeholder: '自定义色 #RRGGBB' })
+                  .height(36)
+                  .layoutWeight(1)
+                  .fontSize(FontSize.BodySm)
+                  .backgroundColor(Colors.SurfaceHigh)
+                  .borderRadius(Radius.Sm)
+                  .onChange((value: string) => {
+                    this.customHexInput = value;
+                  })
+                Button('应用')
+                  .height(36)
+                  .fontSize(FontSize.BodySm)
+                  .backgroundColor(this.store.accentSoft)
+                  .fontColor(this.store.accentDisplay)
+                  .onClick(() => {
+                    this.applyCustomTheme();
+                  })
+              }
+              .width('100%')
             }
-            .width(24)
-            .height(24)
-            .borderRadius(Radius.Round)
-            .backgroundColor(this.store.accentDisplay)
-            .justifyContent(FlexAlign.Center)
-            .margin({ right: Spacing.Md, bottom: Spacing.Sm })
+            .width('100%')
+            .transition(TransitionEffect.OPACITY.animation({ duration: 220, curve: Curve.Smooth }))
           }
-        }
-        .width('48%')
-        .margin({ bottom: Spacing.Md })
-      }, (hex: string, index: number) => `theme-card-${index}`)
-    }
-    .width('100%')
-
-
-          SettingsItemDivider({ startMargin: 12 })
-      Column({ space: Spacing.Sm }) {
-        Row({ space: Spacing.Sm }) {
-          Text('自定义配色')
-            .fontSize(FontSize.Body)
-            .fontColor(Colors.TextPrimary)
-          Blank()
-          Text(this.store.themeAccentIndex === ThemeAccent.CUSTOM_INDEX && ThemeAccent.currentCustomHex() !== '' ?
-            ThemeAccent.currentCustomHex() : `当前 ${ThemeAccent.preset(this.store.themeAccentIndex)}`)
-            .fontSize(FontSize.Caption)
-            .fontColor(Colors.TextTertiary)
-        }
-        .width('100%')
-
-        Row({ space: Spacing.Sm }) {
-          TextInput({ text: this.customHexInput, placeholder: '自定义色 #RRGGBB' })
-            .height(36)
-            .layoutWeight(1)
-            .fontSize(FontSize.BodySm)
-            .backgroundColor(Colors.SurfaceHigh)
-            .borderRadius(Radius.Sm)
-            .onChange((value: string) => {
-              this.customHexInput = value;
-            })
-          Button('应用')
-            .height(36)
-            .fontSize(FontSize.BodySm)
-            .backgroundColor(this.store.accentSoft)
-            .fontColor(this.store.accentDisplay)
-            .onClick(() => {
-              this.applyCustomTheme();
-            })
-        }
-        .width('100%')
-      }
-      .width('100%')
         }
         .width('100%')
         .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
@@ -298,194 +280,203 @@ export struct MoreSettingsPage {
     }
   }
 
-  /** 主题配色卡片的示意图：用该配色的深浅变体拼出类似「聊天气泡」的示意。 */
-  @Builder
-  private themePreview(hex: string) {
-    Column({ space: 5 }) {
-      Row({ space: 6 }) {
-        Row()
-          .width(28)
-          .height(10)
-          .borderRadius(5)
-          .backgroundColor(Colors.Surface)
-        Row()
-          .width(28)
-          .height(10)
-          .borderRadius(5)
-          .backgroundColor(hex)
-          .opacity(0.25)
-        Blank()
-        Row()
-          .width(34)
-          .height(18)
-          .borderRadius(9)
-          .backgroundColor(hex)
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
-
-      Row({ space: 6 }) {
-        Row()
-          .width(56)
-          .height(8)
-          .borderRadius(4)
-          .backgroundColor(hex)
-        Blank()
-        Row()
-          .width(26)
-          .height(26)
-          .borderRadius(13)
-          .backgroundColor(hex)
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
-
-      Row()
-        .width(44)
-        .height(8)
-        .borderRadius(4)
-        .backgroundColor(hex)
-        .opacity(0.25)
-    }
-    .width('100%')
-    .height(76)
-    .padding(10)
-    .backgroundColor(Colors.SurfaceHigh)
-    .borderRadius(Radius.Md)
+  /** 主题切换统一用显式动画（与编辑课程时段一致），驱动自定义编辑区展开/收起。 */
+  private animateThemeChange(apply: () => void): void {
+    this.getUIContext().animateTo({ duration: 300, curve: Curve.Smooth }, apply);
   }
 
-  /** 应用自定义色（#RRGGBB）。 */
+  /** 应用自定义色：动画切换 + 成功后回填输入框（可附带提示）。 */
+  private applyCustomColor(hex: string, successToast: string = ''): void {
+    const normalized: string = hex.trim().toUpperCase();
+    this.animateThemeChange(() => {
+      ThemeAccent.applyCustom(normalized).then((ok: boolean) => {
+        if (!ok) {
+          return;
+        }
+        this.customHexInput = normalized;
+        if (successToast !== '') {
+          Feedback.toast(this.getUIContext(), successToast);
+        }
+      }).catch((err: Error) => {
+        console.error(`[Settings] apply custom theme failed: ${JSON.stringify(err)}`);
+      });
+    });
+  }
+
+  /** 点自定义配色卡片：有历史自定义色则恢复，否则用当前预设色作为起点并出现输入条目。 */
+  private selectCustomColor(): void {
+    if (this.store.themeAccentIndex === ThemeAccent.CUSTOM_INDEX) {
+      return;
+    }
+    const saved: string = ThemeAccent.currentCustomHex();
+    this.applyCustomColor(saved !== '' ? saved : ThemeAccent.preset(this.store.themeAccentIndex));
+  }
+
+  /** 应用输入框里的自定义色（#RRGGBB）。 */
   private applyCustomTheme(): void {
-    const hex: string = this.customHexInput.trim();
+    const hex: string = this.customHexInput.trim().toUpperCase();
     if (!ThemeAccent.isHex(hex)) {
       Feedback.toast(this.getUIContext(), '请输入合法的颜色值，如 #6A2C91');
       return;
     }
-    ThemeAccent.applyCustom(hex).then((ok: boolean) => {
-      if (ok) {
-        this.customHexInput = hex.toUpperCase();
-        Feedback.toast(this.getUIContext(), '已应用自定义主题色');
-      }
-    }).catch((err: Error) => {
-      console.error(`[Settings] apply custom theme failed: ${JSON.stringify(err)}`);
+    this.applyCustomColor(hex, '已应用自定义主题色');
+  }
+
+  /** 切换预设强调色：写 AppStore + prefs 持久化，带动画收合自定义编辑区。 */
+  private applyTheme(index: number): void {
+    this.animateThemeChange(() => {
+      ThemeAccent.apply(index).catch((err: Error) => {
+        console.error(`[Settings] apply theme failed: ${JSON.stringify(err)}`);
+      });
     });
   }
 
-  /** 切换强调色：写 AppStore（@Trace 全量重绘）+ prefs 持久化。 */
-  private applyTheme(index: number): void {
-    ThemeAccent.apply(index).catch((err: Error) => {
-      console.error(`[Settings] apply theme failed: ${JSON.stringify(err)}`);
-    });
+  @Builder
+  private backgroundStrip(): void {
+    Scroll() {
+      Row({ space: Spacing.Md }) {
+        ForEach(BackgroundImage.PRESETS, (name: string) => {
+          PresetBackgroundCard({
+            name: name,
+            onTap: () => {
+              this.toggleBackground(BackgroundImage.presetKey(name));
+            }
+          })
+        }, (name: string) => `bg-${name}`)
+        ForEach(this.customImages, (item: CustomBackground) => {
+          CustomBackgroundCard({
+            item: item,
+            onTap: () => {
+              this.toggleBackground(BackgroundImage.customKey(item.path));
+            },
+            onRename: () => {
+              this.openImageRenameDialog(item);
+            },
+            onDelete: () => {
+              this.confirmDeleteCustomImage(item);
+            }
+          })
+        }, (item: CustomBackground) => `custom-${item.path}-${item.name}`)
+      }
+      .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
+    }
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .width('100%')
   }
 
   @Builder
   private backgroundSection(): void {
     ListItem() {
       SettingsItemGroup({ title: '课表背景' }) {
-        Column() {
-          Row({ space: Spacing.Md }) {
-            ForEach(BackgroundImage.PRESETS, (name: string) => {
-              Column({ space: Spacing.Xs }) {
-                Stack() {
-                  Image($rawfile(`backgrounds/${name}`))
-                    .width(72)
-                    .height(108)
-                    .objectFit(ImageFit.Cover)
-                    .borderRadius(Radius.Md)
-                  if (this.selectedPreset === name) {
-                    Row() {
-                      SymbolGlyph($r('sys.symbol.checkmark'))
-                        .fontSize(16)
-                        .fontColor([Colors.TextOnPrimary])
-                    }
-                    .width(72)
-                    .height(108)
-                    .borderRadius(Radius.Md)
-                    .backgroundColor(Colors.Scrim)
-                    .justifyContent(FlexAlign.Center)
-                    .border({ width: 2, color: this.store.accentDisplay })
-                  }
-                }
-                .width(72)
-                .height(108)
-
-                Text(BackgroundImage.presetLabel(name))
-                  .fontSize(FontSize.Caption)
-                  .fontColor(this.selectedPreset === name ? Colors.Primary : Colors.TextTertiary)
-              }
-              .onClick(() => {
-                this.applyPreset(name);
-              })
-            }, (name: string) => `bg-${name}`)
-          }
-          .width('100%')
-          .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Md, bottom: Spacing.Md })
-          .justifyContent(FlexAlign.SpaceBetween)
-        }
-        .width('100%')
+        this.backgroundStrip()
 
         SettingsItemDivider({ startMargin: 12 })
 
         SettingsRow({
           icon: $r('sys.symbol.picture'),
-          title: this.store.backgroundImagePath === '' ? '从相册选择并裁剪' : '从相册更换并裁剪',
+          title: '添加自定义图片',
           showArrow: false,
-          subtitle: this.store.backgroundImagePath === '' ? '在系统图库中裁剪/旋转后使用' : '当前已设置背景图',
+          subtitle: '从相册选择并裁剪，追加到背景列表',
           onTap: () => {
-            this.pickBackground();
+            this.addCustomImage();
           }
         })
-        if (this.store.backgroundImagePath !== '') {
-          SettingsItemDivider()
-          SettingsRow({
-            icon: $r('sys.symbol.trash'),
-            title: '移除背景图片',
-            showArrow: false,
-            danger: true,
-            onTap: () => {
-              this.clearBackground();
-            }
-          })
-        }
+
+        SettingsItemDivider()
+        BackgroundSwitchTiming()
       }
     }
   }
 
-  private async applyPreset(name: string): Promise<void> {
-    const previous: string = this.selectedPreset;
-    // 先更新本地选中态，点击后立即显示勾选
-    this.selectedPreset = name;
+  private async loadCustomImages(): Promise<void> {
     try {
-      await BackgroundImage.applyPreset(name);
-      Feedback.toast(this.getUIContext(), `已切换为「${BackgroundImage.presetLabel(name)}」背景`);
+      this.customImages = await BackgroundImage.loadCustom();
     } catch (err) {
-      this.selectedPreset = previous;
-      console.error(`[MoreSettings] apply preset background failed: ${JSON.stringify(err)}`);
+      console.error(`[MoreSettings] load custom backgrounds failed: ${JSON.stringify(err)}`);
+    }
+  }
+
+  /** 点击缩略图切换轮播选中状态（首张选中时会立即成为当前背景）。 */
+  private async toggleBackground(key: string): Promise<void> {
+    try {
+      await BackgroundImage.toggleSelected(key);
+    } catch (err) {
+      console.error(`[MoreSettings] toggle background failed: ${JSON.stringify(err)}`);
       Feedback.toast(this.getUIContext(), '切换背景失败');
     }
   }
 
-  private async pickBackground(): Promise<void> {
+  private async addCustomImage(): Promise<void> {
     try {
-      const ok: boolean = await BackgroundImage.pick();
-      if (ok) {
-        this.selectedPreset = '';
-        Feedback.toast(this.getUIContext(), '背景图已更新');
+      const added: CustomBackground | null = await BackgroundImage.addCustom();
+      if (added === null) {
+        return;
       }
+      await this.loadCustomImages();
+      Feedback.toast(this.getUIContext(), `已添加「${added.name}」`);
     } catch (err) {
-      console.error(`[MoreSettings] pick background failed: ${JSON.stringify(err)}`);
+      console.error(`[MoreSettings] add custom background failed: ${JSON.stringify(err)}`);
       Feedback.toast(this.getUIContext(), '选择图片失败');
     }
   }
 
-  private async clearBackground(): Promise<void> {
+  private async renameCustomImage(item: CustomBackground, name: string): Promise<void> {
     try {
-      await BackgroundImage.clear();
-      this.selectedPreset = '';
-      Feedback.toast(this.getUIContext(), '已移除背景图');
+      await BackgroundImage.renameCustom(item.path, name);
+      await this.loadCustomImages();
+      Feedback.toast(this.getUIContext(), '已重命名图片');
     } catch (err) {
-      console.error(`[MoreSettings] clear background failed: ${JSON.stringify(err)}`);
+      console.error(`[MoreSettings] rename custom background failed: ${JSON.stringify(err)}`);
+      Feedback.toast(this.getUIContext(), '重命名失败');
     }
+  }
+
+  private confirmDeleteCustomImage(item: CustomBackground): void {
+    Feedback.confirmDanger(this.getUIContext(), '删除背景图片',
+      `将删除「${item.name}」这张背景图片，此操作无法恢复。`, '删除', () => {
+        this.deleteCustomImage(item);
+      });
+  }
+
+  private async deleteCustomImage(item: CustomBackground): Promise<void> {
+    try {
+      await BackgroundImage.deleteCustom(item);
+      await this.loadCustomImages();
+      Feedback.toast(this.getUIContext(), '已删除背景图片');
+    } catch (err) {
+      console.error(`[MoreSettings] delete custom background failed: ${JSON.stringify(err)}`);
+      Feedback.toast(this.getUIContext(), '删除图片失败');
+    }
+  }
+
+  private closeImageNameDialog(): Promise<void> {
+    return this.imageDialog.close(this.getUIContext());
+  }
+
+  /** openCustomDialog 的 builder 必须是组件内 @Builder 的箭头包装（官方 FAQ，否则闪退）。 */
+  @Builder
+  private imageNameDialogContent(item: CustomBackground) {
+    NameDialog({
+      title: '重命名图片',
+      initialName: item.name,
+      confirmText: '保存',
+      placeholder: '请输入图片名称',
+      onSubmit: (name: string): void => {
+        this.closeImageNameDialog();
+        this.renameCustomImage(item, name);
+      },
+      onCancel: (): void => {
+        this.closeImageNameDialog();
+      }
+    })
+  }
+
+  private openImageRenameDialog(item: CustomBackground): Promise<void> {
+    return this.imageDialog.open(this.getUIContext(), () => {
+      this.imageNameDialogContent(item);
+    });
   }
 
   @Builder

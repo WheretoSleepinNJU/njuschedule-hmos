@@ -19,6 +19,7 @@ import { window } from '@kit.ArkUI';
 import { AppBootstrap } from '../app/AppBootstrap';
 import { WidgetData } from '../data/WidgetData';
 import { AppState } from '../app/AppState';
+import { BackgroundImage } from '../data/BackgroundImage';
 
 const DOMAIN = 0x0000;
 
@@ -153,6 +154,12 @@ export default class EntryAbility extends UIAbility {
   onBackground(): void {
     // Ability has back to background
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+    // 退出到后台时先轮播，回到前台时新图已就绪，避免旧图一闪而过（上游是进入时轮播并遮住首帧）。
+    if (AppState.store().activeTabIndex === 0) {
+      BackgroundImage.rotateOnLeave().catch((err: Error) => {
+        hilog.warn(DOMAIN, 'testTag', 'rotate background failed: %{public}s', err.message);
+      });
+    }
     // 用户从应用回到桌面时补推一次最新卡片数据。
     WidgetData.write().catch((err: Error) => {
       hilog.warn(DOMAIN, 'testTag', 'widget background reload failed: %{public}s', JSON.stringify(err));

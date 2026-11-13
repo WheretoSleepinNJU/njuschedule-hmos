@@ -1,5 +1,5 @@
 /**
- * 课表命名弹窗（新建 / 重命名共用）。
+ * 通用命名弹窗（课表新建/重命名、背景图重命名共用）。
  *
  * 状态管理 V2 下使用官方 DialogV2 的 `CustomContentDialogV2` 承载表单内容与操作按钮，
  * 弹窗容器、标题、内容区和按钮区交给系统组件，避免自行绘制对话框。
@@ -11,7 +11,7 @@ import { Colors, FontSize, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 
 @ComponentV2
-export struct TableNameDialog {
+export struct NameDialog {
   /** V2 全局 Store（主题色）。 */
   @Local store: AppStore = AppStore.connect();
   /** 弹窗标题，如「新建课表」。 */
@@ -20,6 +20,8 @@ export struct TableNameDialog {
   @Param initialName: string = '';
   /** 确认按钮文字。 */
   @Param confirmText: string = '确定';
+  /** 输入框占位提示（也用作名称为空时的 toast 文案）。 */
+  @Param placeholder: string = '请输入课表名称';
   /** 确认回调（关闭由调用方负责）。 */
   @Event onSubmit: (name: string) => void = () => {
   };
@@ -40,7 +42,7 @@ export struct TableNameDialog {
   private submit(): void {
     const value: string = this.trimmedName();
     if (value === '') {
-      Feedback.toast(this.getUIContext(), '请输入课表名称');
+      Feedback.toast(this.getUIContext(), this.placeholder);
       return;
     }
     this.onSubmit(value);
@@ -48,7 +50,7 @@ export struct TableNameDialog {
 
   @Builder
   private nameInput() {
-    TextInput({ text: this.name, placeholder: '请输入课表名称' })
+    TextInput({ text: this.name, placeholder: this.placeholder })
       .width('100%')
       .height(44)
       .maxLength(30)

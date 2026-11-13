@@ -52,6 +52,10 @@ export class AppStore {
   /** 强调色的 12% 透明叠加色（徽标/选中底）。 */
   @Trace accentSoft: string = '#26' + ColorMath.PRESETS[0].substring(1);
   @Trace backgroundImagePath: string = '';
+  /** 参与轮播的背景图 key（builtin:名字 / custom:路径）。 */
+  @Trace backgroundSelectedKeys: string[] = [];
+  /** 当前一级 Tab（0=课表），供 Ability 退到后台时判断是否轮播背景。 */
+  @Trace activeTabIndex: number = 0;
 
   // ---- 课表显示配置 ----
   @Trace showWeekend: boolean = false;

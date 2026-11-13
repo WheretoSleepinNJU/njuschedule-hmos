@@ -25,8 +25,9 @@ import { AppStore } from '../../app/AppStore';
 import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ShellRouter } from '../../common/ShellRouter';
 import { IS_2IN1 } from '../../common/DeviceType';
-import { TableNameDialog } from './TableNameDialog';
+import { NameDialog } from './NameDialog';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
+import { NameDialogController } from '../../common/ui/NameDialogController';
 
 /**
  * 单张课表卡片。
@@ -101,8 +102,7 @@ export struct ManageTablesPage {
   @Local addMenuOpen: boolean = false;
 
   private scroller: Scroller = new Scroller();
-  /** promptAction.openCustomDialog 返回的弹窗 id（-1 表示未打开）。 */
-  private dialogId: number = -1;
+  private nameDialog: NameDialogController = new NameDialogController();
 
   aboutToAppear(): void {
     this.loadTables();
@@ -125,24 +125,15 @@ export struct ManageTablesPage {
 
   // ---- 弹窗 ----
 
-  private async closeNameDialog(): Promise<void> {
-    if (this.dialogId < 0) {
-      return;
-    }
-    const id: number = this.dialogId;
-    this.dialogId = -1;
-    try {
-      this.getUIContext().getPromptAction().closeCustomDialog(id);
-    } catch (err) {
-      console.warn(`[Tables] close name dialog failed: ${JSON.stringify(err)}`);
-    }
+  private closeNameDialog(): Promise<void> {
+    return this.nameDialog.close(this.getUIContext());
   }
 
   /** openCustomDialog 的 builder 必须是组件内 @Builder 的箭头包装（官方 FAQ，否则闪退）。 */
   @Builder
   private nameDialogContent(title: string, initialName: string, confirmText: string,
     onSubmit: (name: string) => void) {
-    TableNameDialog({
+    NameDialog({
       title: title,
       initialName: initialName,
       confirmText: confirmText,
@@ -156,20 +147,11 @@ export struct ManageTablesPage {
     })
   }
 
-  private async openNameDialog(title: string, initialName: string, confirmText: string,
+  private openNameDialog(title: string, initialName: string, confirmText: string,
     onSubmit: (name: string) => void): Promise<void> {
-    await this.closeNameDialog();
-    try {
-      this.dialogId = await this.getUIContext().getPromptAction().openCustomDialog({
-        builder: () => {
-          this.nameDialogContent(title, initialName, confirmText, onSubmit);
-        },
-        autoCancel: true,
-        alignment: DialogAlignment.Center
-      });
-    } catch (err) {
-      console.error(`[Tables] open name dialog failed: ${JSON.stringify(err)}`);
-    }
+    return this.nameDialog.open(this.getUIContext(), () => {
+      this.nameDialogContent(title, initialName, confirmText, onSubmit);
+    });
   }
 
   private openCreateDialog(): void {

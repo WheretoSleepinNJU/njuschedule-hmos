@@ -33,6 +33,16 @@ export class PrefKeys {
   static readonly ClassHeight: string = 'classHeight';
   static readonly ShowDate: string = 'showDate';
   static readonly BgImgPath: string = 'bgImgPath';
+  /** 自定义背景图列表（JSON：{path,name}[]，多图背景新增 key）。 */
+  static readonly BackgroundCustom: string = 'backgroundCustomImages';
+  /** 参与轮播的背景图 key 列表（JSON：string[]）。 */
+  static readonly BackgroundSelected: string = 'backgroundSelectedImages';
+  /** 背景切换时机：exit=退出课表页 / days=自定义天数。 */
+  static readonly BackgroundSwitchMode: string = 'backgroundSwitchMode';
+  /** 自定义天数模式下的切换间隔（1–365）。 */
+  static readonly BackgroundSwitchDays: string = 'backgroundSwitchDays';
+  /** 上次切换背景的日期序号（UTC 天，用于按天数判断是否到期）。 */
+  static readonly BackgroundChangedDay: string = 'backgroundChangedDay';
   static readonly ShowNonCurrentWeekCourses: string = 'showNonCurrentWeekCourses';
 
   // 小组件 / 实况窗（暂缓实现，先保留 key 定义）
