@@ -303,7 +303,7 @@ export struct SharePage {
             Text('二维码生成失败')
               .fontSize(FontSize.BodySm)
               .fontColor(Colors.TextTertiary)
-            Text('可以复制分享码，发给使用呢喃课表或旧版南哪课表的同学导入')
+            Text('可以复制分享码，在其他设备用呢喃课表或旧版南哪课表导入')
               .fontSize(FontSize.Caption)
               .fontColor(Colors.TextTertiary)
               .textAlign(TextAlign.Center)

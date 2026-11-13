@@ -120,7 +120,7 @@ export struct ImportView {
         SettingsRow({
           icon: $r('sys.symbol.qrcode'),
           title: '从分享码导入',
-          subtitle: '粘贴同学分享的 ncs://qr 课表编码',
+          subtitle: '粘贴其他设备分享的 ncs://qr 课表编码',
           onTap: () => {
             ShellRouter.push(this.navStack(), 'import-code', null);
           }

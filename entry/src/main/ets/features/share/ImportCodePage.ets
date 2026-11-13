@@ -208,7 +208,7 @@ export struct ImportCodePage {
         }
       }]
     };
-    return hdsSubPageTitleBar('从分享码导入', '粘贴同学分享的课表编码', menu);
+    return hdsSubPageTitleBar('从分享码导入', '粘贴其他设备分享的课表编码', menu);
   }
 
   build() {
@@ -231,7 +231,7 @@ export struct ImportCodePage {
               .onChange((value: string) => {
                 this.codeInput = value;
               })
-            Text('提示：长按输入框，使用系统菜单粘贴。')
+            Text('提示：右上角可扫码导入。')
               .fontSize(FontSize.Caption)
               .fontColor(Colors.TextTertiary)
               .width('100%')
