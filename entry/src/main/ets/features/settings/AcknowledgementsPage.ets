@@ -14,7 +14,7 @@ import { Colors, HdsMetrics, Spacing } from '../../common/design/Tokens';
 import { AppStore } from '../../app/AppStore';
 import { Feedback } from '../../common/ui/Feedback';
 import { openUrl } from '../../common/ui/OpenLink';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
 
 const DEVELOPER_UPSTREAM: string = 'idealclover';
@@ -145,6 +145,7 @@ export struct AcknowledgementsPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('致谢'))
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
   }
 

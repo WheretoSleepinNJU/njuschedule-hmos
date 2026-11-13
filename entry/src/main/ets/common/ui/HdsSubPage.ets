@@ -9,6 +9,7 @@
  *   Scroll(this.scroller) { ... }
  * }
  * .titleBar(hdsSubPageTitleBar('标题'))      // 可选第二参数副标题、第三参数菜单项
+ * .onBackPressed(hdsSubPageBackPressed)     // 返回键：宽屏先退回 Stack 再出栈
  * .bindToScrollable([this.scroller])
  * ```
  *
@@ -28,13 +29,7 @@ export function hdsSubPageTitleBar(title: string, subtitle: string = '',
   const options: HdsNavigationTitleBarOptions = {
     avoidLayoutSafeArea: true,
     content: {
-      title: titleObj,
-      backIcon: {
-        icon: $r('sys.media.ohos_ic_public_arrow_left'),
-        action: () => {
-          ShellRouter.back();
-        }
-      }
+      title: titleObj
     },
     style: {
       scrollEffectOpts: {
@@ -50,4 +45,13 @@ export function hdsSubPageTitleBar(title: string, subtitle: string = '',
     options.content!.menu = menu;
   }
   return options;
+}
+
+/**
+ * 子页面系统返回键的统一处理：图标由 HDS 默认返回按钮提供（与系统一致），
+ * 这里只接管返回逻辑——宽屏分栏回首页需要先退回 Stack，不能交给默认 pop。
+ */
+export function hdsSubPageBackPressed(): boolean {
+  ShellRouter.back();
+  return true;
 }

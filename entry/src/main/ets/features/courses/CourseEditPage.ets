@@ -38,7 +38,7 @@ import { ScheduleModel } from '../../data/ScheduleModel';
 import { LegacyConfig, LegacyConstant, LegacyCourseColors } from '../../common/Constants';
 import { CourseEditParam } from '../../common/RouteParams';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { CourseFormat } from './CourseFormat';
 import { AppStore } from '../../app/AppStore';
@@ -1167,6 +1167,7 @@ export struct CourseEditPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(this.titleBarOptions())
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
     .onReady((ctx: NavDestinationContext) => {
       this.stack = ctx.pathStack;

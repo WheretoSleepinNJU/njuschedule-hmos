@@ -19,7 +19,7 @@ import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/desi
 import { Feedback } from '../../common/ui/Feedback';
 import { AppStore } from '../../app/AppStore';
 import { AppState } from '../../app/AppState';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { DecodedSharePayload, ShareCodeError, ShareCodec, ShareCodeStats, ShareFrame } from '../../data/ShareCodec';
 import { CourseRepository } from '../../data/CourseRepository';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
@@ -429,6 +429,7 @@ export struct SharePage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(this.titleBarOptions())
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.subScroller])
   }
 }

@@ -16,7 +16,7 @@ import { AppState } from '../../app/AppState';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { AppStore } from '../../app/AppStore';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { DemoData } from '../../data/DemoData';
 import { ShellRouter } from '../../common/ShellRouter';
@@ -241,6 +241,7 @@ export struct ImportView {
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('教务导入', '选择学校并登录教务系统，进入课表页后自动导入'))
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
     .onReady((ctx: NavDestinationContext) => {
       this.stack = ctx.pathStack;

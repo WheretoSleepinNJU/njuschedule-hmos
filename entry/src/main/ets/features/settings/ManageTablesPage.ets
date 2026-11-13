@@ -21,7 +21,7 @@ import { EmptyState } from '../../common/ui/EmptyState';
 import { CourseTable } from '../../data/models/Models';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { AppStore } from '../../app/AppStore';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { IS_2IN1 } from '../../common/DeviceType';
 import { TableNameDialog } from './TableNameDialog';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
@@ -345,6 +345,7 @@ export struct ManageTablesPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(this.titleBarOptions())
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
     .onReady((ctx: NavDestinationContext) => {
       this.pageStack = ctx.pathStack;

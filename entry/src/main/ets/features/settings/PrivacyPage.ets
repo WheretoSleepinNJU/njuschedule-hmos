@@ -8,7 +8,7 @@ import { HdsNavDestination } from '@kit.UIDesignKit';
 import { privacyManager } from '@kit.AppGalleryKit';
 import { webview } from '@kit.ArkWeb';
 import { Colors, FontSize, HdsMetrics, Spacing } from '../../common/design/Tokens';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { AppStore } from '../../app/AppStore';
 
 /** AGC 生成的托管隐私声明链接，privacyManager 查不到时使用。 */
@@ -92,6 +92,7 @@ export struct PrivacyPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('隐私政策'))
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
   }
 }

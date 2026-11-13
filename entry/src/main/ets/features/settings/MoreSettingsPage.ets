@@ -15,7 +15,7 @@ import { AppPreferences } from '../../app/AppPreferences';
 import { AppState } from '../../app/AppState';
 import { CapsuleSegmentButtonV2, ColorMetrics, LengthMetrics, SegmentButtonV2Items } from '@kit.ArkUI';
 import { AppStore } from '../../app/AppStore';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ThemeAccent } from '../../app/ThemeAccent';
 import { Appearance } from '../../app/Appearance';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
@@ -565,6 +565,7 @@ export struct MoreSettingsPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('自定义外观'))
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
   }
 

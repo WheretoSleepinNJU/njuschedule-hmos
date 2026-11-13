@@ -12,7 +12,7 @@ import { HdsNavDestination } from '@kit.UIDesignKit';
 import { AppStore } from '../../app/AppStore';
 import { readVersionName } from '../../common/AppVersion';
 import { Colors, FontSize, HdsMetrics, Spacing } from '../../common/design/Tokens';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { openUrl } from '../../common/ui/OpenLink';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
 import { THIRD_PARTY_LICENSES, ThirdPartyLicense } from './ThirdPartyLicenseData';
@@ -113,6 +113,7 @@ export struct OpenSourceLicensesPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('第三方许可证'))
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
   }
 

@@ -13,7 +13,7 @@ import {} from '../../app/AppPreferences';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { AppStore } from '../../app/AppStore';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ImportCourseCodec } from '../import/ImportPayloadCodec';
 import { CourseRepository } from '../../data/CourseRepository';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
@@ -323,6 +323,7 @@ export struct ImportCodePage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('从分享码导入', '粘贴同学分享的课表编码'))
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.subScroller])
   }
 }

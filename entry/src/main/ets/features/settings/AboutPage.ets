@@ -13,7 +13,7 @@ import { openUrl } from '../../common/ui/OpenLink';
 import { Feedback } from '../../common/ui/Feedback';
 import { pushPageOnce } from '../../common/NavStackResolver';
 import { AppStore } from '../../app/AppStore';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
 
 /** 包信息读不到时的兜底版本号（与 AppScope/app.json5 的 versionName 保持一致）。 */
@@ -229,6 +229,7 @@ export struct AboutPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(hdsSubPageTitleBar('关于'))
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
     .onReady((ctx: NavDestinationContext) => {
       this.pageStack = ctx.pathStack;

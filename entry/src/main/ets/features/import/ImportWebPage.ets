@@ -33,7 +33,7 @@ import { CdnTextFetcher } from '../../common/CdnTextFetcher';
 import { AppState } from '../../app/AppState';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { AppStore } from '../../app/AppStore';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { CourseRepository } from '../../data/CourseRepository';
@@ -643,6 +643,7 @@ export struct ImportWebPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(this.titleBarOptions())
+    .onBackPressed(hdsSubPageBackPressed)
     .onReady((ctx: NavDestinationContext) => {
       this.initFromParam(ctx);
     })

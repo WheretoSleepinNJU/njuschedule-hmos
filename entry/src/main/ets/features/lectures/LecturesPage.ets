@@ -16,7 +16,7 @@ import { Lecture, LectureApi, LecturePage } from '../../data/Lecture';
 import { Course } from '../../data/models/Models';
 import { WeekUtil } from '../../data/WeekUtil';
 import { EmptyState } from '../../common/ui/EmptyState';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ArrayDataSource } from '../../common/ui/ArrayDataSource';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
 
@@ -550,6 +550,7 @@ export struct LecturesPage {
       .backgroundColor(Colors.Background)
     }
     .titleBar(this.titleBarOptions())
+    .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
   }
 }
