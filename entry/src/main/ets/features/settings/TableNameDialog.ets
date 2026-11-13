@@ -75,15 +75,14 @@ export struct TableNameDialog {
       buttons: [
         new AdvancedDialogV2Button({
           content: '取消',
-          fontColor: ColorMetrics.resourceColor(this.store.accentDisplay),
+          fontColor: ColorMetrics.resourceColor(Colors.TextSecondary),
           action: () => {
             this.onCancel();
           }
         }),
         new AdvancedDialogV2Button({
           content: this.confirmText,
-          background: ColorMetrics.resourceColor(this.store.accentDisplay),
-          fontColor: ColorMetrics.resourceColor(this.store.accentOn),
+          fontColor: ColorMetrics.resourceColor(this.store.accentDisplay),
           enabled: this.trimmedName() !== '',
           action: () => {
             this.submit();
