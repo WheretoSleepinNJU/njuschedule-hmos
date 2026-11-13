@@ -3,7 +3,8 @@
  *
  * 功能（对齐旧版 lib/Pages/ManageTable/ManageTableView.dart）：
  * - 列出全部课表（CourseTableRepository.getAll）
- * - 新建 / 重命名（命名弹窗，数据保留在 data 字段）
+ * - 右上角 +：教务导入（与课程页共用 import 入口）/ 新建课表菜单
+ * - 重命名（命名弹窗，数据保留在 data 字段）
  * - 删除（CourseTableRepository.delete 级联删除课程，AlertDialog 二次确认）
  * - 切换当前课表（AppPreferences.setTableId + AppState.setCurrentTable，返回时外壳自动刷新）
  */
@@ -22,6 +23,7 @@ import { CourseTable } from '../../data/models/Models';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { AppStore } from '../../app/AppStore';
 import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { ShellRouter } from '../../common/ShellRouter';
 import { IS_2IN1 } from '../../common/DeviceType';
 import { TableNameDialog } from './TableNameDialog';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
@@ -95,6 +97,8 @@ export struct ManageTablesPage {
 
   @Local tables: CourseTable[] = [];
   @Local loading: boolean = true;
+  /** 标题栏「+」展开菜单的显隐（bindMenu 绑定）。 */
+  @Local addMenuOpen: boolean = false;
 
   private scroller: Scroller = new Scroller();
   /** promptAction.openCustomDialog 返回的弹窗 id（-1 表示未打开）。 */
@@ -172,6 +176,28 @@ export struct ManageTablesPage {
     this.openNameDialog('新建课表', '', '创建', (name: string) => {
       this.createTable(name);
     });
+  }
+
+  /** 标题栏「+」菜单：教务导入（与课程页共用 import 入口）/ 新建课表。 */
+  private addMenuItems(): MenuElement[] {
+    return [
+      {
+        value: '教务导入',
+        icon: $r('sys.symbol.book_pages'),
+        action: () => {
+          this.addMenuOpen = false;
+          ShellRouter.push(this.pageStack, 'import', null);
+        }
+      },
+      {
+        value: '添加课表',
+        icon: $r('sys.symbol.plus'),
+        action: () => {
+          this.addMenuOpen = false;
+          this.openCreateDialog();
+        }
+      }
+    ];
   }
 
   private openRenameDialog(table: CourseTable): void {
@@ -269,7 +295,7 @@ export struct ManageTablesPage {
           icon: $r('sys.symbol.plus'),
           type: IconStyleMode.NORMAL,
           action: () => {
-            this.openCreateDialog();
+            this.addMenuOpen = !this.addMenuOpen;
           }
         }
       }]
@@ -279,70 +305,89 @@ export struct ManageTablesPage {
 
   build() {
     HdsNavDestination() {
-      Column() {
-        List({ space: Spacing.Md, scroller: this.scroller }) {
-          if (this.loading) {
-            ListItem() {
-              Row() {
-                LoadingProgress()
-                  .width(28)
-                  .height(28)
-                  .color(this.store.accentDisplay)
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Column() {
+          List({ space: Spacing.Md, scroller: this.scroller }) {
+            if (this.loading) {
+              ListItem() {
+                Row() {
+                  LoadingProgress()
+                    .width(28)
+                    .height(28)
+                    .color(this.store.accentDisplay)
+                }
+                .width('100%')
+                .height(120)
+                .justifyContent(FlexAlign.Center)
               }
-              .width('100%')
-              .height(120)
-              .justifyContent(FlexAlign.Center)
-            }
-          } else if (this.tables.length === 0) {
-            ListItem() {
-              EmptyState({
-                title: '还没有课表',
-                description: '点击右上角「+」新建课表后即可添加课程'
-              })
-            }
-          } else {
-            ListItem() {
-              SettingsItemGroup({ title: '全部课表' }) {
-                ForEach(this.tables, (table: CourseTable, index: number) => {
-                  if (index > 0) {
-                    SettingsItemDivider()
-                  }
-                  CourseTableCard({
-                    table: table,
-                    isCurrent: table.id === this.store.tableId,
-                    onTap: () => {
-                      this.switchTable(table);
-                    },
-                    onRename: () => {
-                      this.openRenameDialog(table);
-                    },
-                    onDelete: () => {
-                      this.confirmDelete(table);
+            } else if (this.tables.length === 0) {
+              ListItem() {
+                EmptyState({
+                  title: '还没有课表',
+                  description: '点击右上角「+」从教务导入或新建课表'
+                })
+              }
+            } else {
+              ListItem() {
+                SettingsItemGroup({ title: '全部课表' }) {
+                  ForEach(this.tables, (table: CourseTable, index: number) => {
+                    if (index > 0) {
+                      SettingsItemDivider()
                     }
-                  })
-                }, (table: CourseTable) => table.id.toString())
+                    CourseTableCard({
+                      table: table,
+                      isCurrent: table.id === this.store.tableId,
+                      onTap: () => {
+                        this.switchTable(table);
+                      },
+                      onRename: () => {
+                        this.openRenameDialog(table);
+                      },
+                      onDelete: () => {
+                        this.confirmDelete(table);
+                      }
+                    })
+                  }, (table: CourseTable) => table.id.toString())
+                }
               }
             }
           }
+          .width('100%')
+          .constraintSize({ maxWidth: 800 })
+          .layoutWeight(1)
+          .padding({
+            left: Spacing.Md,
+            right: Spacing.Md,
+            top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
+            bottom: Spacing.Xxxl + HdsMetrics.FloatingTabBarClearance
+          })
+          .clip(false)
+          .cachedCount(3, true)
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
         }
         .width('100%')
-        .constraintSize({ maxWidth: 800 })
-        .layoutWeight(1)
-        .padding({
-          left: Spacing.Md,
-          right: Spacing.Md,
-          top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-          bottom: Spacing.Xxxl + HdsMetrics.FloatingTabBarClearance
-        })
-        .clip(false)
-        .cachedCount(3, true)
-        .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+        .height('100%')
+        .alignItems(HorizontalAlign.Center)
+        .backgroundColor(Colors.Background)
+
+        // 标题栏「+」的展开菜单：透明锚点贴合标题栏右上角（与课程页同一做法）。
+        Row()
+          .width(1)
+          .height(1)
+          .margin({
+            top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) - 2,
+            right: 32
+          })
+          .bindMenu(this.addMenuOpen, this.addMenuItems(), {
+            placement: Placement.BottomRight,
+            onDisappear: () => {
+              this.addMenuOpen = false;
+            }
+          })
       }
       .width('100%')
       .height('100%')
-      .alignItems(HorizontalAlign.Center)
-      .backgroundColor(Colors.Background)
     }
     .titleBar(this.titleBarOptions())
     .onBackPressed(hdsSubPageBackPressed)
