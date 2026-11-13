@@ -347,7 +347,8 @@ export struct ManageTablesPage {
                         this.confirmDelete(table);
                       }
                     })
-                  }, (table: CourseTable) => table.id.toString())
+                    // ForEach 按 key 复用组件：重命名后 id 不变，key 带上名称才会重建卡片。
+                  }, (table: CourseTable, _index: number) => `${table.id}-${table.name}`)
                 }
               }
             }
