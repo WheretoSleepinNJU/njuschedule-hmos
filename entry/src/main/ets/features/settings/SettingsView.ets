@@ -2,7 +2,7 @@
  * 设置 Tab 页（挂在 HdsTabs 的「设置」TabContent 里，标题由 Tab 的 HdsNavDestination 提供）。
  *
  * 分区：
- * ① 课表      —— 当前课表名 + 课表管理、分享课表（share）、当前周（每个课表独立保存）
+ * ① 课表      —— 当前课表名 + 课表管理、当前周、分享课表（share）（每个课表独立保存）
  * ② 显示      —— 周末、节次时间、自由时间、日期开关 + 课程高度（官方滑动选择器）
  * ③ 更多      —— 讲座（lectures）、自定义外观（more-settings）、关于（about）
  *
@@ -211,19 +211,19 @@ export struct SettingsView {
             })
             SettingsItemDivider()
             SettingsRow({
-              icon: $r('sys.symbol.share'),
-              title: '分享当前课表',
-              onTap: () => {
-                this.openLevelOnePage('share');
-              }
-            })
-            SettingsItemDivider()
-            SettingsRow({
               icon: $r('sys.symbol.calendar_badge_clock'),
               title: '当前周',
               trailingText: `第 ${this.store.weekIndex} 周`,
               onTap: () => {
                 this.openWeekPicker();
+              }
+            })
+            SettingsItemDivider()
+            SettingsRow({
+              icon: $r('sys.symbol.share'),
+              title: '分享当前课表',
+              onTap: () => {
+                this.openLevelOnePage('share');
               }
             })
           }
