@@ -44,7 +44,7 @@ jobs:
           version: ${{ env.OHOS_CLI_VERSION }}
           cache: true
 
-      - name: Setup JDK 17
+      - name: Setup JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
