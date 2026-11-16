@@ -24,6 +24,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node test dependencies
+        run: npm ci
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -39,13 +48,16 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Configure SDK environment
         run: echo "DEVECO_SDK_HOME=$HOS_SDK_HOME" >> "$GITHUB_ENV"
 
       - name: Run repository tests
-        run: node --test test/*.test.cjs
+        run: npm test
+
+      - name: Run pure logic tests
+        run: npm run test:pure
 
       - name: Install ohpm dependencies
         run: ohpm install --all

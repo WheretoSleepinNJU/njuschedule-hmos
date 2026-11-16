@@ -1,0 +1,12 @@
+{
+  "name": "njuschedule-hmos-dev-tests",
+  "private": true,
+  "description": "开发期纯逻辑测试（Node）",
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "test:pure": "node test/build-pure.mjs && node --test test/pure/*.test.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

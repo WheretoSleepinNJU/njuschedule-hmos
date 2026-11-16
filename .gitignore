@@ -31,3 +31,6 @@
 /*.p7b
 /*.jks
 /*.keystore
+
+# 纯逻辑测试的 esbuild 产物
+/test/.build

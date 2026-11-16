@@ -28,6 +28,10 @@ devecocli build --build-mode release
 devecocli check arkts $(find entry/src/main/ets -name '*.ets' | tr '\n' ' ')
 devecocli check lint
 
+# Node 侧纯逻辑测试（esbuild 编译 .ets 后跑 node --test）
+npm ci
+npm run test:pure
+
 # 设备
 devecocli device list
 devecocli ui screenshot --device <serial> --path /tmp/shot.png
@@ -43,6 +47,7 @@ devecocli ui screenshot --device <serial> --path /tmp/shot.png
 - `ohpm install --all`；
 - `hvigorw assembleHap` 构建 release 未签名 HAP；
 - `node --test` 校验版本号、CHANGELOG、导入配置与脚本；
+- `npm run test:pure` 用 esbuild 编译无 UI 依赖的 `.ets` 纯逻辑模块，校验分享码/日期/学期周次；
 - `codelinter` 静态检查；
 - 上传 HAP 与 `SHA256SUMS` artifact。
 
