@@ -6,6 +6,7 @@
  * - `semester_start_monday`: `"2026-09-21"`，缺省为空串
  */
 import { relationalStore } from '@kit.ArkData';
+import { AppPreferences } from '../app/AppPreferences';
 import { ClassPeriod, LegacyConstant, LegacyConfig } from '../common/Constants';
 import { CourseTable } from './models/Models';
 import { CourseRepository } from './CourseRepository';
@@ -67,7 +68,10 @@ export class CourseTableRepository {
     }
   }
 
-  /** 只取 id/name，与旧版 `getAllCourseTable` 一致（列表页不需要 data）。 */
+  /**
+   * 只取 id/name，与旧版 `getAllCourseTable` 一致（列表页不需要 data）。
+   * 排序：优先课表管理页保存的自定义顺序，未记录的课表按数据库顺序追加。
+   */
   static async getAll(): Promise<CourseTable[]> {
     const store: relationalStore.RdbStore = await CourseTableRepository.store();
     const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(LegacySchema.COURSETABLE_TABLE);
@@ -81,10 +85,55 @@ export class CourseTableRepository {
         table.name = RdbUtil.str(resultSet, LegacySchema.COURSETABLE_NAME);
         tables.push(table);
       }
-      return tables;
+      return CourseTableRepository.applySavedOrder(tables);
     } finally {
       resultSet.close();
     }
+  }
+
+  /** 保存课表管理页的拖拽顺序（只影响列表展示，不写 CourseTable.data）。 */
+  static async saveOrder(tables: CourseTable[]): Promise<void> {
+    const ids: number[] = [];
+    for (let i = 0; i < tables.length; i++) {
+      ids.push(tables[i].id);
+    }
+    await AppPreferences.setTableOrder(ids);
+  }
+
+  private static async applySavedOrder(tables: CourseTable[]): Promise<CourseTable[]> {
+    if (tables.length <= 1) {
+      return tables;
+    }
+    let order: number[] = [];
+    try {
+      order = await AppPreferences.getTableOrder();
+    } catch (err) {
+      // 顺序只是展示偏好，读失败不能影响课表列表本身。
+      console.warn(`[CourseTable] 读取课表顺序失败: ${JSON.stringify(err)}`);
+      return tables;
+    }
+    if (order.length === 0) {
+      return tables;
+    }
+    const byId: Map<number, CourseTable> = new Map();
+    for (let i = 0; i < tables.length; i++) {
+      byId.set(tables[i].id, tables[i]);
+    }
+    const sorted: CourseTable[] = [];
+    for (let i = 0; i < order.length; i++) {
+      const table: CourseTable | undefined = byId.get(order[i]);
+      if (table !== undefined) {
+        sorted.push(table);
+        byId.delete(order[i]);
+      }
+    }
+    // 新导入/未记录顺序的课表追加在末尾，保持数据库顺序。
+    for (let i = 0; i < tables.length; i++) {
+      if (byId.has(tables[i].id)) {
+        sorted.push(tables[i]);
+      }
+    }
+    return sorted;
   }
 
   /** 删除课表并级联删除其课程（旧版 delete 会先调 CourseProvider.deleteByTable）。 */

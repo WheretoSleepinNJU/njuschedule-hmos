@@ -24,6 +24,8 @@ export class PrefKeys {
   static readonly LastWeekMonday: string = 'lastWeekMonday';
   /** 一次性迁移标记：旧版全局周次已复制到各课表。 */
   static readonly TableWeekMigrated: string = 'tableWeekMigrated';
+  /** 课表管理页自定义顺序（JSON：number[]，元素为 CourseTable.id）。 */
+  static readonly TableOrder: string = 'tableOrder';
 
   // 课表显示配置（ConfigState）
   static readonly ShowWeekend: string = 'showWeekend';
@@ -110,6 +112,35 @@ export class AppPreferences {
 
   static async setTableId(tableId: number): Promise<void> {
     await AppPreferences.put(PrefKeys.TableId, tableId);
+  }
+
+  /** 课表管理页保存的自定义顺序；无记录/解析失败时返回空数组（调用方按数据库顺序）。 */
+  static async getTableOrder(): Promise<number[]> {
+    const raw: string = await AppPreferences.getString(PrefKeys.TableOrder, '');
+    if (raw === '') {
+      return [];
+    }
+    try {
+      const parsed: number[] = JSON.parse(raw) as number[];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      const ids: number[] = [];
+      for (let i = 0; i < parsed.length; i++) {
+        const id: number = parsed[i];
+        if (typeof id === 'number' && Number.isInteger(id) && id > 0) {
+          ids.push(id);
+        }
+      }
+      return ids;
+    } catch (err) {
+      console.warn(`[Preferences] tableOrder parse failed: ${JSON.stringify(err)}`);
+      return [];
+    }
+  }
+
+  static async setTableOrder(ids: number[]): Promise<void> {
+    await AppPreferences.put(PrefKeys.TableOrder, JSON.stringify(ids));
   }
 
   static async setTmpWeekIndex(week: number): Promise<void> {

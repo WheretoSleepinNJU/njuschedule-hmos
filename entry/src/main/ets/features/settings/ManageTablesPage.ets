@@ -7,6 +7,7 @@
  * - 重命名（命名弹窗，数据保留在 data 字段）
  * - 删除（CourseTableRepository.delete 级联删除课程，AlertDialog 二次确认）
  * - 切换当前课表（卡片下拉菜单触发，原地刷新列表，不退出页面）
+ * - 长按拖动交换课表顺序（参考 HarmonyOS_Samples/list-exchange，V2 重写）
  */
 import {
   HdsNavDestination,
@@ -24,9 +25,18 @@ import { AppStore } from '../../app/AppStore';
 import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ShellRouter } from '../../common/ShellRouter';
 import { NameDialog } from './NameDialog';
-import { SettingsItemDivider, SettingsItemGroup } from '../../common/ui/SettingsListItems';
 import { NameDialogController } from '../../common/ui/NameDialogController';
 import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
+
+/** 课表行高度与行内图标尺寸；拖拽阈值、分隔线缩进和卡片高度统一引用。 */
+const TABLE_ROW_HEIGHT: number = 56;
+const TABLE_ROW_ICON_SIZE: number = 24;
+
+/** 拖动中的行浮起阴影 / 普通行无阴影。 */
+const DRAG_SHADOW: ShadowOptions = { radius: 16, color: '#33000000', offsetX: 0, offsetY: 4 };
+const REST_SHADOW: ShadowOptions = { radius: 0, color: '#00000000', offsetX: 0, offsetY: 0 };
+const DRAG_SCALE: number = 1.04;
+const NEIGHBOR_SHRINK: number = 0.06;
 
 /**
  * 单张课表卡片：标题 + 右侧「当前使用/点击展开」下拉菜单。
@@ -60,7 +70,7 @@ struct CourseTableCard {
   build() {
     Row({ space: Spacing.Md }) {
       SymbolGlyph($r('sys.symbol.calendar'))
-        .fontSize(24)
+        .fontSize(TABLE_ROW_ICON_SIZE)
         .fontColor([Colors.TextSecondary])
       Text(this.table.name)
         .fontSize(FontSize.Body)
@@ -81,10 +91,9 @@ struct CourseTableCard {
       .bindMenu(this.tableMenu)
     }
     .width('100%')
-    .constraintSize({ minHeight: 56 })
-    .padding({ left: Spacing.Sm, right: Spacing.Sm })
-    .backgroundColor(Colors.Surface)
-    .borderRadius(Radius.Xl)
+    .constraintSize({ minHeight: TABLE_ROW_HEIGHT })
+    .padding({ left: Spacing.Md, right: Spacing.Sm })
+    .backgroundColor(Color.Transparent)
     .alignItems(VerticalAlign.Center)
   }
 }
@@ -99,6 +108,17 @@ export struct ManageTablesPage {
   @Local loading: boolean = true;
   /** 标题栏「+」展开菜单的显隐（bindMenu 绑定）。 */
   @Local addMenuOpen: boolean = false;
+
+  // ---- 列表项交换（参考 HarmonyOS_Samples/list-exchange，按本项目 V2 重写） ----
+  /** 正在拖动的课表 id；-1 表示无拖动。 */
+  @Local draggingId: number = -1;
+  /** 拖动项相对落点的偏移；交换后减去一行高度，保证视觉连续。 */
+  @Local dragOffsetY: number = 0;
+  /** 已完成的交换累计位移，用于修正 PanGesture 的 offsetY。 */
+  @Local dragRefOffsetY: number = 0;
+  /** 单张卡片高度，由 onAreaChange 实测；用于交换阈值与位移动画。 */
+  private itemHeight: number = TABLE_ROW_HEIGHT;
+  private orderDirty: boolean = false;
 
   private scroller: Scroller = new Scroller();
   private nameDialog: NameDialogController = new NameDialogController();
@@ -125,6 +145,130 @@ export struct ManageTablesPage {
     } finally {
       this.loading = false;
     }
+  }
+
+  // ---- 列表项交换 ----
+
+  private indexOfTable(tableId: number): number {
+    for (let i = 0; i < this.tables.length; i++) {
+      if (this.tables[i].id === tableId) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private hasTables(): boolean {
+    return !this.loading && this.tables.length > 0;
+  }
+
+  private beginDrag(table: CourseTable): void {
+    if (this.draggingId >= 0) {
+      return;
+    }
+    this.orderDirty = false;
+    this.getUIContext().animateTo({ curve: Curve.Friction, duration: 180 }, () => {
+      this.draggingId = table.id;
+      this.dragOffsetY = 0;
+      this.dragRefOffsetY = 0;
+    });
+  }
+
+  private updateDrag(table: CourseTable, offsetY: number): void {
+    if (this.draggingId !== table.id) {
+      return;
+    }
+    const index: number = this.indexOfTable(table.id);
+    if (index < 0) {
+      return;
+    }
+    const current: number = offsetY - this.dragRefOffsetY;
+    this.dragOffsetY = current;
+    const pitch: number = this.itemHeight;
+    if (pitch <= 0 || Math.abs(current) <= pitch / 2) {
+      return;
+    }
+    const direction: number = current > 0 ? 1 : -1;
+    const target: number = index + direction;
+    if (target < 0 || target >= this.tables.length) {
+      return;
+    }
+    const reordered: CourseTable[] = this.tables.slice();
+    const moved: CourseTable[] = reordered.splice(index, 1);
+    reordered.splice(target, 0, moved[0]);
+    this.getUIContext().animateTo({ curve: Curve.Friction, duration: 220 }, () => {
+      this.dragOffsetY = current - direction * pitch;
+      this.dragRefOffsetY = this.dragRefOffsetY + direction * pitch;
+      this.tables = reordered;
+      this.orderDirty = true;
+    });
+  }
+
+  private endDrag(): void {
+    if (this.draggingId < 0) {
+      return;
+    }
+    const shouldSave: boolean = this.orderDirty;
+    this.orderDirty = false;
+    this.getUIContext().animateTo({ curve: Curve.Friction, duration: 220 }, () => {
+      this.draggingId = -1;
+      this.dragOffsetY = 0;
+      this.dragRefOffsetY = 0;
+    });
+    if (shouldSave) {
+      CourseTableRepository.saveOrder(this.tables).catch((err: Error) => {
+        console.warn(`[Tables] 保存课表顺序失败: ${JSON.stringify(err)}`);
+      });
+    }
+  }
+
+  /** 拖动项放大，目标方向的相邻项轻微缩小，形成“让位”效果。 */
+  private itemScale(table: CourseTable): number {
+    if (this.draggingId === table.id) {
+      return DRAG_SCALE;
+    }
+    if (this.draggingId < 0 || this.dragOffsetY === 0) {
+      return 1;
+    }
+    const dragIndex: number = this.indexOfTable(this.draggingId);
+    const index: number = this.indexOfTable(table.id);
+    if (dragIndex < 0 || index < 0) {
+      return 1;
+    }
+    const direction: number = this.dragOffsetY > 0 ? 1 : -1;
+    if (index !== dragIndex + direction) {
+      return 1;
+    }
+    const pitch: number = this.itemHeight;
+    const ratio: number = pitch > 0 ? Math.min(1, Math.abs(this.dragOffsetY) / (pitch / 2)) : 0;
+    return 1 - NEIGHBOR_SHRINK * ratio;
+  }
+
+  /** 大分组卡行间分隔线；行背景已拼出整卡，仅需分隔线。 */
+  private listDivider(): ListDividerOptions {
+    if (!this.hasTables() || this.tables.length <= 1) {
+      return { strokeWidth: 0, color: Colors.OutlineLight };
+    }
+    return {
+      strokeWidth: 1,
+      color: Colors.OutlineLight,
+      startMargin: Spacing.Md + TABLE_ROW_ICON_SIZE + Spacing.Md,
+      endMargin: Spacing.Md
+    };
+  }
+
+  /**
+   * 行背景拼出大分组卡：首行上圆角、末行下圆角，中间行直角；
+   * 拖动中的行四角都圆，作为浮起卡片。
+   */
+  private rowRadius(table: CourseTable): BorderRadiuses {
+    if (this.draggingId === table.id) {
+      return { topLeft: Radius.Lg, topRight: Radius.Lg, bottomLeft: Radius.Lg, bottomRight: Radius.Lg };
+    }
+    const index: number = this.indexOfTable(table.id);
+    const top: number = index <= 0 ? Radius.Xxl : 0;
+    const bottom: number = index === this.tables.length - 1 ? Radius.Xxl : 0;
+    return { topLeft: top, topRight: top, bottomLeft: bottom, bottomRight: bottom };
   }
 
   // ---- 弹窗 ----
@@ -292,7 +436,27 @@ export struct ManageTablesPage {
     HdsNavDestination() {
       Stack({ alignContent: Alignment.TopEnd }) {
         Column() {
-          List({ space: Spacing.Md, scroller: this.scroller }) {
+          if (this.hasTables()) {
+            Row({ space: Spacing.Sm }) {
+              Text('全部课表')
+                .fontSize(FontSize.BodySm)
+                .fontColor(Colors.TextTertiary)
+              Blank()
+              Text('长按拖动排序')
+                .fontSize(FontSize.Caption)
+                .fontColor(Colors.TextTertiary)
+            }
+            .width('100%')
+            .constraintSize({ maxWidth: 800 })
+            .padding({
+              left: Spacing.Md,
+              right: Spacing.Md,
+              top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
+              bottom: Spacing.Sm
+            })
+          }
+
+          List({ space: 0, scroller: this.scroller }) {
             if (this.loading) {
               ListItem() {
                 Row() {
@@ -313,40 +477,66 @@ export struct ManageTablesPage {
                 })
               }
             } else {
-              ListItem() {
-                SettingsItemGroup({ title: '全部课表' }) {
-                  ForEach(this.tables, (table: CourseTable, index: number) => {
-                    if (index > 0) {
-                      SettingsItemDivider()
+              // 每行背景拼出官方样例式的大分组卡（首/末行圆角），行间用 List divider。
+              // 每张课表独立 ListItem，才能用 translate/scale 做交换动效；参考官方 list-exchange。
+              ForEach(this.tables, (table: CourseTable) => {
+                ListItem() {
+                  CourseTableCard({
+                    table: table,
+                    isCurrent: table.id === this.store.tableId,
+                    onSwitch: () => {
+                      this.switchTable(table);
+                    },
+                    onRename: () => {
+                      this.openRenameDialog(table);
+                    },
+                    onDelete: () => {
+                      this.confirmDelete(table);
                     }
-                    CourseTableCard({
-                      table: table,
-                      isCurrent: table.id === this.store.tableId,
-                      onSwitch: () => {
-                        this.switchTable(table);
-                      },
-                      onRename: () => {
-                        this.openRenameDialog(table);
-                      },
-                      onDelete: () => {
-                        this.confirmDelete(table);
-                      }
-                    })
-                    // ForEach 按 key 复用组件：重命名后 id 不变，key 带上名称才会重建卡片。
-                  }, (table: CourseTable, _index: number) => `${table.id}-${table.name}`)
+                  })
+                  // ForEach 按 key 复用组件：重命名后 id 不变，key 带上名称才会重建卡片。
                 }
-              }
+                .width('100%')
+                .zIndex(this.draggingId === table.id ? 2 : 0)
+                .backgroundColor(Colors.Surface)
+                .borderRadius(this.rowRadius(table))
+                .translate({ y: this.draggingId === table.id ? this.dragOffsetY : 0 })
+                .scale({ x: this.itemScale(table), y: this.itemScale(table) })
+                .shadow(this.draggingId === table.id ? DRAG_SHADOW : REST_SHADOW)
+                .onAreaChange((_oldValue: Area, newValue: Area) => {
+                  const height: number = Number(newValue.height);
+                  if (height > 0 && this.draggingId < 0) {
+                    this.itemHeight = height;
+                  }
+                })
+                .gesture(
+                  GestureGroup(GestureMode.Sequence,
+                    LongPressGesture()
+                      .onAction((_event: GestureEvent) => {
+                        this.beginDrag(table);
+                      }),
+                    PanGesture()
+                      .onActionUpdate((event: GestureEvent) => {
+                        this.updateDrag(table, event.offsetY);
+                      })
+                      .onActionEnd((_event: GestureEvent) => {
+                        this.endDrag();
+                      })
+                  ).onCancel(() => {
+                    this.endDrag();
+                  })
+                )
+              }, (table: CourseTable) => `${table.id}-${table.name}`)
             }
           }
           .width('100%')
           .constraintSize({ maxWidth: 800 })
           .layoutWeight(1)
+          .divider(this.listDivider())
           .padding({
-            left: Spacing.Md,
-            right: Spacing.Md,
-            top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md,
-            bottom: Spacing.Xxxl + HdsMetrics.FloatingTabBarClearance
+            top: this.hasTables() ? 0 : HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md
           })
+          .margin({ bottom: Spacing.Xxxl + HdsMetrics.FloatingTabBarClearance })
           .clip(false)
           .cachedCount(3, true)
           .scrollBar(BarState.Off)
@@ -354,6 +544,7 @@ export struct ManageTablesPage {
         }
         .width('100%')
         .height('100%')
+        .padding({ left: Spacing.Md, right: Spacing.Md })
         .alignItems(HorizontalAlign.Center)
         .backgroundColor(Colors.Background)
 
