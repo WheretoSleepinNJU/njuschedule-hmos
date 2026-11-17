@@ -57,8 +57,6 @@ struct Index {
   private hdsTabsController: HdsTabsController = new HdsTabsController();
   /** 每个 Tab 独立的 Scroller，只把当前 Tab 的绑定给导航做滚动模糊联动（官方 FAQ 场景二）。 */
   private timetableScroller: Scroller = new Scroller();
-  /** 课表 25 个周页面各自的滚动容器（全部绑定给标题栏模糊联动）。 */
-  private weekScrollers: Scroller[] = [];
   private coursesScroller: Scroller = new Scroller();
   private settingsScroller: Scroller = new Scroller();
   private pageStack: NavPathStack = new NavPathStack();
@@ -86,19 +84,14 @@ struct Index {
   @Local navigationMode: NavigationMode = NavigationMode.Stack;
   /** HDS 导航是否停留在根页面（没有子页面）。 */
   @Local navStackAtRoot: boolean = true;
-  /** 当前绑定给课表 Tab 的滚动容器（25 个周页面轮换）。 */
-  private boundTimetableScroller: Scroller | undefined = undefined;
-  /** 课表 Tab 当前周页面滚动容器，供 HdsNavDestination 标题栏模糊联动。 */
+  /** 课表 Tab 的滚动容器，供 HdsNavDestination 标题栏模糊联动。 */
   @Local timetableTabScrollables: Scroller[] = [];
   /** 跨时辰刷新问候的定时器（-1 表示未启动）。 */
   private greetingTimer: number = -1;
 
   aboutToAppear(): void {
-    for (let i = 0; i < 25; i++) {
-      this.weekScrollers.push(new Scroller());
-    }
-    const initialWeek: number = Math.max(0, Math.min(this.store.tmpWeekIndex - 1, this.weekScrollers.length - 1));
-    this.timetableTabScrollables = [this.weekScrollers[initialWeek]];
+    this.timetableTabScrollables = [this.timetableScroller];
+    this.hdsTabsController.bindScroller(0, this.timetableScroller);
     this.hdsTabsController.bindScroller(1, this.coursesScroller);
     this.hdsTabsController.bindScroller(2, this.settingsScroller);
     // 跟踪子页面进出：只有根页面显示标题栏副标题热区，避免挡住子页面返回键。
@@ -147,10 +140,7 @@ struct Index {
     this.stopGreetingTicker();
     this.hdsTabsController.unbindScroller(this.coursesScroller);
     this.hdsTabsController.unbindScroller(this.settingsScroller);
-    if (this.boundTimetableScroller !== undefined) {
-      this.hdsTabsController.unbindScroller(this.boundTimetableScroller);
-      this.boundTimetableScroller = undefined;
-    }
+    this.hdsTabsController.unbindScroller(this.timetableScroller);
   }
 
   private startGreetingTicker(): void {
@@ -170,23 +160,6 @@ struct Index {
 
   private refreshGreeting(): void {
     this.greeting = TimeGreeting.current();
-  }
-
-  /** 课表页切换周页面时，把当前页的 Scroller 重新绑定给 HdsTabs，并同步给 HdsNavigation 标题栏模糊。 */
-  private bindTimetableScroller(scroller: Scroller): void {
-    if (this.boundTimetableScroller === scroller) {
-      return;
-    }
-    try {
-      if (this.boundTimetableScroller !== undefined) {
-        this.hdsTabsController.unbindScroller(this.boundTimetableScroller);
-      }
-      this.hdsTabsController.bindScroller(0, scroller);
-      this.boundTimetableScroller = scroller;
-      this.timetableTabScrollables = [scroller];
-    } catch (err) {
-      console.warn(`[Index] bind timetable scroller failed: ${JSON.stringify(err)}`);
-    }
   }
 
   @Monitor('store.windowWidth')
@@ -398,11 +371,7 @@ struct Index {
         TimetableView({
           pageStack: this.pageStack,
           scroller: this.timetableScroller,
-          weekScrollers: this.weekScrollers,
-          active: this.activeTabIndex === 0,
-          onActiveScrollerChange: (scroller: Scroller) => {
-            this.bindTimetableScroller(scroller);
-          }
+          active: this.activeTabIndex === 0
         })
       }
     }

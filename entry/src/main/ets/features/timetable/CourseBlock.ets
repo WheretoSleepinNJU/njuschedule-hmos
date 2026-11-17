@@ -8,18 +8,16 @@
  */
 import { AppStore } from '../../app/AppStore';
 import { Course } from '../../data/models/Models';
-import { Colors, CourseBlockColors, FontSize, Radius } from '../../common/design/Tokens';
+import { CourseBlockColors, FontSize, Radius } from '../../common/design/Tokens';
 
+@ReusableV2
 @ComponentV2
 export struct CourseBlock {
   /** V2 全局 Store（深色外观）。 */
   @Local store: AppStore = AppStore.connect();
   @Param course: Course = new Course();
   @Param color: string = '#8AD297';
-  @Param widthPx: number = 0;
   @Param heightPx: number = 0;
-  /** 放在自适应日期列内时宽度跟随列宽。 */
-  @Param fillWidth: boolean = false;
   /** 本周不上、仅淡显的课程。 */
   @Param faded: boolean = false;
   /** 同一时段的课程数量（>1 时显示角标）。 */
@@ -46,6 +44,21 @@ export struct CourseBlock {
 
   private canShowTeacher(): boolean {
     return this.showTeacher && this.heightPx >= 56 && this.course.teacher !== '';
+  }
+
+  /**
+   * 课程块最终底色：课程色叠一层主题 surface（浅色 #FFFFFF / 深色 #1A1A1E）。
+   * 直接在 ArkTS 侧混合成单层颜色，替代原来两层全尺寸 Row 叠加，降低 GPU 混合负载。
+   */
+  private blendedBackground(): string {
+    const base: number[] = this.rgb(this.blockColor());
+    const surface: number[] = this.store.isDark ? [26, 26, 30] : [255, 255, 255];
+    const alpha: number = this.faded ? 0.55 : 0.7;
+    return this.toHex([
+      base[0] + (surface[0] - base[0]) * alpha,
+      base[1] + (surface[1] - base[1]) * alpha,
+      base[2] + (surface[2] - base[2]) * alpha
+    ]);
   }
 
   /** '#RRGGBB' → [r,g,b]；非法返回中性灰。 */
@@ -87,16 +100,11 @@ export struct CourseBlock {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
-      // 浅色底：课程色 + 表面色叠加，深浅色主题自动适配
+      // 课程色 + 主题 surface 预先混合为单层背景，避免每块两层全尺寸混合
       Row()
         .width('100%')
         .height('100%')
-        .backgroundColor(this.blockColor())
-      Row()
-        .width('100%')
-        .height('100%')
-        .backgroundColor(Colors.Surface)
-        .opacity(this.faded ? 0.55 : 0.7)
+        .backgroundColor(this.blendedBackground())
 
       Column({ space: 2 }) {
         Text(this.course.name)
@@ -127,25 +135,8 @@ export struct CourseBlock {
       .padding({ left: 6, right: 4, top: 5, bottom: 2 })
 
       if (this.conflictCount > 1) {
-        if (this.fillWidth) {
-          Row() {
-            Blank()
-            Text(`${this.conflictCount}`)
-              .fontSize(9)
-              .fontColor('#FFFFFF')
-              .backgroundColor('#99000000')
-              .borderRadius(Radius.Round)
-              .width(14)
-              .height(14)
-              .textAlign(TextAlign.Center)
-              .margin({ top: 2, right: 2 })
-          }
-          .width('100%')
-          .height('100%')
-          .justifyContent(FlexAlign.End)
-          .alignItems(VerticalAlign.Top)
-          .hitTestBehavior(HitTestMode.None)
-        } else {
+        Row() {
+          Blank()
           Text(`${this.conflictCount}`)
             .fontSize(9)
             .fontColor('#FFFFFF')
@@ -154,11 +145,16 @@ export struct CourseBlock {
             .width(14)
             .height(14)
             .textAlign(TextAlign.Center)
-            .position({ x: this.widthPx - 16, y: 2 })
+            .margin({ top: 2, right: 2 })
         }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.End)
+        .alignItems(VerticalAlign.Top)
+        .hitTestBehavior(HitTestMode.None)
       }
     }
-    .width(this.fillWidth ? '100%' : `${this.widthPx}vp`)
+    .width('100%')
     .height(this.heightPx)
     .borderRadius(Radius.Sm)
     .clip(true)

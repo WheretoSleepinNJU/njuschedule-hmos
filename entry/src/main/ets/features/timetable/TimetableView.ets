@@ -8,9 +8,9 @@
  * 交互重做为 HarmonyOS 原生：周切换用 Swiper 周页面（顶部周次/日期同步），
  * 点击课程弹半模态详情，长按删课，详情内可编辑。
  *
- * 文件职责（巨石文件拆分后）：本文件只留数据加载/筛选、几何计算、周页面网格与主 build
- * （含 bindSheet 开关与数据准备）；展示零件与数据源见 TimetableViewParts.ets，
- * 四个半模态内容见 TimetableSheets.ets。
+ * 文件职责（巨石文件拆分后）：本文件只留数据加载/筛选、几何计算、静态网格与主 build
+ * （含 bindSheet 开关与数据准备）；单周课程块页面见 TimetableWeekPage.ets，
+ * 展示零件与数据源见 TimetableViewParts.ets，四个半模态内容见 TimetableSheets.ets。
  */
 import { Feedback } from '../../common/ui/Feedback';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -20,7 +20,7 @@ import { AppStore } from '../../app/AppStore';
 import { AppPreferences } from '../../app/AppPreferences';
 import { ClassPeriod, LegacyConfig, LegacyConstant } from '../../common/Constants';
 import { DateUtils } from '../../common/DateUtils';
-import { Colors, FontSize, HdsMetrics, Spacing, TimetableMetrics } from '../../common/design/Tokens';
+import { Colors, HdsMetrics, Spacing, TimetableMetrics } from '../../common/design/Tokens';
 import { CourseEditParam } from '../../common/RouteParams';
 import { BackgroundImage } from '../../data/BackgroundImage';
 import { ColorPool } from '../../data/ColorPool';
@@ -31,7 +31,6 @@ import { ScheduleModel } from '../../data/ScheduleModel';
 import { CourseGroups } from '../../data/CourseGroups';
 import { CourseDeleteFlow } from '../courses/CourseDeleteFlow';
 import { ShellRouter } from '../../common/ShellRouter';
-import { CourseBlock } from './CourseBlock';
 import { contentSheetOptions, pickerSheetOptions } from '../../common/ui/SheetOptions';
 import {
   BackToCurrentWeekButton,
@@ -40,19 +39,8 @@ import {
   WeekPageDataSource,
   makeWeekPageDataSource
 } from './TimetableViewParts';
+import { LayoutBlock, TimetableWeekPage } from './TimetableWeekPage';
 import { DetailSheetContent, FreeCourseSheetContent, MultiSheetContent, WeekPickerSheetContent } from './TimetableSheets';
-
-/** 一个待渲染的课程块（几何信息在 build 时按当前宽度/课高算）。 */
-class LayoutBlock {
-  key: string = '';
-  course: Course = new Course();
-  color: string = '#8AD297';
-  faded: boolean = false;
-  conflictCount: number = 0;
-  group: Course[] = [];
-  y: number = 0;
-  h: number = 0;
-}
 
 @ComponentV2
 export struct TimetableView {
@@ -61,18 +49,16 @@ export struct TimetableView {
   @Param pageStack: NavPathStack = new NavPathStack();
   /** 外壳可传入自己的 Scroller（用于标题栏模糊联动）；不传时用内置的。 */
   @Param scroller: Scroller = new Scroller();
-  /** 外壳传入的 25 个周页面滚动控制器（用于标题栏模糊绑定）。 */
-  @Param weekScrollers: Scroller[] = [];
-  /** 当前周页面的滚动容器变化回调（外壳据此把 Scroller 绑定给 HdsTabs，保持滚动联动）。 */
-  @Event onActiveScrollerChange: (scroller: Scroller) => void = () => {
-  };
   /** 课表 Tab 是否激活：离开课表时轮播背景图。 */
   @Param active: boolean = true;
-  /** 所有课程（不按周过滤）：每个周页面自行构建，等价旧版 presenter.refreshClasses(tableIndex, weekN)。 */
+  /** 所有课程（不按周过滤）；按周布局块由 blocksByDay 构建并缓存。 */
   @Local allCourses: Course[] = [];
   private weekSwiper: SwiperController = new SwiperController();
   /** 周页面数据源：用 LazyForEach 按需构建（25 个复杂课表页全量构建是切换卡顿的主因）。 */
   private weekPages: WeekPageDataSource = makeWeekPageDataSource();
+  /** 按周缓存布局块，避免同一次页面 build 里为 5–7 个日期列重复构造 ScheduleModel。 */
+  private blocksCache: Map<number, LayoutBlock[]> = new Map();
+  private blocksCacheSignature: string = '';
   /** Swiper 当前页（只在 onChange 里更新，不与周次状态绑定，避免滑动中重设页码导致闪动）。 */
   @Local currentIndex: number = 0;
   /** 用户手势滑动中：此时不响应外部跳页，避免打断 / 回弹。 */
@@ -104,7 +90,6 @@ export struct TimetableView {
 
   aboutToAppear(): void {
     this.todayWeekday = DateUtils.weekdayOneBased(new Date());
-    this.onActiveScrollerChange(this.pageScroller(this.store.tmpWeekIndex));
     this.loadBackground();
     this.reload();
   }
@@ -142,7 +127,6 @@ export struct TimetableView {
   @Monitor('store.weekIndex', 'store.tmpWeekIndex')
   onWeekChanged(_monitor: IMonitor): void {
     this.refreshCurrentWeekData();
-    this.onActiveScrollerChange(this.pageScroller(this.store.tmpWeekIndex));
     // 外部改周（箭头 / 选择器 / 设置）：把 Swiper 跳到对应页（等价旧版 jumpToPage）
     if (this.userSwiping) {
       return;
@@ -187,6 +171,8 @@ export struct TimetableView {
       const courses: Course[] = await CourseRepository.getAll(this.store.tableId);
       hilog.info(0x0000, 'NjuTable', 'courses=%{public}d ch=%{public}d', courses.length, this.store.classHeight);
       this.allCourses = courses;
+      this.blocksCache.clear();
+      this.blocksCacheSignature = '';
       this.refreshCurrentWeekData();
     } catch (err) {
       console.error(`[Timetable] 加载失败: ${JSON.stringify(err)}`);
@@ -232,13 +218,6 @@ export struct TimetableView {
     this.freeCourses = model.freeCourses;
   }
 
-  private pageScroller(week: number): Scroller {
-    if (week >= 1 && week <= this.weekScrollers.length) {
-      return this.weekScrollers[week - 1];
-    }
-    return this.scroller;
-  }
-
   private weekMondayOf(week: number): Date {
     const thisMonday: Date = DateUtils.mondayOf(DateUtils.today());
     return DateUtils.addDays(thisMonday, (week - this.store.weekIndex) * 7);
@@ -260,11 +239,6 @@ export struct TimetableView {
     block.y = (course.startTime - 1) * this.store.classHeight + gap;
     block.h = Math.max((course.timeCount + 1) * this.store.classHeight - gap * 2, this.store.classHeight - gap * 2);
     return block;
-  }
-
-  /** 某一天的课程块：布局按日期列自适应，不再计算横向绝对坐标。 */
-  private blocksForDay(week: number, day: number): LayoutBlock[] {
-    return this.layoutBlocksFor(week).filter((block: LayoutBlock) => block.course.weekTime === day);
   }
 
   private layoutBlocksFor(week: number): LayoutBlock[] {
@@ -295,6 +269,42 @@ export struct TimetableView {
       blocks.push(this.makeBlock(first, false, representatives.length, representatives));
     }
     return blocks;
+  }
+
+  private blocksSignature(): string {
+    return `${this.allCourses.length}|${this.store.classHeight}|${this.store.showWeekend}|${this.pool.length}`;
+  }
+
+  /** 按周缓存布局块；课高/周末显示/数据变化时整表失效。 */
+  private layoutBlocksForCached(week: number): LayoutBlock[] {
+    const signature: string = this.blocksSignature();
+    if (signature !== this.blocksCacheSignature) {
+      this.blocksCache.clear();
+      this.blocksCacheSignature = signature;
+    }
+    let blocks: LayoutBlock[] | undefined = this.blocksCache.get(week);
+    if (blocks === undefined) {
+      blocks = this.layoutBlocksFor(week);
+      this.blocksCache.set(week, blocks);
+    }
+    return blocks;
+  }
+
+  /** 按天分好组的课程块，供可复用周页面直接消费。 */
+  private blocksByDay(week: number): LayoutBlock[][] {
+    const blocks: LayoutBlock[] = this.layoutBlocksForCached(week);
+    const dayCount: number = this.daysCount();
+    const byDay: LayoutBlock[][] = [];
+    for (let i = 0; i < dayCount; i++) {
+      byDay.push([]);
+    }
+    for (let i = 0; i < blocks.length; i++) {
+      const day: number = blocks[i].course.weekTime;
+      if (day >= 1 && day <= dayCount) {
+        byDay[day - 1].push(blocks[i]);
+      }
+    }
+    return byDay;
   }
 
   // ------------------------------------------------------------------ 交互
@@ -366,101 +376,6 @@ export struct TimetableView {
   /** 今天在该周中的列下标（不是本周返回 -1）。 */
   private todayColumnFor(week: number): number {
     return week === this.store.weekIndex ? this.todayWeekday - 1 : -1;
-  }
-
-  private dayIndexes(): number[] {
-    const result: number[] = [];
-    for (let i = 0; i < this.daysCount(); i++) {
-      result.push(i);
-    }
-    return result;
-  }
-
-  @Builder
-  private timeColumn() {
-    Column() {
-      ForEach(this.periods, (period: ClassPeriod, index: number) => {
-        Column({ space: 1 }) {
-          Text(`${index + 1}`)
-            .fontSize(FontSize.BodySm)
-            .fontColor(Colors.TextSecondary)
-          if (this.store.showClassTime) {
-            Text(period.start)
-              .fontSize(10)
-              .fontColor(Colors.TextTertiary)
-            Text(period.end)
-              .fontSize(10)
-              .fontColor(Colors.TextTertiary)
-          }
-        }
-        .width(TimetableMetrics.TimeColumnWidth)
-        .height(this.store.classHeight)
-        .justifyContent(FlexAlign.Center)
-        .border({ width: { bottom: 1 }, color: Colors.GridLine, style: BorderStyle.Dashed })
-      }, (period: ClassPeriod, index: number) => `t-${this.store.classHeight}-${index}`)
-    }
-    .width(TimetableMetrics.TimeColumnWidth)
-  }
-
-  @Builder
-  private dayGridLines() {
-    Column() {
-      ForEach(this.periods, (period: ClassPeriod, periodIndex: number) => {
-        Row()
-          .width('100%')
-          .height(this.store.classHeight)
-          .backgroundColor(Color.Transparent)
-          .border({ width: { bottom: 1 }, color: Colors.GridLine, style: BorderStyle.Dashed })
-      }, (period: ClassPeriod, periodIndex: number) => `c-${this.store.classHeight}-${periodIndex}`)
-    }
-    .width('100%')
-    .height(this.gridHeight())
-  }
-
-  /** 单周网格页面：日期列 layoutWeight 自适应，课程块放在各自日期列内。 */
-  @Builder
-  private gridFor(week: number) {
-    Row() {
-      this.timeColumn()
-      ForEach(this.dayIndexes(), (dayIndex: number) => {
-        Stack({ alignContent: Alignment.TopStart }) {
-          this.dayGridLines()
-          ForEach(this.blocksForDay(week, dayIndex + 1), (block: LayoutBlock) => {
-            Column() {
-              CourseBlock({
-                course: block.course,
-                color: block.color,
-                widthPx: 0,
-                heightPx: block.h,
-                faded: block.faded,
-                conflictCount: block.conflictCount,
-                showPlace: true,
-                showTeacher: this.store.classHeight >= 60,
-                fillWidth: true,
-                onTap: () => {
-                  if (block.conflictCount > 1) {
-                    this.openMulti(block.group);
-                  } else {
-                    this.openDetail(block.course);
-                  }
-                },
-                onLongPress: () => {
-                  this.confirmDelete(block.course);
-                }
-              })
-            }
-            .width('100%')
-            .padding({ left: TimetableMetrics.CourseBlockGap, right: TimetableMetrics.CourseBlockGap })
-            .position({ x: 0, y: block.y })
-          }, (block: LayoutBlock) => `w${week}-${dayIndex}-${this.store.classHeight}-${block.key}-${block.color}`)
-        }
-        .layoutWeight(1)
-        .height(this.gridHeight())
-      }, (dayIndex: number) => `col-${this.daysCount()}-${this.store.classHeight}-${dayIndex}`)
-    }
-    .width('100%')
-    .height(this.gridHeight())
-    .alignItems(VerticalAlign.Top)
   }
 
   @Monitor('store.weekPickerOpen')
@@ -559,82 +474,91 @@ export struct TimetableView {
         .height('100%')
       }
 
-      Column() {
-        // 一周一页，Swiper 原生提供左右滑动与翻页动画（等价旧版 PageView.builder + PageController）
-        Swiper(this.weekSwiper) {
-          LazyForEach(this.weekPages, (weekValue: number) => {
-            Column() {
-              Scroll(this.pageScroller(weekValue)) {
-                Column() {
-                  // 顶部留白 + 星期/日期行都放进滚动内容：
-                  // 内容向上滚入 HDS 标题栏下方，标题栏才会显示「静止透明、滚动渐变模糊」效果
-                  Row()
-                    .width('100%')
-                    .height(this.pageTopPadding())
-                  WeekHeaderRow({
-                    week: weekValue,
-                    labels: this.weekdayLabels(),
-                    dates: this.dayDatesFor(weekValue),
-                    todayColumn: this.todayColumnFor(weekValue),
-                    showDate: this.store.showDate
-                  })
-                  this.gridFor(weekValue)
-                  Row()
-                    .width('100%')
-                    .height(this.gridBottomSpace())
-                }
-                .width('100%')
-              }
-              .width('100%')
-              .layoutWeight(1)
-              .scrollable(ScrollDirection.Vertical)
-              .scrollBar(BarState.Off)
-              .edgeEffect(EdgeEffect.Spring)
-              .align(Alignment.TopStart)
-            }
+      Scroll(this.scroller) {
+        Column() {
+          // 顶部留白 + 星期/日期行都放进滚动内容：
+          // 内容向上滚入 HDS 标题栏下方，标题栏才会显示「静止透明、滚动渐变模糊」效果
+          Row()
             .width('100%')
-            .height('100%')
-          }, (weekValue: number) => `week-page-${weekValue}`)
+            .height(this.pageTopPadding())
+          WeekHeaderRow({
+            week: this.store.tmpWeekIndex,
+            labels: this.weekdayLabels(),
+            dates: this.dayDatesFor(this.store.tmpWeekIndex),
+            todayColumn: this.todayColumnFor(this.store.tmpWeekIndex),
+            showDate: this.store.showDate
+          })
+          // 一周一页，时间列+节次虚线+课程块都在周页面内，随周一起滚动/滑动
+          Swiper(this.weekSwiper) {
+            LazyForEach(this.weekPages, (weekValue: number) => {
+              TimetableWeekPage({
+                week: weekValue,
+                periods: this.periods,
+                classHeight: this.store.classHeight,
+                showClassTime: this.store.showClassTime,
+                blocksByDay: this.blocksByDay(weekValue),
+                gridHeight: this.gridHeight(),
+                onOpenCourse: (course: Course): void => {
+                  this.openDetail(course);
+                },
+                onOpenMulti: (group: Course[]): void => {
+                  this.openMulti(group);
+                },
+                onDeleteCourse: (course: Course): void => {
+                  this.confirmDelete(course);
+                }
+              })
+                .reuse({ reuseId: (): string => 'TimetableWeekPage' })
+            }, (weekValue: number) => `week-page-${weekValue}`)
+          }
+          .width('100%')
+          .height(this.gridHeight())
+          .loop(false)
+          .indicator(false)
+          .duration(280)
+          .cachedCount(1)
+              .onAppear(() => {
+                // 初次进入：跳到当前周（等价 PageController(initialPage: tmpWeek-1)）
+                const target: number = Math.max(0, Math.min(this.store.tmpWeekIndex - 1, LegacyConfig.MAX_WEEKS - 1));
+                this.currentIndex = target;
+                setTimeout(() => {
+                  try {
+                    this.weekSwiper.changeIndex(target);
+                  } catch (err) {
+                    console.warn(`[Timetable] init page failed: ${JSON.stringify(err)}`);
+                  }
+                }, 0);
+              })
+              // 用户滑动开始即更新顶部周次（标题响应快）；但不改 Swiper 页码，避免动画中重设导致闪动
+              .onAnimationStart((index: number, targetIndex: number) => {
+                if (targetIndex === index || targetIndex + 1 === this.store.tmpWeekIndex) {
+                  return;
+                }
+                this.userSwiping = true;
+                this.changeWeek(targetIndex + 1);
+                this.refreshCurrentWeekData();
+              })
+              .onChange((index: number) => {
+                this.currentIndex = index;
+                this.userSwiping = false;
+                const target: number = index + 1;
+                if (target !== this.store.tmpWeekIndex) {
+                  this.changeWeek(target);
+                  this.refreshCurrentWeekData();
+                }
+              })
+          Row()
+            .width('100%')
+            .height(this.gridBottomSpace())
         }
         .width('100%')
-        .layoutWeight(1)
-        .loop(false)
-        .indicator(false)
-        .duration(280)
-        .cachedCount(1)
-        .onAppear(() => {
-          // 初次进入：跳到当前周（等价 PageController(initialPage: tmpWeek-1)）
-          const target: number = Math.max(0, Math.min(this.store.tmpWeekIndex - 1, LegacyConfig.MAX_WEEKS - 1));
-          this.currentIndex = target;
-          setTimeout(() => {
-            try {
-              this.weekSwiper.changeIndex(target);
-            } catch (err) {
-              console.warn(`[Timetable] init page failed: ${JSON.stringify(err)}`);
-            }
-          }, 0);
-        })
-        // 用户滑动开始即更新顶部周次（标题响应快）；但不改 Swiper 页码，避免动画中重设导致闪动
-        .onAnimationStart((index: number, targetIndex: number) => {
-          if (targetIndex === index || targetIndex + 1 === this.store.tmpWeekIndex) {
-            return;
-          }
-          this.userSwiping = true;
-          this.changeWeek(targetIndex + 1);
-          this.refreshCurrentWeekData();
-        })
-        .onChange((index: number) => {
-          this.currentIndex = index;
-          this.userSwiping = false;
-          const target: number = index + 1;
-          if (target !== this.store.tmpWeekIndex) {
-            this.changeWeek(target);
-            this.refreshCurrentWeekData();
-          }
-        })
       }
       .width('100%')
       .height('100%')
+      .scrollable(ScrollDirection.Vertical)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+      .align(Alignment.TopStart)
 
       // 右下角浮动按钮：回到本周（仅划离本周时显示）在自由时间课程入口上方
       if (this.store.tmpWeekIndex !== this.store.weekIndex ||
