@@ -49,6 +49,17 @@ export class WeekUtil {
    * 该课表还没有独立周次时：迁移期间沿用旧全局周次，迁移完成后新表从第 1 周开始。
    */
   static async ensureWeekForTable(tableId: number): Promise<TableWeekState> {
+    const state: TableWeekState = await WeekUtil.resolveTableWeek(tableId);
+    await WeekUtil.writeTableWeek(tableId, state.week, state.monday);
+    return state;
+  }
+
+  /** 只读取某课表的当前周，不写入/不镜像全局 prefs（切换课表半模态预览用）。 */
+  static async peekWeekForTable(tableId: number): Promise<TableWeekState> {
+    return WeekUtil.resolveTableWeek(tableId);
+  }
+
+  private static async resolveTableWeek(tableId: number): Promise<TableWeekState> {
     let monday: string = await AppPreferences.getTableWeekMonday(tableId);
     let week: number = await AppPreferences.getTableWeekIndex(tableId);
     if (monday === '' || week < 1) {
@@ -72,7 +83,6 @@ export class WeekUtil {
     if (week < 1) {
       week = 1;
     }
-    await WeekUtil.writeTableWeek(tableId, week, monday);
     return new TableWeekState(week, monday);
   }
 

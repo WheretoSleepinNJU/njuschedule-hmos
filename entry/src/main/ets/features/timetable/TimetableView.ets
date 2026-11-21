@@ -28,6 +28,7 @@ import { CourseRepository } from '../../data/CourseRepository';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
 import { Course, CourseTable } from '../../data/models/Models';
 import { ScheduleModel } from '../../data/ScheduleModel';
+import { WeekUtil } from '../../data/WeekUtil';
 import { CourseGroups } from '../../data/CourseGroups';
 import { CourseDeleteFlow } from '../courses/CourseDeleteFlow';
 import { ShellRouter } from '../../common/ShellRouter';
@@ -87,6 +88,10 @@ export struct TimetableView {
   @Local sheetTables: CourseTable[] = [];
   @Local sheetSelectedTableId: number = 0;
   @Local sheetSelectedWeek: number = 1;
+  /** 当前选中课表的「本周」周次；切换课程表时随选中课表更新。 */
+  @Local sheetCurrentWeek: number = 1;
+  /** 每个课表自己的当前周缓存，不再复用当前激活课表的周次。 */
+  private sheetTableWeeks: Map<number, number> = new Map();
 
   aboutToAppear(): void {
     this.todayWeekday = DateUtils.weekdayOneBased(new Date());
@@ -385,16 +390,58 @@ export struct TimetableView {
     }
     this.sheetSelectedWeek = this.store.tmpWeekIndex;
     this.sheetSelectedTableId = this.store.tableId;
-    this.loadSheetTables();
+    this.sheetCurrentWeek = this.store.weekIndex;
+    this.loadSheetData();
   }
 
-  private async loadSheetTables(): Promise<void> {
+  private async loadSheetData(): Promise<void> {
     try {
       this.sheetTables = await CourseTableRepository.getAll();
     } catch (err) {
       console.warn(`[Timetable] 加载课表列表失败: ${JSON.stringify(err)}`);
       this.sheetTables = [];
+      return;
     }
+    const weeks: Map<number, number> = new Map();
+    for (let i = 0; i < this.sheetTables.length; i++) {
+      const tableId: number = this.sheetTables[i].id;
+      try {
+        weeks.set(tableId, (await WeekUtil.peekWeekForTable(tableId)).week);
+      } catch (err) {
+        console.warn(`[Timetable] 读取课表周次失败: ${JSON.stringify(err)}`);
+      }
+    }
+    this.sheetTableWeeks = weeks;
+  }
+
+  /** 异步加载完成后，只有该课表仍是当前选中项才更新半模态周次。 */
+  private applySheetTableWeek(tableId: number, week: number): void {
+    if (this.sheetSelectedTableId !== tableId) {
+      return;
+    }
+    this.sheetCurrentWeek = week;
+    this.sheetSelectedWeek = week;
+  }
+
+  /** 半模态里切换选中课表时，周次跟着该课表自己的状态走，而不是沿用当前激活课表。 */
+  private selectSheetTable(tableId: number): void {
+    this.sheetSelectedTableId = tableId;
+    if (tableId === this.store.tableId) {
+      this.sheetCurrentWeek = this.store.weekIndex;
+      this.sheetSelectedWeek = this.store.tmpWeekIndex;
+      return;
+    }
+    const cachedWeek: number | undefined = this.sheetTableWeeks.get(tableId);
+    if (cachedWeek !== undefined) {
+      this.applySheetTableWeek(tableId, cachedWeek);
+      return;
+    }
+    WeekUtil.peekWeekForTable(tableId).then((state) => {
+      this.sheetTableWeeks.set(tableId, state.week);
+      this.applySheetTableWeek(tableId, state.week);
+    }).catch((err: Error) => {
+      console.warn(`[Timetable] 读取课表周次失败: ${JSON.stringify(err)}`);
+    });
   }
 
   /** 确认「切换课表」半模态：应用课表与周次。 */
@@ -445,9 +492,9 @@ export struct TimetableView {
   private weekPickerSheetContent() {
     WeekPickerSheetContent({
       tables: this.sheetTables, selectedTableId: this.sheetSelectedTableId,
-      selectedWeek: this.sheetSelectedWeek,
+      selectedWeek: this.sheetSelectedWeek, currentWeek: this.sheetCurrentWeek,
       onClose: () => { this.store.weekPickerOpen = false; },
-      onSelectTable: (tableId: number) => { this.sheetSelectedTableId = tableId; },
+      onSelectTable: (tableId: number) => { this.selectSheetTable(tableId); },
       onSelectWeek: (week: number) => { this.sheetSelectedWeek = week; },
       onOpenTables: () => { this.store.weekPickerOpen = false; ShellRouter.push(this.pageStack, 'tables', null); },
       onConfirm: () => { this.applySheetSelection(); }

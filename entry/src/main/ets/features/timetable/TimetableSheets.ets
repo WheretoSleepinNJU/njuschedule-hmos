@@ -446,6 +446,8 @@ export struct WeekPickerSheetContent {
   @Param tables: CourseTable[] = [];
   @Param selectedTableId: number = 0;
   @Param selectedWeek: number = 1;
+  /** 当前选中课表自己的「本周」周次。 */
+  @Param currentWeek: number = 1;
   @Event onClose: () => void = () => {
   };
   @Event onSelectTable: (tableId: number) => void = () => {
@@ -520,7 +522,7 @@ export struct WeekPickerSheetContent {
       Grid() {
         ForEach(this.weekOptions(), (value: number) => {
           GridItem() {
-            Text(`${value}`)
+            Text(value === this.currentWeek ? '本周' : `${value}`)
               .fontSize(FontSize.Body)
               .fontColor(value === this.selectedWeek ?
                 this.store.accentOn : Colors.TextPrimary)
