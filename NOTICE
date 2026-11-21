@@ -1,5 +1,7 @@
 呢喃课表 (NJU Schedule NEXT)
 
+Copyright 2026 JesseLee
+
 本应用「呢喃课表」是上游项目「南哪课表」(wheretosleepinnju) 的 HarmonyOS / ArkTS 原生重写实现。
 
 - 上游 Flutter 项目：https://github.com/WheretoSleepinNJU/NJU-Class-Shedule-Flutter （Apache License 2.0）
