@@ -1,13 +1,17 @@
 /**
- * 2x2 桌面小组件（对齐系统日历课程表卡片）。
+ * 2x2 桌面小组件。
  *
- * - 「今天」区块标题使用真实日期 + 星期（如「10月23日 星期五」），今天用主题色高亮；
- * - 今天还有未结束的课 → 只显示今天的课程，不显示后续日期；
- * - 今天的课已上完（或今天没课）→ 今天区块显示空状态，并向下追加「下一个有课日期」区块
- *   （同样是真实日期 + 星期标题，正常色），两段并存、可在 List 内上下滑动。
- * 数据由 FormExtensionAbility 现场计算（widget/WidgetDataProvider.ets）。
+ * - 列表视图：日期/星期随课程列表滚动；条目只保留课程名和地点；
+ *   切换按钮固定在右上角；
+ * - focus 视图：顶部状态（上课中 / 下一节 / 今天没有课），中间课程名 + 地点，
+ *   底部上方进度条、左下时段、右下日期与星期；
+ * - 数据由 FormExtensionAbility 现场计算（widget/WidgetDataProvider.ets）。
  */
 import { WidgetDayCourse, WidgetDayPayload, WidgetPalette } from '../WidgetCommon';
+
+const VIEW_TRANSITION: TransitionEffect =
+  TransitionEffect.OPACITY.animation({ duration: 180, curve: Curve.Smooth });
+
 @Entry
 @ComponentV2
 struct Widget2x2 {
@@ -34,25 +38,55 @@ struct Widget2x2 {
     return payload === undefined || payload.nextCourses === undefined ? [] : payload.nextCourses;
   }
 
-  /** 今天还有未结束的课 → 不显示后续日期；否则（有后续日期时）追加下一段。 */
   private showNext(): boolean {
     const payload: WidgetDayPayload | undefined = this.payload();
     return payload !== undefined && payload.nextFound === true && this.todayCourses().length === 0;
   }
 
-  private dateText(date: string): string {
-    const slash: number = date.indexOf('/');
-    if (slash > 0) {
-      return `${date.substring(0, slash)}月${date.substring(slash + 1)}日`;
-    }
-    return date;
+  private isFocusView(): boolean {
+    const payload: WidgetDayPayload | undefined = this.payload();
+    return payload !== undefined && payload.view === 'focus';
   }
 
-  private weekdayText(weekday: string): string {
-    if (weekday.length === 2 && weekday.startsWith('周')) {
-      return `星期${weekday.substring(1)}`;
+  private focusCourse(): WidgetDayCourse | undefined {
+    const payload: WidgetDayPayload | undefined = this.payload();
+    return payload === undefined ? undefined : payload.focusCourse;
+  }
+
+  private focusStatus(): string {
+    const payload: WidgetDayPayload | undefined = this.payload();
+    if (payload !== undefined && payload.focusStatus !== undefined && payload.focusStatus !== '') {
+      return payload.focusStatus;
     }
-    return weekday;
+    return this.todayEmptyText();
+  }
+
+  private focusProgress(): number {
+    const payload: WidgetDayPayload | undefined = this.payload();
+    if (payload === undefined || payload.focusProgress === undefined) {
+      return 0;
+    }
+    return Math.max(0, Math.min(100, payload.focusProgress));
+  }
+
+  private focusTime(course: WidgetDayCourse): string {
+    if (course.startTime !== '' && course.endTime !== '') {
+      return `${course.startTime}-${course.endTime}`;
+    }
+    return course.time;
+  }
+
+  /** focus 视图右下角：日期 + 星期。 */
+  private focusDateText(): string {
+    const payload: WidgetDayPayload | undefined = this.payload();
+    if (payload === undefined) {
+      return '';
+    }
+    const date: string = payload.focusDate !== undefined && payload.focusDate !== '' ?
+      payload.focusDate : payload.date;
+    const weekday: string = payload.focusWeekday !== undefined && payload.focusWeekday !== '' ?
+      payload.focusWeekday : payload.weekday;
+    return `${date} ${weekday}`.trim();
   }
 
   private todayTitle(): string {
@@ -60,7 +94,7 @@ struct Widget2x2 {
     if (payload === undefined) {
       return '';
     }
-    return `${this.dateText(payload.date)} ${this.weekdayText(payload.weekday)}`;
+    return `${payload.date} ${payload.weekday}`;
   }
 
   private nextTitle(): string {
@@ -68,7 +102,7 @@ struct Widget2x2 {
     if (payload === undefined) {
       return '';
     }
-    return `${this.dateText(payload.nextDate)} ${this.weekdayText(payload.nextWeekday)}`;
+    return `${payload.nextDate} ${payload.nextWeekday}`;
   }
 
   private todayEmptyText(): string {
@@ -79,36 +113,62 @@ struct Widget2x2 {
     return '今天没有课';
   }
 
-  /** 课程起始时间：进行中主题色，其余跟随卡片深浅色（不能直接用资源色，否则强制深色时会变黑）。 */
-  private startTimeColor(state: string): ResourceColor {
-    return state === 'now' ? this.palette().accent() : this.palette().textPrimary();
+  private palette(): WidgetPalette {
+    const payload: WidgetDayPayload | undefined = this.payload();
+    // 跟随系统时使用资源限定词，系统深浅色切换由卡片资源自动刷新，无需打开应用。
+    let mode: string = '';
+    if (payload !== undefined) {
+      mode = payload.followSystem === true ? 'auto' : payload.mode;
+    }
+    return new WidgetPalette(mode);
+  }
+
+  private toggleView(): void {
+    postCardAction(this, {
+      action: 'message',
+      params: { message: 'toggle2x2Focus' }
+    });
   }
 
   @Builder
-  courseRow(course: WidgetDayCourse) {
-    Row({ space: 8 }) {
-      Column({ space: 1 }) {
-        Text(course.startTime)
-          .fontSize(12)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.startTimeColor(course.state))
-        Text(course.endTime)
-          .fontSize(10)
-          .fontColor(this.palette().textTertiary())
+  private switchButton() {
+    // 视觉 24×24，但扩大点击热区到 32×32，避免桌面端小按钮难命中。
+    Row() {
+      Row() {
+        SymbolGlyph($r('sys.symbol.arrow_left_arrow_right'))
+          .fontSize(14)
+          .fontColor([this.palette().textSecondary()])
       }
-      .width(38)
-      .alignItems(HorizontalAlign.Start)
+      .width(24)
+      .height(24)
+      .borderRadius(12)
+      .backgroundColor(this.palette().surfaceHigh())
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
+    }
+    .width(32)
+    .height(32)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
+    .accessibilityText('切换视图')
+    .onClick(() => {
+      this.toggleView();
+    })
+  }
 
+  @Builder
+  private courseRow(course: WidgetDayCourse) {
+    Row({ space: 8 }) {
       Row()
         .width(3)
-        .height(28)
+        .height(30)
         .borderRadius(2)
         .backgroundColor(course.color)
 
       Column({ space: 2 }) {
         Text(course.name)
           .fontSize(13)
-          .fontWeight(course.state === 'now' ? FontWeight.Medium : FontWeight.Normal)
+          .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .fontColor(this.palette().textPrimary())
@@ -127,66 +187,158 @@ struct Widget2x2 {
     .alignItems(VerticalAlign.Center)
   }
 
-  // ---- 深浅色 / 主题色（payload 下发 mode/accent；调色板实现见 widget/WidgetCommon.ets）----
-
-  private palette(): WidgetPalette {
-    const payload: WidgetDayPayload | undefined = this.payload();
-    return new WidgetPalette(payload === undefined ? '' : payload.mode,
-      payload === undefined ? '' : payload.accent);
-  }
-
-  build() {
-    Column() {
+  @Builder
+  private listView() {
+    Stack({ alignContent: Alignment.TopEnd }) {
       List({ space: 8 }) {
-        // ---- 今天（真实日期标题，主题色高亮）----
+        // 日期/星期作为列表首项，和课程一起滚动（与 2x4 一致）。
         ListItem() {
-          Text(this.todayTitle())
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(this.palette().accent())
-            .maxLines(1)
-            .width('100%')
+          Row() {
+            Text(this.todayTitle())
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.palette().accent())
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+              .padding({ right: 40 })
+          }
+          .width('100%')
+          .height(32)
+          .alignItems(VerticalAlign.Center)
         }
 
         if (this.todayCourses().length > 0) {
-          ForEach(this.todayCourses().slice(0, 6), (course: WidgetDayCourse) => {
+          ForEach(this.todayCourses().slice(0, 4), (course: WidgetDayCourse) => {
             ListItem() {
               this.courseRow(course)
             }
-          }, (course: WidgetDayCourse, index: number) => `today-${course.name}-${course.place}-${course.teacher}-${course.startTime}-${course.endTime}-${course.period}-${course.state}-${course.color}-${index}`)
+          }, (course: WidgetDayCourse, index: number) =>
+            `today-${course.name}-${course.place}-${course.startTime}-${course.endTime}-${course.color}-${index}`)
         } else {
           ListItem() {
             Text(this.todayEmptyText())
-              .fontSize(13)
+              .fontSize(12)
               .fontColor(this.palette().textSecondary())
               .width('100%')
-              .padding({ top: 2, bottom: 2 })
           }
         }
 
-        // ---- 下一个有课日期（仅今天已结束/没课时出现；真实日期标题，正常色）----
         if (this.showNext()) {
           ListItem() {
             Text(this.nextTitle())
-              .fontSize(14)
+              .fontSize(13)
               .fontWeight(FontWeight.Medium)
               .fontColor(this.palette().textPrimary())
               .maxLines(1)
               .width('100%')
-              .padding({ top: 4 })
+              .padding({ top: 2 })
           }
-
-          ForEach(this.nextCourses().slice(0, 6), (course: WidgetDayCourse) => {
+          ForEach(this.nextCourses().slice(0, 4), (course: WidgetDayCourse) => {
             ListItem() {
               this.courseRow(course)
             }
-          }, (course: WidgetDayCourse, index: number) => `next-${course.name}-${course.place}-${course.teacher}-${course.startTime}-${course.endTime}-${course.period}-${course.state}-${course.color}-${index}`)
+          }, (course: WidgetDayCourse, index: number) =>
+            `next-${course.name}-${course.place}-${course.startTime}-${course.endTime}-${course.color}-${index}`)
+        }
+      }
+      .width('100%')
+      .height('100%')
+      .edgeEffect(EdgeEffect.Spring)
+      .scrollBar(BarState.Off)
+
+      this.switchButton()
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private focusView() {
+    Column() {
+      Row({ space: 6 }) {
+        Text(this.focusStatus())
+          .fontSize(12)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.palette().accent())
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+        this.switchButton()
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Column({ space: 4 }) {
+        if (this.focusCourse() !== undefined) {
+          Text(this.focusCourse()!.name)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.palette().textPrimary())
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .width('100%')
+          Text(this.focusCourse()!.place)
+            .fontSize(11)
+            .fontColor(this.palette().textTertiary())
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .width('100%')
+        } else {
+          Text('暂无课程')
+            .fontSize(14)
+            .fontColor(this.palette().textSecondary())
         }
       }
       .width('100%')
       .layoutWeight(1)
-      .edgeEffect(EdgeEffect.Spring)
-      .scrollBar(BarState.Off)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Start)
+
+      if (this.focusCourse() !== undefined) {
+        Column({ space: 4 }) {
+          Progress({ value: this.focusProgress(), total: 100, type: ProgressType.Linear })
+            .width('100%')
+            .height(4)
+            .color(this.palette().accent())
+            .backgroundColor(this.palette().surfaceHigh())
+          Row() {
+            Text(this.focusTime(this.focusCourse()!))
+              .fontSize(11)
+              .fontColor(this.palette().textSecondary())
+              .maxLines(1)
+            Blank()
+            Text(this.focusDateText())
+              .fontSize(11)
+              .fontColor(this.palette().textTertiary())
+              .maxLines(1)
+          }
+          .width('100%')
+        }
+        .width('100%')
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  build() {
+    Column() {
+      if (this.isFocusView()) {
+        Column() {
+          this.focusView()
+        }
+        .width('100%')
+        .height('100%')
+        .transition(VIEW_TRANSITION)
+      } else {
+        Column() {
+          this.listView()
+        }
+        .width('100%')
+        .height('100%')
+        .transition(VIEW_TRANSITION)
+      }
     }
     .width('100%')
     .height('100%')

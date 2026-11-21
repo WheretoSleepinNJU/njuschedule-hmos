@@ -20,6 +20,8 @@ export class ColorMath {
   ];
 
   static readonly CUSTOM_INDEX: number = 9;
+  /** 南哪紫在预设数组中的下标（应用默认主题色）。 */
+  static readonly NJU_PURPLE_INDEX: number = 3;
 
   /** 深色模式自动提亮的目标相对亮度。 */
   static readonly DARK_TARGET_LUMINANCE: number = 0.32;
@@ -34,7 +36,7 @@ export class ColorMath {
     if (index >= 0 && index < ColorMath.PRESETS.length) {
       return ColorMath.PRESETS[index];
     }
-    return ColorMath.PRESETS[0];
+    return ColorMath.PRESETS[ColorMath.NJU_PURPLE_INDEX];
   }
 
   /** #RRGGBB → [r,g,b]。 */

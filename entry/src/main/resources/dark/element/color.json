@@ -115,6 +115,14 @@
     {
       "name": "app_surface_translucent",
       "value": "#B31F1F23"
+    },
+    {
+      "name": "widget_accent",
+      "value": "#AE8BD0"
+    },
+    {
+      "name": "widget_accent_soft",
+      "value": "#1FAE8BD0"
     }
   ]
 }

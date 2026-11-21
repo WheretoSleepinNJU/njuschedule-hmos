@@ -9,6 +9,7 @@ import { FormExtensionAbility, formBindingData, formInfo, formProvider } from '@
 import { Want } from '@kit.AbilityKit';
 import { WidgetDataProvider } from './WidgetDataProvider';
 import { WidgetBoundary } from './WidgetBoundary';
+import { WidgetPreferences } from './WidgetPreferences';
 
 export default class EntryFormAbility extends FormExtensionAbility {
   onAddForm(want: Want): formBindingData.FormBindingData {
@@ -26,20 +27,57 @@ export default class EntryFormAbility extends FormExtensionAbility {
   }
 
   onFormEvent(formId: string, message: string): void {
-    this.pushForm(formId);
+    this.handleFormEvent(formId, message);
+  }
+
+  /** 2x2 切换按钮：翻转 list / focus 视图并立即刷新卡片。 */
+  private async handleFormEvent(formId: string, message: string): Promise<void> {
+    let action: string = message;
+    try {
+      // postCardAction 的 onFormEvent message 是系统包了一层的事件信封：
+      // { action: 'message', params: { message: 'toggle2x2Focus' } }
+      const envelope: Record<string, Object> = JSON.parse(message) as Record<string, Object>;
+      const paramsObject: Object | undefined = envelope['params'];
+      if (paramsObject !== undefined) {
+        const params: Record<string, string> = paramsObject as Record<string, string>;
+        if (params['message'] !== undefined) {
+          action = params['message'];
+        } else if (params['action'] !== undefined) {
+          action = params['action'];
+        }
+      } else if (envelope['message'] !== undefined) {
+        action = envelope['message'] as string;
+      }
+    } catch (err) {
+      // message 也可能是纯字符串，直接按原值处理。
+    }
+    try {
+      if (action === 'toggle2x2Focus') {
+        const current: string = await WidgetPreferences.getFormView(this.context, formId);
+        await WidgetPreferences.setFormView(this.context, formId, current === 'focus' ? 'list' : 'focus');
+      }
+    } catch (err) {
+      console.warn(`[EntryFormAbility] form event failed: ${JSON.stringify(err)}`);
+    }
+    await this.pushForm(formId);
   }
 
   /** FormExtension 内是唯一的数据计算与卡片推送入口。 */
   private async pushForm(formId: string): Promise<void> {
     try {
-      const json: string = await WidgetDataProvider.buildJson(this.context);
+      const view: string = await WidgetPreferences.getFormView(this.context, formId);
+      const json: string = await WidgetDataProvider.buildJson(this.context, view);
       if (json === '') {
         return;
       }
       await formProvider.updateForm(formId, formBindingData.createFormBindingData({ data: json }));
-      const minutes: number = WidgetBoundary.nextRefreshMinutes(json);
+      let minutes: number = WidgetBoundary.nextRefreshMinutes(json);
+      if (view === 'focus') {
+        // focus 视图显示实时课程进度，至少每 5 分钟刷新一次。
+        minutes = minutes > 0 ? Math.min(minutes, 5) : 5;
+      }
       if (minutes > 0) {
-        // 触发式刷新：只预约最近的上下课边界，不做分钟级轮询。
+        // 触发式刷新：列表视图只预约最近的上下课边界，不做分钟级轮询。
         // API 最小 5 分钟，因此边界不足 5 分钟时只能延后到 5 分钟。
         try {
           await formProvider.setFormNextRefreshTime(formId, minutes);

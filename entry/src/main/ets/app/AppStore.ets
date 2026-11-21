@@ -39,18 +39,18 @@ export class AppStore {
   /** 系统（跟随系统）的深色状态；与 App 内强制深浅色解耦。 */
   @Trace systemIsDark: boolean = false;
   @Trace systemIsDarkKnown: boolean = false;
-  @Trace themeAccentIndex: number = 0;
+  @Trace themeAccentIndex: number = ColorMath.NJU_PURPLE_INDEX;
   @Trace themeModeIndex: number = 0;
   /** 自定义主题色（themeAccentIndex = 9 时使用）。 */
   @Trace themeCustomColor: string = '';
   /** 深色模式下是否自动提亮主题色（自定义外观里的选项，默认开启）。 */
   @Trace autoDarkAccent: boolean = true;
   /** 当前生效的强调色（浅色=预设色；深色开启自动提亮时=提亮后的变体）。 */
-  @Trace accentDisplay: string = ColorMath.PRESETS[0];
+  @Trace accentDisplay: string = ColorMath.PRESETS[ColorMath.NJU_PURPLE_INDEX];
   /** 强调色上的文字/图标颜色。 */
   @Trace accentOn: string = '#FFFFFF';
   /** 强调色的 12% 透明叠加色（徽标/选中底）。 */
-  @Trace accentSoft: string = '#26' + ColorMath.PRESETS[0].substring(1);
+  @Trace accentSoft: string = '#26' + ColorMath.PRESETS[ColorMath.NJU_PURPLE_INDEX].substring(1);
   @Trace backgroundImagePath: string = '';
   /** 背景图片上的蒙版不透明度（0–100，百分比）。 */
   @Trace backgroundMaskOpacity: number = 50;

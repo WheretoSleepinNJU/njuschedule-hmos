@@ -13,13 +13,13 @@ import { AppState } from './AppState';
 export class ThemeAccent {
   /** 与旧版 `lib/Resources/Themes.dart` 的 presetHexColors 一致、顺序一致（9 个预设）。 */
   /**
-   * 预设主题色（顺序固定，widget 侧 THEME_PRESETS 需与此保持一致）。
+   * 预设主题色（顺序固定）。
    * 第 4 个「南哪紫」= 南京大学标准紫：官方 CMYK C50 M100 Y0 K40，
    * 换算 sRGB ≈ #4D0099。
    */
   static readonly PRESETS: string[] = ColorMath.PRESETS.slice();
 
-  static readonly DEFAULT_INDEX: number = 0;
+  static readonly DEFAULT_INDEX: number = ColorMath.NJU_PURPLE_INDEX;
   static readonly CUSTOM_INDEX: number = 9;
   /** 当前自定义色（空串表示未设置）。 */
   private static customHex: string = '';
@@ -74,7 +74,16 @@ export class ThemeAccent {
 
   /** 启动时从 prefs 恢复主题色（含自定义色）。 */
   static async restore(): Promise<void> {
-    const stored: number = await AppPreferences.getInt(PrefKeys.ThemeIndex, ThemeAccent.DEFAULT_INDEX);
+    let stored: number = await AppPreferences.getInt(PrefKeys.ThemeIndex, ThemeAccent.DEFAULT_INDEX);
+    const migrated: boolean = await AppPreferences.getBool(PrefKeys.ThemeNjuPurpleMigrated, false);
+    if (!migrated) {
+      // 旧版本的默认值是 index 0（清爽蓝）；一次性迁移到新的默认色南哪紫。
+      if (stored === 0) {
+        stored = ThemeAccent.DEFAULT_INDEX;
+        await AppPreferences.put(PrefKeys.ThemeIndex, stored);
+      }
+      await AppPreferences.put(PrefKeys.ThemeNjuPurpleMigrated, true);
+    }
     if (stored === ThemeAccent.CUSTOM_INDEX) {
       const custom: string = await AppPreferences.getString(PrefKeys.ThemeCustomColor, '');
       if (ThemeAccent.isHex(custom)) {

@@ -40,7 +40,6 @@ interface W4x4Payload {
   showWeekend: boolean;
   periods: W4x4Period[];
   mode: string;
-  accent: string;
 }
 
 const ROW_HEIGHT: number = 48;
@@ -179,12 +178,9 @@ struct Widget4x4 {
     return this.palette().isDark() ? '#E0E0E0' : '#4A4A4A';
   }
 
-  // ---- 深浅色 / 主题色（payload 下发 mode/accent；调色板实现见 widget/WidgetCommon.ets）----
-
   private palette(): WidgetPalette {
     const payload: W4x4Payload | undefined = this.payload();
-    return new WidgetPalette(payload === undefined ? '' : payload.mode,
-      payload === undefined ? '' : payload.accent);
+    return new WidgetPalette(payload === undefined ? '' : payload.mode);
   }
 
   @Builder

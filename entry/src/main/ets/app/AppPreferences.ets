@@ -16,6 +16,8 @@ export class PrefKeys {
   static readonly ThemeCustomColor: string = 'themeCustomColor';
   /** 深色模式下自动提亮主题色（本项目新增，旧版无此 key）。 */
   static readonly AutoDarkAccent: string = 'autoDarkAccent';
+  /** 一次性迁移：旧默认「清爽蓝」(themeIndex=0) 改为「南哪紫」。 */
+  static readonly ThemeNjuPurpleMigrated: string = 'themeNjuPurpleMigrated';
 
   // 当前课表 / 周次（ClassTableState / WeekState / WeekUtil）
   static readonly TableId: string = 'tableId';

@@ -32,9 +32,11 @@ import { ColorPool } from '../../data/ColorPool';
 import { CourseColorPalette, CourseColorPalettes } from '../../data/CourseColorPalettes';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow, SettingsSwitchRow } from '../../common/ui/SettingsListItems';
 
-/** 主题配色卡片的名称与一句话风格说明（顺序与 ThemeAccent.PRESETS 一致）。 */
-const THEME_NAMES: string[] = ['清爽蓝', '松雾绿', '深海蓝', '南哪紫', '绯红', '樱花粉', '青雾', '雾霭蓝', '曜石灰'];
-const THEME_DESCS: string[] = ['默认清爽蓝', '低饱和松绿', '沉稳深海蓝', '南京哪个大学？', '强烈绯红', '柔和樱粉', '冷静青灰', '淡雅蓝紫', '中性石墨灰'];
+/** 主题配色卡片的名称与一句话风格说明（展示顺序，不是预设数组下标顺序）。 */
+const THEME_NAMES: string[] = ['南哪紫', '清爽蓝', '松雾绿', '深海蓝', '绯红', '樱花粉', '青雾', '雾霭蓝', '曜石灰'];
+const THEME_DESCS: string[] = ['南京哪个大学？', '南哪清爽蓝', '低饱和松绿', '沉稳深海蓝', '强烈绯红', '柔和樱粉', '冷静青灰', '淡雅蓝紫', '中性石墨灰'];
+/** 展示顺序：南哪紫置顶，其余保持原预设顺序；内部下标不变，避免迁移已存储的 themeIndex。 */
+const THEME_DISPLAY_ORDER: number[] = [ThemeAccent.DEFAULT_INDEX, 0, 1, 2, 4, 5, 6, 7, 8];
 
 @ComponentV2
 export struct MoreSettingsPage {
@@ -212,18 +214,18 @@ export struct MoreSettingsPage {
       SettingsItemGroup({ title: '主题配色' }) {
         Column({ space: Spacing.Md }) {
           Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
-            ForEach(ThemeAccent.PRESETS, (hex: string, index: number) => {
+            ForEach(THEME_DISPLAY_ORDER, (presetIndex: number, displayIndex: number) => {
               ThemeColorCard({
-                hex: hex,
-                index: index,
-                name: THEME_NAMES[index],
-                desc: THEME_DESCS[index],
+                hex: ThemeAccent.PRESETS[presetIndex],
+                index: presetIndex,
+                name: THEME_NAMES[displayIndex],
+                desc: THEME_DESCS[displayIndex],
                 custom: false,
                 onTap: () => {
-                  this.applyTheme(index);
+                  this.applyTheme(presetIndex);
                 }
               })
-            }, (hex: string, index: number) => `theme-card-${index}`)
+            }, (presetIndex: number) => `theme-card-${presetIndex}`)
             ThemeColorCard({
               hex: '',
               index: ThemeAccent.CUSTOM_INDEX,

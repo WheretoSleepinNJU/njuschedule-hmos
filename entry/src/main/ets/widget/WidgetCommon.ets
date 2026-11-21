@@ -1,8 +1,8 @@
 /**
  * 桌面小组件共享数据结构与调色板。
  *
- * 卡片渲染进程读不到主应用的 AppStorage，因此深浅色/主题色由 payload 下发
- * `mode` 与 `accent`；这里集中「payload 基础类型 + 深浅色调色板」，
+ * 卡片渲染进程读不到主应用的 AppStorage，深浅色通过 payload.mode / 资源限定词处理；
+ * 强调色使用 resources/base、dark 中的 widget_accent 资源，随系统深浅色自动切换。
  * 避免 2x2/2x4/4x4 三张卡片各写一份（原先 3 份实现已出现色值与 resources/dark 漂移）。
  */
 
@@ -33,18 +33,28 @@ export interface WidgetDayPayload {
   nextWeekLabel: string;
   nextCourses: WidgetDayCourse[];
   nextFound: boolean;
+  /** 2x2 视图：list / focus（focus 为课程进度页）。 */
+  view?: string;
+  /** 跟随系统时 2x2/2x4 使用资源色，系统深浅色切换无需打开应用。 */
+  followSystem?: boolean;
+  /** 2x2 focus 视图状态文案：上课中 / 下一节 / 今日课程已结束 等。 */
+  focusStatus?: string;
+  /** 2x2 focus 视图当前课程进度（0–100）。 */
+  focusProgress?: number;
+  /** 2x2 focus 视图当前/下一门课程。 */
+  focusCourse?: WidgetDayCourse;
+  /** 2x2 focus 视图课程所属日期（M/D）与星期（周一…）。 */
+  focusDate?: string;
+  focusWeekday?: string;
   mode: string;
-  accent: string;
 }
 
-/** 卡片调色板：mode = 'dark' | 'light' | ''（空串表示跟随系统资源）。 */
+/** 卡片调色板：mode = 'dark' | 'light' | 'auto'（自动使用 base/dark 资源）。 */
 export class WidgetPalette {
   private readonly mode: string;
-  private readonly accentHex: string;
 
-  constructor(mode: string, accent: string) {
+  constructor(mode: string) {
     this.mode = mode === undefined ? '' : mode;
-    this.accentHex = new RegExp('^#[0-9A-Fa-f]{6}$').test(accent) ? accent : '#0095F9';
   }
 
   isDark(): boolean {
@@ -55,14 +65,14 @@ export class WidgetPalette {
     return this.mode === 'light';
   }
 
-  /** 强调色（payload 下发的生效主题色；非法值回落默认蓝）。 */
-  accent(): string {
-    return this.accentHex;
+  /** 小组件固定强调色资源，随系统深浅色自动切换，不跟随 App 自定义主题色。 */
+  accent(): ResourceColor {
+    return $r('app.color.widget_accent');
   }
 
-  /** 主题色 12% 透明度（ARGB），用于徽标底色，深/浅底上都自然。 */
-  accentSoft(): string {
-    return `#1F${this.accentHex.substring(1)}`;
+  /** 小组件固定强调色的 12% 透明底色资源。 */
+  accentSoft(): ResourceColor {
+    return $r('app.color.widget_accent_soft');
   }
 
   cardBg(): ResourceColor {

@@ -178,12 +178,16 @@ struct Widget2x4 {
     .alignItems(VerticalAlign.Center)
   }
 
-  // ---- 深浅色 / 主题色（payload 下发 mode/accent；调色板实现见 widget/WidgetCommon.ets）----
+  // ---- 深浅色（payload 下发 mode；accent 使用固定资源色）----
 
   private palette(): WidgetPalette {
     const payload: WidgetDayPayload | undefined = this.payload();
-    return new WidgetPalette(payload === undefined ? '' : payload.mode,
-      payload === undefined ? '' : payload.accent);
+    // 跟随系统时使用资源限定词，系统深浅色切换由卡片资源自动刷新，无需打开应用。
+    let mode: string = '';
+    if (payload !== undefined) {
+      mode = payload.followSystem === true ? 'auto' : payload.mode;
+    }
+    return new WidgetPalette(mode);
   }
 
   build() {

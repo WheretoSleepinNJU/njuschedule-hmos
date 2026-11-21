@@ -10,7 +10,6 @@
  */
 import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import { preferences, relationalStore } from '@kit.ArkData';
-import { ColorMath } from '../common/design/ColorMath';
 import { LegacyConstant } from '../common/Constants';
 import { Course } from '../data/models/Models';
 import { CourseColorPalettes } from '../data/CourseColorPalettes';
@@ -87,10 +86,18 @@ export class WidgetCardPayload {
   nextWeekLabel: string = '';
   nextCourses: WidgetCardCourse[] = [];
   nextFound: boolean = false;
-  /** 外观模式：auto（跟随系统）/ light / dark —— 卡片按此强制深浅色，避免只跟随系统而忽略 App 内设置。 */
+  /** 外观模式：auto（跟随系统资源）/ light / dark。 */
   mode: string = 'auto';
-  /** 当前主题强调色（#RRGGBB），用于「今天」日期高亮与徽标。 */
-  accent: string = '#0095F9';
+  /** 当前是否「跟随系统」；2x2/2x4 用它改用资源色，4x4 仍用显式 mode。 */
+  followSystem: boolean = false;
+  /** 2x2 当前视图：list / focus。 */
+  view: string = 'list';
+  /** 2x2 focus 视图字段；仅 view=focus 时计算，列表视图 JSON 中省略。 */
+  focusStatus?: string;
+  focusProgress?: number;
+  focusCourse?: WidgetCardCourse;
+  focusDate?: string;
+  focusWeekday?: string;
   updatedAt: string = '';
 }
 
@@ -133,10 +140,10 @@ const TABLE_COURSE: string = 'Course';
 const TABLE_TABLES: string = 'CourseTable';
 
 export class WidgetDataProvider {
-  static async buildJson(context: common.Context): Promise<string> {
+  static async buildJson(context: common.Context, view: string = 'list'): Promise<string> {
     try {
       const store: preferences.Preferences = await WidgetPreferences.fresh(context);
-      const payload: WidgetCardPayload = await WidgetDataProvider.compute(context, store);
+      const payload: WidgetCardPayload = await WidgetDataProvider.compute(context, store, view);
       return JSON.stringify(payload);
     } catch (err) {
       console.warn(`[WidgetDataProvider] compute failed: ${JSON.stringify(err)}`);
@@ -144,9 +151,11 @@ export class WidgetDataProvider {
     }
   }
 
-  private static async compute(context: common.Context, store: preferences.Preferences): Promise<WidgetCardPayload> {
+  private static async compute(context: common.Context, store: preferences.Preferences,
+    view: string): Promise<WidgetCardPayload> {
     const now: Date = new Date();
     const payload: WidgetCardPayload = new WidgetCardPayload();
+    payload.view = view === 'focus' ? 'focus' : 'list';
     payload.date = `${now.getMonth() + 1}/${now.getDate()}`;
     payload.weekday = LegacyConstant.WEEK_WITH_BIAS[WidgetDataProvider.weekday(now)];
     payload.updatedAt = now.toISOString();
@@ -183,23 +192,20 @@ export class WidgetDataProvider {
 
     // 「接下来」区块：与系统日历卡片一致，往后搜寻第一个有课的日期，与「今天」并存并支持滚动查看。
     WidgetDataProvider.fillNextCourseDay(payload, courses, periods, colors, currentWeek, today, now);
+    if (payload.view === 'focus') {
+      WidgetDataProvider.fillFocus(payload, nowMinutes);
+    }
 
     // 4x4 周视图数据。
     payload.week = WidgetDataProvider.buildWeek(schedule, currentWeek, today, nowMinutes, colors,
       payload.showWeekend);
     payload.weekTotals = WidgetDataProvider.buildWeekTotals(schedule, currentWeek);
 
-    // 外观与主题色：与主应用设置保持一致（卡片渲染进程无法读 AppStorage，只能通过 payload 下发）。
-    payload.mode = WidgetDataProvider.readAppearanceMode(
-      WidgetDataProvider.toInt(await store.get('themeModeIndex', 0), 0),
-      WidgetDataProvider.contextIsDark(context));
-    payload.accent = WidgetDataProvider.readAccent(
-      WidgetDataProvider.toInt(await store.get('themeIndex', 0), 0),
-      WidgetDataProvider.toStr(await store.get('themeCustomColor', '')));
-    // 深色模式下按「自动提亮主题色」开关给出提亮后的强调色（与 App 内一致）
-    if (payload.mode === 'dark' && WidgetDataProvider.readAutoDarkAccent(await store.get('autoDarkAccent', true))) {
-      payload.accent = ColorMath.deriveDarkAccent(payload.accent);
-    }
+    // 外观：mode/followSystem 决定背景与文字的强制/自动模式；accent 使用 widget_accent 资源。
+    const systemDark: boolean = WidgetDataProvider.contextIsDark(context);
+    const modeIndex: number = WidgetDataProvider.toInt(await store.get('themeModeIndex', 0), 0);
+    payload.followSystem = modeIndex === 0;
+    payload.mode = WidgetDataProvider.readAppearanceMode(modeIndex, systemDark);
     return payload;
   }
 
@@ -279,6 +285,43 @@ export class WidgetDataProvider {
       }
     }
     return count;
+  }
+
+  /** 2x2 focus 视图：优先正在上的课，其次今天下一门，再退到下一个有课日期。 */
+  private static fillFocus(payload: WidgetCardPayload, nowMinutes: number): void {
+    let candidate: WidgetCardCourse | undefined = undefined;
+    let fromNextDay: boolean = false;
+    for (let i = 0; i < payload.courses.length; i++) {
+      if (payload.courses[i].state === 'now') {
+        candidate = payload.courses[i];
+        break;
+      }
+    }
+    if (candidate === undefined && payload.courses.length > 0) {
+      candidate = payload.courses[0];
+    }
+    if (candidate === undefined && payload.nextFound && payload.nextCourses.length > 0) {
+      candidate = payload.nextCourses[0];
+      fromNextDay = true;
+    }
+    if (candidate === undefined) {
+      payload.focusStatus = payload.todayDone ? '今日课程已结束' : '今天没有课';
+      return;
+    }
+    payload.focusCourse = candidate;
+    payload.focusDate = fromNextDay ? payload.nextDate : payload.date;
+    payload.focusWeekday = fromNextDay ? payload.nextWeekday : payload.weekday;
+    if (candidate.state === 'now') {
+      payload.focusStatus = '上课中';
+      const start: number = WidgetDataProvider.toMinutes(candidate.startTime);
+      const end: number = WidgetDataProvider.toMinutes(candidate.endTime);
+      if (start >= 0 && end > start && nowMinutes >= start && nowMinutes <= end) {
+        payload.focusProgress = Math.max(0, Math.min(100,
+          Math.round((nowMinutes - start) * 100 / (end - start))));
+      }
+    } else {
+      payload.focusStatus = '下一节';
+    }
   }
 
   /** 从明天起最多向后找 7 天，填「下一个有课的日期」区块。 */
@@ -559,7 +602,7 @@ export class WidgetDataProvider {
     }
   }
 
-  /** 0 跟随系统 / 1 浅色 / 2 深色（旧版 themeModeIndex）。 */
+  /** 0 跟随系统 / 1 浅色 / 2 深色；4x4 需要显式 mode。 */
   private static readAppearanceMode(index: number, systemDark: boolean): string {
     if (index === 2) {
       return 'dark';
@@ -577,27 +620,6 @@ export class WidgetDataProvider {
     } catch (err) {
       return false;
     }
-  }
-
-  private static readAccent(index: number, customHex: string): string {
-    if (index === ColorMath.CUSTOM_INDEX) {
-      const raw: string = customHex.trim().toUpperCase();
-      if (ColorMath.isValidHex(raw)) {
-        return raw;
-      }
-    }
-    return ColorMath.preset(index);
-  }
-
-  /** 自动提亮主题色开关：prefs 可能存 boolean / number / string，统一转 bool。 */
-  private static readAutoDarkAccent(value: preferences.ValueType): boolean {
-    if (typeof value === 'boolean') {
-      return value;
-    }
-    if (typeof value === 'number') {
-      return value !== 0;
-    }
-    return `${value}` !== 'false' && `${value}` !== '0';
   }
 
   private static async readCourseColors(store: preferences.Preferences): Promise<WidgetCourseColors> {
