@@ -515,7 +515,7 @@ export struct TimetableView {
             .width('100%')
             .height('100%')
             .backgroundColor(Colors.Background)
-            .opacity(0.5)
+            .opacity(this.store.backgroundMaskOpacity / 100)
         }
         .width('100%')
         .height('100%')

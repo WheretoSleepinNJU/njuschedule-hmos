@@ -77,6 +77,10 @@ export class AppState {
     AppState.store().backgroundSelectedKeys = keys;
   }
 
+  static setBackgroundMaskOpacity(opacity: number): void {
+    AppState.store().backgroundMaskOpacity = Math.max(0, Math.min(100, Math.round(opacity)));
+  }
+
   static setActiveTabIndex(index: number): void {
     AppState.store().activeTabIndex = index;
   }

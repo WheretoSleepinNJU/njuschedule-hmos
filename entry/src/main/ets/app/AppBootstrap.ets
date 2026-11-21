@@ -8,7 +8,7 @@
 import { common } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AppContext } from './AppContext';
-import { AppPreferences } from './AppPreferences';
+import { AppPreferences, PrefKeys } from './AppPreferences';
 import { Appearance } from './Appearance';
 import { BackgroundImage } from '../data/BackgroundImage';
 import { WidgetData } from '../data/WidgetData';
@@ -42,6 +42,8 @@ export class AppBootstrap {
       Appearance.syncIsDark(context);
       AppState.setAutoDarkAccent(await AppPreferences.getAutoDarkAccent());
       await BackgroundImage.restore();
+      AppState.setBackgroundMaskOpacity(
+        await AppPreferences.getInt(PrefKeys.BackgroundMaskOpacity, 50));
       await WidgetData.write();
       AppState.setReady(true);
       hilog.info(DOMAIN, 'NjuSchedule', 'bootstrap done');

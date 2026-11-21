@@ -39,6 +39,8 @@ export class PrefKeys {
   static readonly BackgroundCustom: string = 'backgroundCustomImages';
   /** 参与轮播的背景图 key 列表（JSON：string[]）。 */
   static readonly BackgroundSelected: string = 'backgroundSelectedImages';
+  /** 背景蒙版不透明度（0–100，百分比）。 */
+  static readonly BackgroundMaskOpacity: string = 'backgroundMaskOpacity';
   /** 背景切换时机：exit=退出课表页 / days=自定义天数。 */
   static readonly BackgroundSwitchMode: string = 'backgroundSwitchMode';
   /** 自定义天数模式下的切换间隔（1–365）。 */

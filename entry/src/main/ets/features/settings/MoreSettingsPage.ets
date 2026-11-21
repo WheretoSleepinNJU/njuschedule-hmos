@@ -4,7 +4,7 @@
  * 汇总所有外观相关设置：
  * - 外观模式：跟随系统 / 浅色 / 深色（Appearance.apply）
  * - 主题色：9 个预设 + 自定义 #RRGGBB（ThemeAccent）
- * - 课表背景：内置预设 + 自定义多图（多选轮播、切换时机、长按重命名/删除）
+ * - 课表背景：内置预设 + 自定义多图（多选轮播、背景蒙版、切换时机、长按重命名/删除）
  * - 课程样式：重置课程配色（ColorPool.shuffle）
  *
  * 分享与迁移、危险操作已外迁到设置初始页（SettingsView）。
@@ -23,6 +23,7 @@ import { Feedback } from '../../common/ui/Feedback';
 import { NameDialogController } from '../../common/ui/NameDialogController';
 import { BackgroundImage, CustomBackground } from '../../data/BackgroundImage';
 import { CustomBackgroundCard, PresetBackgroundCard } from './BackgroundCards';
+import { BackgroundMaskSetting } from './BackgroundMaskSetting';
 import { BackgroundSwitchTiming } from './BackgroundSwitchTiming';
 import { ThemeColorCard } from './ThemeColorCard';
 import { NameDialog } from './NameDialog';
@@ -51,6 +52,8 @@ export struct MoreSettingsPage {
 
   /** 当前课程配色池 id。 */
   @Local selectedPaletteId: string = CourseColorPalettes.DEFAULT_ID;
+  /** 设置列表是否正在滚动；传给 Slider 禁用滚动期间的点击改值。 */
+  @Local isListScrolling: boolean = false;
 
   private scroller: Scroller = new Scroller();
   private imageDialog: NameDialogController = new NameDialogController();
@@ -385,6 +388,9 @@ export struct MoreSettingsPage {
         })
 
         SettingsItemDivider()
+        BackgroundMaskSetting({ isListScrolling: this.isListScrolling })
+
+        SettingsItemDivider()
         BackgroundSwitchTiming()
       }
     }
@@ -549,6 +555,12 @@ export struct MoreSettingsPage {
         .cachedCount(3, true)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+        .onScrollStart(() => {
+          this.isListScrolling = true;
+        })
+        .onScrollStop(() => {
+          this.isListScrolling = false;
+        })
       }
       .width('100%')
       .height('100%')
