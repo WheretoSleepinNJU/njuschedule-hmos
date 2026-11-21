@@ -11,13 +11,18 @@
  *   改动时同步写 preferences 持久化，页面通过 `@Local store` 自动响应。
  * - 当前周改动写 prefs（WeekUtil.setNowWeek）后再写 AppState。
  */
+import { common } from '@kit.AbilityKit';
 import { AppPreferences, PrefKeys } from '../../app/AppPreferences';
 import { AppState } from '../../app/AppState';
 import { AppStore } from '../../app/AppStore';
 import { LegacyConfig } from '../../common/Constants';
-import { Colors, HdsMetrics, Spacing, TimetableMetrics } from '../../common/design/Tokens';
+import { Colors, FontSize, HdsMetrics, Spacing, TimetableMetrics } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { applyTextPickerAccent } from '../../common/ui/TextPickerStyle';
+import { CustomDialogController } from '../../common/ui/CustomDialogController';
+import { CalendarExportDialog } from './CalendarExportDialog';
+import { CalendarLoadingDialog } from './CalendarLoadingDialog';
+import { CalendarExport, CalendarExportResult } from '../../data/CalendarExport';
 import { pushPageOnce } from '../../common/NavStackResolver';
 import { CourseTable } from '../../data/models/Models';
 import { CourseTableRepository } from '../../data/CourseTableRepository';
@@ -46,6 +51,9 @@ export struct SettingsView {
   /** 外壳可传入自己的 Scroller（用于标题栏滚动模糊联动）；不传时用内置的。 */
   @Param scroller: Scroller = new Scroller();
   @Local tableName: string = '';
+  private calendarDialog: CustomDialogController = new CustomDialogController();
+  private calendarLoadingDialog: CustomDialogController = new CustomDialogController();
+
   aboutToAppear(): void {
     this.reloadTableName();
   }
@@ -74,6 +82,49 @@ export struct SettingsView {
     }
   }
 
+
+  /** openCustomDialog 的 builder 必须是组件内 @Builder 的箭头包装。 */
+  @Builder
+  private calendarExportDialogContent(): void {
+    CalendarExportDialog({
+      tableName: this.tableName,
+      onClose: (): void => {
+        this.calendarDialog.close(this.getUIContext());
+      },
+      onExport: (reminderMinutes: number): void => {
+        this.exportCalendar(reminderMinutes);
+      }
+    })
+  }
+
+  @Builder
+  private calendarLoadingContent(): void {
+    CalendarLoadingDialog()
+  }
+
+  private async exportCalendar(reminderMinutes: number): Promise<void> {
+    const uiContext: UIContext = this.getUIContext();
+    await this.calendarDialog.close(uiContext);
+    await this.calendarLoadingDialog.open(uiContext, () => {
+      this.calendarLoadingContent();
+    }, false);
+    try {
+      const context: common.UIAbilityContext = uiContext.getHostContext() as common.UIAbilityContext;
+      const result: CalendarExportResult =
+        await CalendarExport.exportTable(context, this.currentTableId(), reminderMinutes);
+      Feedback.toast(uiContext, `已导出 ${result.eventCount} 条日程到「${result.tableName}」日历`);
+    } catch (err) {
+      Feedback.toast(uiContext, err instanceof Error ? err.message : '导出失败');
+    } finally {
+      await this.calendarLoadingDialog.close(uiContext);
+    }
+  }
+
+  private openCalendarExport(): void {
+    this.calendarDialog.open(this.getUIContext(), () => {
+      this.calendarExportDialogContent();
+    });
+  }
 
   private clampWeek(week: number): number {
     if (week < 1) {
@@ -224,6 +275,14 @@ export struct SettingsView {
               title: '分享当前课表',
               onTap: () => {
                 this.openLevelOnePage('share');
+              }
+            })
+            SettingsItemDivider()
+            SettingsRow({
+              icon: $r('sys.symbol.calendar_badge_plus'),
+              title: '导出到系统日历',
+              onTap: () => {
+                this.openCalendarExport();
               }
             })
           }

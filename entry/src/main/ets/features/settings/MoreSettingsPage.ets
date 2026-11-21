@@ -20,7 +20,7 @@ import { ThemeAccent } from '../../app/ThemeAccent';
 import { Appearance } from '../../app/Appearance';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
-import { NameDialogController } from '../../common/ui/NameDialogController';
+import { CustomDialogController } from '../../common/ui/CustomDialogController';
 import { BackgroundImage, CustomBackground } from '../../data/BackgroundImage';
 import { CustomBackgroundCard, PresetBackgroundCard } from './BackgroundCards';
 import { BackgroundMaskSetting } from './BackgroundMaskSetting';
@@ -58,7 +58,7 @@ export struct MoreSettingsPage {
   @Local isListScrolling: boolean = false;
 
   private scroller: Scroller = new Scroller();
-  private imageDialog: NameDialogController = new NameDialogController();
+  private imageDialog: CustomDialogController = new CustomDialogController();
 
   aboutToAppear(): void {
     this.customHexInput = ThemeAccent.currentCustomHex();

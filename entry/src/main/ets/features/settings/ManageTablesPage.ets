@@ -25,7 +25,7 @@ import { AppStore } from '../../app/AppStore';
 import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ShellRouter } from '../../common/ShellRouter';
 import { NameDialog } from './NameDialog';
-import { NameDialogController } from '../../common/ui/NameDialogController';
+import { CustomDialogController } from '../../common/ui/CustomDialogController';
 import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
 
 /** 课表行高度与行内图标尺寸；拖拽阈值、分隔线缩进和卡片高度统一引用。 */
@@ -121,7 +121,7 @@ export struct ManageTablesPage {
   private orderDirty: boolean = false;
 
   private scroller: Scroller = new Scroller();
-  private nameDialog: NameDialogController = new NameDialogController();
+  private nameDialog: CustomDialogController = new CustomDialogController();
 
   aboutToAppear(): void {
     this.loadTables();

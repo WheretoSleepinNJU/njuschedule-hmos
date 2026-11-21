@@ -43,6 +43,10 @@
     {
       "name": "widget_4x4_desc",
       "value": "周一至周五的本周课程速览"
+    },
+    {
+      "name": "calendar_permission_reason",
+      "value": "用于将课程导入「呢喃课表」系统日历账户"
     }
   ]
 }
