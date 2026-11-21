@@ -1,11 +1,10 @@
 /**
- * 课表周视图的四个半模态内容（TimetableView 的 bindSheet 内容）。
+ * 课表周视图的半模态内容（TimetableView 的 bindSheet 内容）。
  *
- * 四个半模态统一使用 HdsSheetFrame：HDS 半模态标题栏（HdsNavigation +
+ * 所有半模态统一使用 HdsSheetFrame：HDS 半模态标题栏（HdsNavigation +
  * HdsNavDestination MODAL）+ 统一 Scroll/edge effect；内容只负责卡片与操作。
  * - DetailSheetContent：课程详情（编辑 / 删除操作在标题栏右侧）；
- * - MultiSheetContent：同一时段多门课程列表（点选打开详情）；
- * - FreeCourseSheetContent：自由时间课程列表（左右滑动分页，点卡片打开详情）；
+ * - CourseListSheetContent：同一时段多门课程 / 自由时间课程列表（列表与详情同面板切换）；
  * - WeekPickerSheetContent：切换课表 + 课程周数。
  */
 import { AppStore } from '../../app/AppStore';
@@ -40,7 +39,11 @@ export struct HdsSheetFrame {
   @Param fillHeight: boolean = false;
   /** 可选的 HDS 标题栏右侧菜单。 */
   @Param menu: HdsNavigationMenuContentOptions | undefined = undefined;
+  /** true：标题栏左侧显示返回箭头，用于同一半模态内页面切换。 */
+  @Param showBack: boolean = false;
   @Event onClose: () => void = () => {
+  };
+  @Event onBack: () => void = () => {
   };
   @BuilderParam content: () => void = this.emptyContent;
 
@@ -66,13 +69,22 @@ export struct HdsSheetFrame {
     const options: HdsNavigationTitleBarOptions = hdsSubPageTitleBar(this.title, this.subtitle);
     options.enableComponentSafeArea = true;
     options.avoidLayoutSafeArea = false;
-    options.content!.backIcon = {
-      icon: $r('sys.symbol.xmark'),
-      type: IconStyleMode.NORMAL,
-      action: () => {
-        this.onClose();
-      }
-    };
+    if (this.showBack) {
+      // 不覆盖 icon，沿用 HdsNavDestination 与其他子页面一致的默认返回按钮。
+      options.content!.backIcon = {
+        action: () => {
+          this.onBack();
+        }
+      };
+    } else {
+      options.content!.backIcon = {
+        icon: $r('sys.symbol.xmark'),
+        type: IconStyleMode.NORMAL,
+        action: () => {
+          this.onClose();
+        }
+      };
+    }
     if (this.menu !== undefined) {
       options.content!.menu = this.menu;
     }
@@ -179,22 +191,15 @@ export struct CourseInfoCard {
   }
 }
 
-/** 课程详情半模态内容。 */
+/** 课程详情正文：详情半模态与两个列表半模态的内页共用。 */
 @ComponentV2
-export struct DetailSheetContent {
-  @Local store: AppStore = AppStore.connect();
+export struct CourseDetailBody {
   @Param course: Course = new Course();
   @Param periods: ClassPeriod[] = [];
   @Param pool: number[] = [];
-  @Event onClose: () => void = () => {
-  };
-  @Event onEdit: (course: Course) => void = () => {
-  };
-  @Event onDelete: (course: Course) => void = () => {
-  };
 
   @Builder
-  private detailTextLine(label: string, value: string) {
+  private line(label: string, value: string) {
     Row({ space: 2 }) {
       Text(`${label}：`)
         .fontSize(FontSize.Body)
@@ -208,7 +213,7 @@ export struct DetailSheetContent {
     .alignItems(VerticalAlign.Top)
   }
 
-  private detailTimeText(): string {
+  private timeText(): string {
     const course: Course = this.course;
     const weekday: string = WeeksFormat.weekdayLabel(course.weekTime);
     const periods: string = WeeksFormat.periodLabel(course);
@@ -224,50 +229,49 @@ export struct DetailSheetContent {
     return `${weekday} ${periods}`;
   }
 
-  @Builder
-  private detailBody() {
+  build() {
     Column({ space: Spacing.Lg }) {
       SettingsItemGroup() {
         Column({ space: Spacing.Sm }) {
           Row({ space: Spacing.Md }) {
-          Row() {
-            SymbolGlyph($r('sys.symbol.book'))
-              .fontSize(18)
-              .fontColor([ColorPool.resolve(this.course, this.pool)])
+            Row() {
+              SymbolGlyph($r('sys.symbol.book'))
+                .fontSize(18)
+                .fontColor([ColorPool.resolve(this.course, this.pool)])
+            }
+            .width(36)
+            .height(36)
+            .borderRadius(Radius.Md)
+            .backgroundColor(Colors.SurfaceHigh)
+            .justifyContent(FlexAlign.Center)
+
+            Text(this.course.name)
+              .fontSize(FontSize.Title)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Colors.TextPrimary)
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
           }
-          .width(36)
-          .height(36)
-          .borderRadius(Radius.Md)
-          .backgroundColor(Colors.SurfaceHigh)
-          .justifyContent(FlexAlign.Center)
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
 
-          Text(this.course.name)
-            .fontSize(FontSize.Title)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Colors.TextPrimary)
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .layoutWeight(1)
+          this.line('时间', this.timeText())
+          this.line('周次', WeeksFormat.describe(this.course.weeks))
+          if (this.course.classroom !== '') {
+            this.line('教室', this.course.classroom)
+          }
+          if (this.course.teacher !== '') {
+            this.line('教师', this.course.teacher)
+          }
+          if (this.course.testTime !== '' || this.course.testLocation !== '') {
+            this.line('考试', `${this.course.testTime} ${this.course.testLocation}`.trim())
+          }
+          if (this.course.info !== '') {
+            this.line('备注', this.course.info)
+          }
+          this.line('来源', WeeksFormat.importTypeLabel(this.course.importType))
         }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        this.detailTextLine('时间', this.detailTimeText())
-        this.detailTextLine('周次', WeeksFormat.describe(this.course.weeks))
-        if (this.course.classroom !== '') {
-          this.detailTextLine('教室', this.course.classroom)
-        }
-        if (this.course.teacher !== '') {
-          this.detailTextLine('教师', this.course.teacher)
-        }
-        if (this.course.testTime !== '' || this.course.testLocation !== '') {
-          this.detailTextLine('考试', `${this.course.testTime} ${this.course.testLocation}`.trim())
-        }
-        if (this.course.info !== '') {
-          this.detailTextLine('备注', this.course.info)
-        }
-        this.detailTextLine('来源', WeeksFormat.importTypeLabel(this.course.importType))
-      }
         .width('100%')
         .padding(Spacing.Md)
         .alignItems(HorizontalAlign.Start)
@@ -277,120 +281,111 @@ export struct DetailSheetContent {
     .padding({ left: Spacing.Xl, right: Spacing.Xl, top: Spacing.Xl, bottom: Spacing.Xxl })
     .alignItems(HorizontalAlign.Start)
   }
+}
 
-  private menuOptions(): HdsNavigationMenuContentOptions {
-    return {
-      value: [
-        {
-          content: {
-            icon: new SymbolGlyphModifier($r('sys.symbol.trash'))
-              .fontSize(HdsMetrics.TitleBarIconSize)
-              .fontColor([Colors.Error]),
-            type: IconStyleMode.NORMAL,
-            action: () => {
-              this.onDelete(this.course);
-            }
-          }
-        },
-        {
-          content: {
-            icon: new SymbolGlyphModifier($r('sys.symbol.pencil_line'))
-              .fontSize(HdsMetrics.TitleBarIconSize)
-              .fontColor([this.store.accentDisplay]),
-            type: IconStyleMode.NORMAL,
-            action: () => {
-              this.onEdit(this.course);
-            }
+/** 详情标题栏菜单：删除 / 编辑。 */
+function courseDetailMenu(store: AppStore, course: Course,
+  onDelete: (course: Course) => void, onEdit: (course: Course) => void): HdsNavigationMenuContentOptions {
+  return {
+    value: [
+      {
+        content: {
+          icon: new SymbolGlyphModifier($r('sys.symbol.trash'))
+            .fontSize(HdsMetrics.TitleBarIconSize)
+            .fontColor([Colors.Error]),
+          type: IconStyleMode.NORMAL,
+          action: () => {
+            onDelete(course);
           }
         }
-      ]
-    };
-  }
+      },
+      {
+        content: {
+          icon: new SymbolGlyphModifier($r('sys.symbol.pencil_line'))
+            .fontSize(HdsMetrics.TitleBarIconSize)
+            .fontColor([store.accentDisplay]),
+          type: IconStyleMode.NORMAL,
+          action: () => {
+            onEdit(course);
+          }
+        }
+      }
+    ]
+  };
+}
+
+/** 课程详情半模态内容。 */
+@ComponentV2
+export struct DetailSheetContent {
+  @Local store: AppStore = AppStore.connect();
+  @Param course: Course = new Course();
+  @Param periods: ClassPeriod[] = [];
+  @Param pool: number[] = [];
+  @Event onClose: () => void = () => {
+  };
+  @Event onEdit: (course: Course) => void = () => {
+  };
+  @Event onDelete: (course: Course) => void = () => {
+  };
 
   build() {
     HdsSheetFrame({
       title: '课程详情',
-      menu: this.menuOptions(),
+      menu: courseDetailMenu(this.store, this.course, this.onDelete, this.onEdit),
       onClose: () => {
         this.onClose();
       }
     }) {
-      this.detailBody()
+      CourseDetailBody({
+        course: this.course,
+        periods: this.periods,
+        pool: this.pool
+      })
     }
   }
 }
 
-/** 同一时段多门课程的半模态内容（卡片样式与自由时间课程一致）。 */
+/**
+ * 课程列表 + 课程详情同面板半模态。
+ * 同一时段多门课程、自由时间课程共用；列表与详情在同一个 HdsSheetFrame 内切换。
+ */
 @ComponentV2
-export struct MultiSheetContent {
+export struct CourseListSheetContent {
   @Local store: AppStore = AppStore.connect();
-  @Param group: Course[] = [];
-  @Param pool: number[] = [];
-  @Event onSelect: (course: Course) => void = () => {
-  };
-  @Event onClose: () => void = () => {
-  };
-
-  @Builder
-  private multiBody() {
-    Column({ space: Spacing.Lg }) {
-      Swiper() {
-        ForEach(this.group, (course: Course) => {
-          CourseInfoCard({
-            course: course,
-            pool: this.pool,
-            onOpen: (target: Course) => {
-              this.onSelect(target);
-            }
-          })
-        }, (course: Course) => `multi-${course.id}`)
-      }
-      .width('100%')
-      .height(240)
-      .loop(false)
-      .displayArrow(IS_2IN1)
-      .indicator(new DotIndicator()
-        .itemWidth(6)
-        .itemHeight(6)
-        .selectedItemWidth(6)
-        .selectedItemHeight(6)
-        .color(Colors.Outline)
-        .selectedColor(this.store.accentDisplay))
-    }
-    .width('100%')
-    .padding({ left: Spacing.Xl, right: Spacing.Xl, top: Spacing.Xl, bottom: Spacing.Xxl })
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  build() {
-    HdsSheetFrame({
-      title: '同一时段有多个课程',
-      subtitle: `共 ${this.group.length} 门 · 左右滑动查看`,
-      onClose: () => {
-        this.onClose();
-      }
-    }) {
-      this.multiBody()
-    }
-  }
-}
-
-/** 自由时间课程列表半模态内容（左右滑动分页，点卡片打开详情）。 */
-@ComponentV2
-export struct FreeCourseSheetContent {
-  @Local store: AppStore = AppStore.connect();
+  /** 列表页标题。 */
+  @Param title: string = '';
+  /** 空列表提示；空字符串表示不展示空态。 */
+  @Param emptyText: string = '';
   @Param courses: Course[] = [];
+  @Param periods: ClassPeriod[] = [];
   @Param pool: number[] = [];
+  @Local showDetail: boolean = false;
+  @Local detailCourse: Course = new Course();
+  @Event onEdit: (course: Course) => void = () => {
+  };
+  @Event onDelete: (course: Course) => void = () => {
+  };
   @Event onClose: () => void = () => {
   };
-  @Event onOpenCourse: (course: Course) => void = () => {
-  };
+
+  private openDetail(course: Course): void {
+    this.getUIContext().animateTo({ duration: 200, curve: Curve.Smooth }, () => {
+      this.detailCourse = course;
+      this.showDetail = true;
+    });
+  }
+
+  private closeDetail(): void {
+    this.getUIContext().animateTo({ duration: 180, curve: Curve.Smooth }, () => {
+      this.showDetail = false;
+    });
+  }
 
   @Builder
-  private freeBody() {
+  private listBody() {
     Column({ space: Spacing.Lg }) {
-      if (this.courses.length === 0) {
-        Text('本周没有自由时间课程')
+      if (this.courses.length === 0 && this.emptyText !== '') {
+        Text(this.emptyText)
           .fontSize(FontSize.Body)
           .fontColor(Colors.TextTertiary)
           .width('100%')
@@ -403,10 +398,10 @@ export struct FreeCourseSheetContent {
               course: course,
               pool: this.pool,
               onOpen: (target: Course) => {
-                this.onOpenCourse(target);
+                this.openDetail(target);
               }
             })
-          }, (course: Course) => `free-sheet-${course.id}`)
+          }, (course: Course) => `course-sheet-${course.id}`)
         }
         .width('100%')
         .height(240)
@@ -428,13 +423,35 @@ export struct FreeCourseSheetContent {
 
   build() {
     HdsSheetFrame({
-      title: '自由时间课程',
-      subtitle: `共 ${this.courses.length} 门 · 左右滑动查看`,
+      title: this.showDetail ? '课程详情' : this.title,
+      subtitle: this.showDetail ? this.detailCourse.name : `共 ${this.courses.length} 门 · 左右滑动查看`,
+      menu: this.showDetail ?
+        courseDetailMenu(this.store, this.detailCourse, this.onDelete, this.onEdit) : undefined,
+      showBack: this.showDetail,
+      onBack: () => {
+        this.closeDetail();
+      },
       onClose: () => {
         this.onClose();
       }
     }) {
-      this.freeBody()
+      if (this.showDetail) {
+        Column() {
+          CourseDetailBody({
+            course: this.detailCourse,
+            periods: this.periods,
+            pool: this.pool
+          })
+        }
+        .width('100%')
+        .transition(TransitionEffect.OPACITY)
+      } else {
+        Column() {
+          this.listBody()
+        }
+        .width('100%')
+        .transition(TransitionEffect.OPACITY)
+      }
     }
   }
 }

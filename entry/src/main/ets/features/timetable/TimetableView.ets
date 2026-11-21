@@ -41,7 +41,7 @@ import {
   makeWeekPageDataSource
 } from './TimetableViewParts';
 import { LayoutBlock, TimetableWeekPage } from './TimetableWeekPage';
-import { DetailSheetContent, FreeCourseSheetContent, MultiSheetContent, WeekPickerSheetContent } from './TimetableSheets';
+import { CourseListSheetContent, DetailSheetContent, WeekPickerSheetContent } from './TimetableSheets';
 
 @ComponentV2
 export struct TimetableView {
@@ -472,19 +472,23 @@ export struct TimetableView {
 
   @Builder
   private multiSheetContent() {
-    MultiSheetContent({
-      group: this.multiGroup, pool: this.pool,
-      onSelect: (course: Course) => { this.openDetail(course); },
+    CourseListSheetContent({
+      title: '同一时段有多个课程', courses: this.multiGroup,
+      periods: this.periods, pool: this.pool,
+      onEdit: (course: Course) => { this.openEdit(course); },
+      onDelete: (course: Course) => { this.confirmDelete(course); },
       onClose: () => { this.multiShown = false; }
     })
   }
 
   @Builder
   private freeCourseSheetContent() {
-    FreeCourseSheetContent({
-      courses: this.freeCourses, pool: this.pool,
-      onClose: () => { this.freeCourseSheetShown = false; },
-      onOpenCourse: (course: Course) => { this.openDetail(course); }
+    CourseListSheetContent({
+      title: '自由时间课程', emptyText: '本周没有自由时间课程',
+      courses: this.freeCourses, periods: this.periods, pool: this.pool,
+      onEdit: (course: Course) => { this.openEdit(course); },
+      onDelete: (course: Course) => { this.confirmDelete(course); },
+      onClose: () => { this.freeCourseSheetShown = false; }
     })
   }
 
