@@ -148,15 +148,6 @@ export struct TimetableView {
     });
   }
 
-  /** 距离左侧的位移：右手侧时让 64vp 宽的按钮组右边缘保留 Spacing.Lg。 */
-  private floatingTranslateX(): number {
-    if (!this.isFloatingRight) {
-      return 0;
-    }
-    const width: number = px2vp(this.store.windowWidth);
-    return Math.max(0, width - FLOATING_ACTIONS_WIDTH - Spacing.Lg * 2);
-  }
-
   private bindSmartReach(): void {
     if (this.smartReachBound) {
       return;
@@ -724,9 +715,12 @@ export struct TimetableView {
           this.floatingActions()
         }
         .width('100%')
-        .alignItems(HorizontalAlign.Start)
-        .padding({ left: Spacing.Lg })
-        .translate({ x: this.floatingTranslateX() })
+        // 在父内容区内左右对齐，不能用整窗宽度平移：PC 内容区已扣除侧栏。
+        .alignItems(this.isFloatingRight ? HorizontalAlign.End : HorizontalAlign.Start)
+        .padding({
+          left: this.isFloatingRight ? 0 : Spacing.Lg,
+          right: this.isFloatingRight ? Spacing.Lg : 0
+        })
         .margin({ bottom: px2vp(this.store.windowBottomInset) + 88 })
         .hitTestBehavior(HitTestMode.Transparent)
       }
