@@ -57,6 +57,8 @@ export struct ImportView {
   @Local selectedLetterIndex: number = 0;
   @Local indexPopupVisible: boolean = false;
   private indexJumping: boolean = false;
+  /** 分组内容版本：变化时强制 ForEach 重建 ListItemGroup，避免大 key 拼接。 */
+  private letterGroupsVersion: number = 0;
 
   private stack: NavPathStack | null = null;
   private scroller: Scroller = new Scroller();
@@ -89,15 +91,11 @@ export struct ImportView {
     }
   }
 
-  private filteredSchools(): SchoolConfig[] {
-    return SchoolRepository.search(this.schools, this.keyword);
-  }
-
   /** 关键字变化/列表加载后重建分组；# 置顶，其余按字母排序。 */
-  private rebuildLetterGroups(): void {
+  private rebuildLetterGroups(keyword: string = this.keyword): void {
     const groups: SchoolLetterGroup[] = [];
     const byLetter: Map<string, SchoolLetterGroup> = new Map<string, SchoolLetterGroup>();
-    const schools: SchoolConfig[] = this.filteredSchools();
+    const schools: SchoolConfig[] = SchoolRepository.search(this.schools, keyword);
     for (let i = 0; i < schools.length; i++) {
       const letter: string = schools[i].tagIndex;
       let group: SchoolLetterGroup | undefined = byLetter.get(letter);
@@ -114,6 +112,7 @@ export struct ImportView {
       return rankA - rankB;
     });
     this.letterGroups = groups;
+    this.letterGroupsVersion += 1;
   }
 
   private indexLetters(): string[] {
@@ -211,7 +210,7 @@ export struct ImportView {
       .onChange((value: string) => {
         this.keyword = value;
         this.selectedLetterIndex = 0;
-        this.rebuildLetterGroups();
+        this.rebuildLetterGroups(value);
       })
   }
 
@@ -242,8 +241,9 @@ export struct ImportView {
   }
 
   @Builder
-  private schoolList(groups: SchoolLetterGroup[]) {
-    ForEach(groups, (group: SchoolLetterGroup) => {
+  private schoolList() {
+    // 直接读取 @Local letterGroups；不要通过 @Builder 参数传入数组，避免参数变化不重绘。
+    ForEach(this.letterGroups, (group: SchoolLetterGroup) => {
       ListItemGroup({ header: this.schoolLetterHeader(group.letter) }) {
         ListItem() {
           SettingsItemGroup() {
@@ -256,7 +256,7 @@ export struct ImportView {
           }
         }
       }
-    }, (group: SchoolLetterGroup) => `school-letter-${group.letter}`)
+    }, (group: SchoolLetterGroup) => `school-letter-${group.letter}-${this.letterGroupsVersion}`)
   }
 
 
@@ -313,7 +313,7 @@ export struct ImportView {
                 })
               }
             } else {
-              this.schoolList(this.letterGroups)
+              this.schoolList()
             }
           }
           .constraintSize({ maxWidth: 800 })
