@@ -1,13 +1,13 @@
 /**
  * 2x2 桌面小组件。
  *
- * - 列表视图：日期/星期随课程列表滚动；条目只保留课程名和地点；
+ * - 列表视图：日期/星期随课程列表滚动；条目显示课程名、时段和地点；
  *   切换按钮固定在右上角；
  * - focus 视图：顶部状态（上课中 / 下一节 / 今天没有课），中间课程名 + 地点，
  *   底部上方进度条、左下时段、右下日期与星期；
  * - 数据由 FormExtensionAbility 现场计算（widget/WidgetDataProvider.ets）。
  */
-import { WidgetDayCourse, WidgetDayPayload, WidgetPalette } from '../WidgetCommon';
+import { WIDGET_TOGGLE_FLIP_MS, WidgetDayCourse, WidgetDayPayload, WidgetPalette } from '../WidgetCommon';
 
 const VIEW_TRANSITION: TransitionEffect =
   TransitionEffect.OPACITY.animation({ duration: 180, curve: Curve.Smooth });
@@ -16,6 +16,7 @@ const VIEW_TRANSITION: TransitionEffect =
 @ComponentV2
 struct Widget2x2 {
   @Local data: string = '';
+  @Local iconAngle: number = 0;
 
   private payload(): WidgetDayPayload | undefined {
     if (this.data === '') {
@@ -124,6 +125,7 @@ struct Widget2x2 {
   }
 
   private toggleView(): void {
+    this.iconAngle += 180;
     postCardAction(this, {
       action: 'message',
       params: { message: 'toggle2x2Focus' }
@@ -132,28 +134,27 @@ struct Widget2x2 {
 
   @Builder
   private switchButton() {
-    // 视觉 24×24，但扩大点击热区到 32×32，避免桌面端小按钮难命中。
+    // 只保留图标，32×32 点击热区避免桌面端小按钮难命中。
     Row() {
-      Row() {
-        SymbolGlyph($r('sys.symbol.arrow_left_arrow_right'))
-          .fontSize(14)
-          .fontColor([this.palette().textSecondary()])
-      }
-      .width(24)
-      .height(24)
-      .borderRadius(12)
-      .backgroundColor(this.palette().surfaceHigh())
-      .justifyContent(FlexAlign.Center)
-      .alignItems(VerticalAlign.Center)
+      SymbolGlyph($r('sys.symbol.arrow_left_arrow_right'))
+        .fontSize(14)
+        .fontColor([this.palette().textSecondary()])
+        .rotate({ angle: this.iconAngle })
+        .animation({ duration: WIDGET_TOGGLE_FLIP_MS, curve: Curve.EaseInOut })
     }
     .width(32)
     .height(32)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(VerticalAlign.Center)
+    // 图标贴右边缘，视觉右边距与卡片左边距一致；32vp 热区仍向左保留。
+    .justifyContent(FlexAlign.End)
+    .alignItems(VerticalAlign.Top)
     .accessibilityText('切换视图')
     .onClick(() => {
       this.toggleView();
     })
+  }
+
+  private courseTime(course: WidgetDayCourse): string {
+    return course.time !== '' ? course.time : course.period;
   }
 
   @Builder
@@ -161,7 +162,7 @@ struct Widget2x2 {
     Row({ space: 8 }) {
       Row()
         .width(3)
-        .height(30)
+        .height(46)
         .borderRadius(2)
         .backgroundColor(course.color)
 
@@ -173,6 +174,14 @@ struct Widget2x2 {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .fontColor(this.palette().textPrimary())
           .width('100%')
+        if (this.courseTime(course) !== '') {
+          Text(this.courseTime(course))
+            .fontSize(10)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .fontColor(this.palette().textSecondary())
+            .width('100%')
+        }
         Text(course.place)
           .fontSize(10)
           .maxLines(1)
@@ -204,8 +213,10 @@ struct Widget2x2 {
               .padding({ right: 40 })
           }
           .width('100%')
-          .height(32)
-          .alignItems(VerticalAlign.Center)
+          // 24vp 标题行 + 8vp List 间距，与 2x4 的标题/空态距离一致；
+          // 切换按钮的 32vp 热区仍覆盖首行右侧。
+          .height(24)
+          .alignItems(VerticalAlign.Top)
         }
 
         if (this.todayCourses().length > 0) {
@@ -267,7 +278,7 @@ struct Widget2x2 {
         this.switchButton()
       }
       .width('100%')
-      .alignItems(VerticalAlign.Center)
+      .alignItems(VerticalAlign.Top)
 
       Column({ space: 4 }) {
         if (this.focusCourse() !== undefined) {
@@ -292,7 +303,8 @@ struct Widget2x2 {
       }
       .width('100%')
       .layoutWeight(1)
-      .justifyContent(FlexAlign.Center)
+      .justifyContent(FlexAlign.Start)
+      .padding({ top: 4 })
       .alignItems(HorizontalAlign.Start)
 
       if (this.focusCourse() !== undefined) {

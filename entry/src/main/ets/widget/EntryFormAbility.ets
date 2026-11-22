@@ -10,6 +10,7 @@ import { Want } from '@kit.AbilityKit';
 import { WidgetDataProvider } from './WidgetDataProvider';
 import { WidgetBoundary } from './WidgetBoundary';
 import { WidgetPreferences } from './WidgetPreferences';
+import { WIDGET_TOGGLE_FLIP_MS } from './WidgetCommon';
 
 export default class EntryFormAbility extends FormExtensionAbility {
   onAddForm(want: Want): formBindingData.FormBindingData {
@@ -30,7 +31,7 @@ export default class EntryFormAbility extends FormExtensionAbility {
     this.handleFormEvent(formId, message);
   }
 
-  /** 2x2 切换按钮：翻转 list / focus 视图并立即刷新卡片。 */
+  /** 2x2 切换按钮：等翻转动画结束后刷新 list / focus 视图。 */
   private async handleFormEvent(formId: string, message: string): Promise<void> {
     let action: string = message;
     try {
@@ -55,11 +56,19 @@ export default class EntryFormAbility extends FormExtensionAbility {
       if (action === 'toggle2x2Focus') {
         const current: string = await WidgetPreferences.getFormView(this.context, formId);
         await WidgetPreferences.setFormView(this.context, formId, current === 'focus' ? 'list' : 'focus');
+        // 等图标完成 180° 翻转后再刷新卡片，避免 Form 更新提前打断动画。
+        await this.delay(WIDGET_TOGGLE_FLIP_MS);
       }
     } catch (err) {
       console.warn(`[EntryFormAbility] form event failed: ${JSON.stringify(err)}`);
     }
     await this.pushForm(formId);
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise<void>((resolve: () => void) => {
+      setTimeout(resolve, ms);
+    });
   }
 
   /** FormExtension 内是唯一的数据计算与卡片推送入口。 */

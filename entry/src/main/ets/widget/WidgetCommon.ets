@@ -6,6 +6,9 @@
  * 避免 2x2/2x4/4x4 三张卡片各写一份（原先 3 份实现已出现色值与 resources/dark 漂移）。
  */
 
+/** 2x2 切换图标翻转时长；Form 推送需等动画完成，避免视图切换打断动画。 */
+export const WIDGET_TOGGLE_FLIP_MS: number = 180;
+
 /** 2x2 / 2x4 卡片里的单门课程（4x4 用 week 结构，单独定义）。 */
 export interface WidgetDayCourse {
   name: string;
