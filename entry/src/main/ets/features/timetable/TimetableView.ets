@@ -34,7 +34,7 @@ import { WeekUtil } from '../../data/WeekUtil';
 import { CourseGroups } from '../../data/CourseGroups';
 import { CourseDeleteFlow } from '../courses/CourseDeleteFlow';
 import { ShellRouter } from '../../common/ShellRouter';
-import { contentSheetOptions } from '../../common/ui/SheetOptions';
+import { contentSheetOptions, SheetBackCoordinator } from '../../common/ui/SheetOptions';
 import {
   BackToCurrentWeekButton,
   FreeCourseEntryButton,
@@ -100,6 +100,8 @@ export struct TimetableView {
   @Local detailShown: boolean = false;
   @Local detailCourse: Course = new Course();
   @Local multiShown: boolean = false;
+  private multiSheetBack: SheetBackCoordinator = new SheetBackCoordinator();
+  private freeSheetBack: SheetBackCoordinator = new SheetBackCoordinator();
   @Local multiGroup: Course[] = [];
   /** 底部「切换课表」半模态：课表列表 / 待确认的课表 / 待确认的周次。 */
   @Local sheetTables: CourseTable[] = [];
@@ -552,6 +554,7 @@ export struct TimetableView {
     CourseListSheetContent({
       title: '同一时段有多个课程', courses: this.multiGroup,
       periods: this.periods, pool: this.pool,
+      backCoordinator: this.multiSheetBack,
       onEdit: (course: Course) => { this.openEdit(course); },
       onDelete: (course: Course) => { this.confirmDelete(course); },
       onClose: () => { this.multiShown = false; }
@@ -563,6 +566,7 @@ export struct TimetableView {
     CourseListSheetContent({
       title: '自由时间课程', emptyText: '本周没有自由时间课程',
       courses: this.freeCourses, periods: this.periods, pool: this.pool,
+      backCoordinator: this.freeSheetBack,
       onEdit: (course: Course) => { this.openEdit(course); },
       onDelete: (course: Course) => { this.confirmDelete(course); },
       onClose: () => { this.freeCourseSheetShown = false; }
@@ -739,7 +743,8 @@ export struct TimetableView {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.multiShown, this.multiSheetContent(), contentSheetOptions(this.store.breakpoint))
+      .bindSheet($$this.multiShown, this.multiSheetContent(),
+        contentSheetOptions(this.store.breakpoint, this.multiSheetBack))
 
       Stack() {
       }
@@ -751,7 +756,8 @@ export struct TimetableView {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.freeCourseSheetShown, this.freeCourseSheetContent(), contentSheetOptions(this.store.breakpoint))
+      .bindSheet($$this.freeCourseSheetShown, this.freeCourseSheetContent(),
+        contentSheetOptions(this.store.breakpoint, this.freeSheetBack))
     }
     .width('100%')
     .height('100%')

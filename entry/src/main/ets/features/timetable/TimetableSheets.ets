@@ -27,6 +27,7 @@ import { ColorPool } from '../../data/ColorPool';
 import { Course, CourseTable } from '../../data/models/Models';
 import { WeeksFormat } from './WeeksFormat';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
+import { SheetBackCoordinator } from '../../common/ui/SheetOptions';
 
 /** 未选中课表胶囊的系统材质；选中项按主题色单独生成。 */
 const TABLE_CAPSULE_MATERIAL: uiMaterial.ImmersiveMaterial = new uiMaterial.ImmersiveMaterial({
@@ -393,6 +394,8 @@ export struct CourseListSheetContent {
   @Param pool: number[] = [];
   @Local showDetail: boolean = false;
   @Local detailCourse: Course = new Course();
+  /** 半模态层的系统返回协调器（列表 → 详情 → 列表）。 */
+  @Param backCoordinator: SheetBackCoordinator | undefined = undefined;
   @Event onEdit: (course: Course) => void = () => {
   };
   @Event onDelete: (course: Course) => void = () => {
@@ -400,17 +403,40 @@ export struct CourseListSheetContent {
   @Event onClose: () => void = () => {
   };
 
+  private syncBackCoordinator(): void {
+    if (this.backCoordinator !== undefined) {
+      this.backCoordinator.canGoBack = this.showDetail;
+    }
+  }
+
+  aboutToAppear(): void {
+    if (this.backCoordinator !== undefined) {
+      this.backCoordinator.goBack = () => {
+        this.closeDetail();
+      };
+      this.syncBackCoordinator();
+    }
+  }
+
+  aboutToDisappear(): void {
+    if (this.backCoordinator !== undefined) {
+      this.backCoordinator.canGoBack = false;
+    }
+  }
+
   private openDetail(course: Course): void {
     this.getUIContext().animateTo({ duration: 200, curve: Curve.Smooth }, () => {
       this.detailCourse = course;
       this.showDetail = true;
     });
+    this.syncBackCoordinator();
   }
 
   private closeDetail(): void {
     this.getUIContext().animateTo({ duration: 180, curve: Curve.Smooth }, () => {
       this.showDetail = false;
     });
+    this.syncBackCoordinator();
   }
 
   @Builder

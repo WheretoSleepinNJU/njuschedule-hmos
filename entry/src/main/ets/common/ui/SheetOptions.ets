@@ -18,12 +18,25 @@ function preferTypeFor(breakpoint: string): SheetType {
 }
 
 /**
+ * 半模态内部二级页返回协调器。
+ * 系统返回会先触发 bindSheet 的 onWillDismiss，而不是内部 NavDestination.onBackPressed；
+ * 内容层把自己的二级页状态登记到这里，半模态层据此决定“返回上一级”还是关闭面板。
+ * 参考：HarmonyOS FAQ faqs-arkui-1491、代码工坊 MineSettingView（sheet 内嵌 Navigation）。
+ */
+export class SheetBackCoordinator {
+  canGoBack: boolean = false;
+  goBack: () => void = () => {
+  };
+}
+
+/**
  * 内容型半模态：FIT_CONTENT + 可拖动关闭 + 统一遮罩/背景。
  *
  * 显隐状态由 bindSheet 的 $$ 双向绑定维护；不在 onDisappear 里重复置 false，
  * 否则关闭动画结束时的旧回调可能覆盖刚发起的新一次打开。
  */
-export function contentSheetOptions(breakpoint: string): SheetOptions {
+export function contentSheetOptions(breakpoint: string,
+  backCoordinator?: SheetBackCoordinator): SheetOptions {
   return {
     height: SheetSize.FIT_CONTENT,
     dragBar: true,
@@ -31,6 +44,12 @@ export function contentSheetOptions(breakpoint: string): SheetOptions {
     preferType: preferTypeFor(breakpoint),
     maskColor: Colors.Scrim,
     onWillDismiss: (action: DismissSheetAction) => {
+      // 系统返回：有二级页时回二级页；否则按默认行为关闭半模态。
+      if (action.reason === DismissReason.PRESS_BACK &&
+        backCoordinator !== undefined && backCoordinator.canGoBack) {
+        backCoordinator.goBack();
+        return;
+      }
       action.dismiss();
     },
     backgroundColor: Colors.Background
