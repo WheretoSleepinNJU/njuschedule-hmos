@@ -8,7 +8,7 @@
  * - WeekPickerSheetContent：切换课表 + 课程周数。
  */
 import { AppStore } from '../../app/AppStore';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI';
 import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import {
   HdsNavDestination,
@@ -16,15 +16,25 @@ import {
   HdsNavigation,
   HdsNavigationMenuContentOptions,
   HdsNavigationTitleBarOptions,
-  IconStyleMode
+  IconStyleMode,
+  hdsMaterial,
+  ScrollEffectType
 } from '@kit.UIDesignKit';
 import { ClassPeriod, LegacyConfig } from '../../common/Constants';
-import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
+import { Colors, FontSize, HdsMetrics, Radius, Spacing, TimetableMetrics } from '../../common/design/Tokens';
 import { IS_2IN1 } from '../../common/DeviceType';
 import { ColorPool } from '../../data/ColorPool';
 import { Course, CourseTable } from '../../data/models/Models';
 import { WeeksFormat } from './WeeksFormat';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
+
+/** 未选中课表胶囊的系统材质；选中项按主题色单独生成。 */
+const TABLE_CAPSULE_MATERIAL: uiMaterial.ImmersiveMaterial = new uiMaterial.ImmersiveMaterial({
+  style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+  interactive: true,
+  lightEffect: {},
+  applyShadow: false
+});
 
 /**
  * 半模态统一外壳：HDS 标题栏（左关闭 / 标题 / 右菜单）+ 统一滚动与 edge effect。
@@ -39,6 +49,8 @@ export struct HdsSheetFrame {
   @Param fillHeight: boolean = false;
   /** 可选的 HDS 标题栏右侧菜单。 */
   @Param menu: HdsNavigationMenuContentOptions | undefined = undefined;
+  /** 标题栏底部附加区域高度；>0 时显示 bottomBar。 */
+  @Param bottomBarHeight: number = 0;
   /** true：标题栏左侧显示返回箭头，用于同一半模态内页面切换。 */
   @Param showBack: boolean = false;
   @Event onClose: () => void = () => {
@@ -46,6 +58,7 @@ export struct HdsSheetFrame {
   @Event onBack: () => void = () => {
   };
   @BuilderParam content: () => void = this.emptyContent;
+  @Param bottomBar: (() => void) | undefined = undefined;
 
   private sheetNav: NavPathStack = new NavPathStack();
   private scroller: Scroller = new Scroller();
@@ -87,6 +100,25 @@ export struct HdsSheetFrame {
     }
     if (this.menu !== undefined) {
       options.content!.menu = this.menu;
+    }
+    if (this.bottomBarHeight > 0) {
+      // 胶囊常驻标题栏，并让标题栏用沉浸光感材质；不再作为正文里的普通 Row。
+      options.style!.scrollEffectOpts = {
+        enableScrollEffect: true,
+        scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR
+      };
+      options.style!.systemMaterialEffect = {
+        materialType: hdsMaterial.MaterialType.IMMERSIVE,
+        materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+      };
+      options.content!.bottomBuilder = {
+        builder: () => {
+          if (this.bottomBar !== undefined) {
+            this.bottomBar();
+          }
+        },
+        height: this.bottomBarHeight
+      };
     }
     return options;
   }
@@ -509,27 +541,59 @@ export struct WeekPickerSheetContent {
     };
   }
 
+  private selectedCapsuleMaterial(): uiMaterial.ImmersiveMaterial {
+    return new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.THIN,
+      materialColor: this.store.accentSoft,
+      interactive: true,
+      lightEffect: {},
+      applyShadow: false
+    });
+  }
+
+  @Builder
+  private tableCapsules() {
+    Scroll() {
+      Row({ space: Spacing.Sm }) {
+        ForEach(this.tables, (table: CourseTable) => {
+          Button({ type: ButtonType.Capsule }) {
+            Text(table.name)
+              .fontSize(FontSize.BodySm)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(table.id === this.selectedTableId ?
+                this.store.accentDisplay : Colors.TextSecondary)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .constraintSize({ maxWidth: TimetableMetrics.TableCapsuleMaxWidth })
+          }
+          .padding({ left: Spacing.Lg, right: Spacing.Lg, top: Spacing.Sm, bottom: Spacing.Sm })
+          // 材质不支持时回退到实色；支持时 systemMaterial 会覆盖背景。
+          .backgroundColor(table.id === this.selectedTableId ?
+            this.store.accentDisplay : Colors.SurfaceHigh)
+          .borderRadius(Radius.Round)
+          .systemMaterial(table.id === this.selectedTableId
+            ? this.selectedCapsuleMaterial() : TABLE_CAPSULE_MATERIAL)
+          .accessibilityText(table.name)
+          .onClick(() => {
+            this.onSelectTable(table.id);
+          })
+        }, (table: CourseTable) => `sheet-table-${table.id}`)
+      }
+      .height('100%')
+      .alignItems(VerticalAlign.Center)
+      .padding({ left: Spacing.Xl, right: Spacing.Xl })
+    }
+    .width('100%')
+    .height('100%')
+    .align(Alignment.Start)
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+  }
+
   @Builder
   private pickerBody() {
     Column({ space: Spacing.Lg }) {
-      Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-        ForEach(this.tables, (table: CourseTable) => {
-          Text(table.name)
-            .fontSize(FontSize.BodySm)
-            .fontColor(table.id === this.selectedTableId ?
-              this.store.accentOn : Colors.TextSecondary)
-            .padding({ left: Spacing.Lg, right: Spacing.Lg, top: Spacing.Sm, bottom: Spacing.Sm })
-            .backgroundColor(table.id === this.selectedTableId ?
-              this.store.accentDisplay : Colors.SurfaceHigh)
-            .borderRadius(Radius.Round)
-            .margin({ right: Spacing.Sm, bottom: Spacing.Sm })
-            .onClick(() => {
-              this.onSelectTable(table.id);
-            })
-        }, (table: CourseTable) => `sheet-table-${table.id}`)
-      }
-      .width('100%')
-
       Text('课程周数')
         .fontSize(FontSize.Title)
         .fontWeight(FontWeight.Bold)
@@ -568,8 +632,11 @@ export struct WeekPickerSheetContent {
   build() {
     HdsSheetFrame({
       title: '切换课表',
-      fillHeight: true,
       menu: this.menuOptions(),
+      bottomBarHeight: TimetableMetrics.TableCapsuleBarHeight,
+      bottomBar: () => {
+        this.tableCapsules();
+      },
       onClose: () => {
         this.onClose();
       }

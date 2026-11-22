@@ -1,8 +1,7 @@
 /**
  * 半模态统一配置。
  *
- * 内容型半模态按内容高度自适应，内部 Scroll 负责超长内容滚动；
- * 切换课表等工具型半模态使用 LARGE 高度。
+ * 半模态按内容高度自适应，内部 Scroll 负责超长内容滚动。
  */
 import { Colors } from '../design/Tokens';
 import { BreakpointName } from '../design/Breakpoints';
@@ -28,21 +27,6 @@ export function contentSheetOptions(breakpoint: string): SheetOptions {
   return {
     height: SheetSize.FIT_CONTENT,
     dragBar: true,
-    showClose: false,
-    preferType: preferTypeFor(breakpoint),
-    maskColor: Colors.Scrim,
-    onWillDismiss: (action: DismissSheetAction) => {
-      action.dismiss();
-    },
-    backgroundColor: Colors.Background
-  };
-}
-
-/** 工具栏型半模态：固定 LARGE 高度。 */
-export function pickerSheetOptions(breakpoint: string): SheetOptions {
-  return {
-    height: SheetSize.LARGE,
-    dragBar: false,
     showClose: false,
     preferType: preferTypeFor(breakpoint),
     maskColor: Colors.Scrim,

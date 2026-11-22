@@ -34,7 +34,7 @@ import { WeekUtil } from '../../data/WeekUtil';
 import { CourseGroups } from '../../data/CourseGroups';
 import { CourseDeleteFlow } from '../courses/CourseDeleteFlow';
 import { ShellRouter } from '../../common/ShellRouter';
-import { contentSheetOptions, pickerSheetOptions } from '../../common/ui/SheetOptions';
+import { contentSheetOptions } from '../../common/ui/SheetOptions';
 import {
   BackToCurrentWeekButton,
   FreeCourseEntryButton,
@@ -745,7 +745,7 @@ export struct TimetableView {
       }
       .width(0)
       .height(0)
-      .bindSheet($$this.store.weekPickerOpen, this.weekPickerSheetContent(), pickerSheetOptions(this.store.breakpoint))
+      .bindSheet($$this.store.weekPickerOpen, this.weekPickerSheetContent(), contentSheetOptions(this.store.breakpoint))
 
       Stack() {
       }
