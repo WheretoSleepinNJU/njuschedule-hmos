@@ -62,9 +62,9 @@ struct Index {
   private pageStack: NavPathStack = new NavPathStack();
   private tabLabels: string[] = ['课表', '课程', '设置'];
   private tabIcons: Resource[] = [
-    $r('sys.symbol.calendar'),
-    $r('sys.symbol.book'),
-    $r('sys.symbol.gearshape')
+    $r('sys.symbol.calendar_fill'),
+    $r('sys.symbol.book_open_fill'),
+    $r('sys.symbol.gearshape_fill')
   ];
   /** 2in1/PC 使用侧边导航；平板和手机保留底部胶囊。 */
   private readonly is2in1: boolean = IS_2IN1;
@@ -375,7 +375,7 @@ struct Index {
         })
       }
     }
-    .tabBar(this.bottomTabBar($r('sys.symbol.calendar'), this.tabLabels[0]))
+    .tabBar(this.bottomTabBar(this.tabIcons[0], this.tabLabels[0]))
 
     TabContent() {
       HdsTabPage({
@@ -387,7 +387,7 @@ struct Index {
           tableId: this.store.tableId, scroller: this.coursesScroller })
       }
     }
-    .tabBar(this.bottomTabBar($r('sys.symbol.book'), this.tabLabels[1]))
+    .tabBar(this.bottomTabBar(this.tabIcons[1], this.tabLabels[1]))
 
     TabContent() {
       HdsTabPage({
@@ -397,7 +397,7 @@ struct Index {
         SettingsView({ pageStack: this.pageStack, scroller: this.settingsScroller })
       }
     }
-    .tabBar(this.bottomTabBar($r('sys.symbol.gearshape'), this.tabLabels[2]))
+    .tabBar(this.bottomTabBar(this.tabIcons[2], this.tabLabels[2]))
   }
 
   @Builder
@@ -413,8 +413,11 @@ struct Index {
     // 悬浮胶囊页签栏：需要 barOverlap(true) 才能浮在内容之上
     .barOverlap(true)
     .barFloatingStyle({
+      adaptToHandedness: true,
       barWidth: { smallWidth: 220, mediumWidth: 300, largeWidth: 360 },
-      barBottomMargin: Math.max(px2vp(this.store.windowBottomInset) + 8, 24),
+      // 对齐代码工坊：底部导航只避让系统导航条，无导航条时保留 8vp。
+      barBottomMargin: this.store.windowBottomInset > 0 ?
+        px2vp(this.store.windowBottomInset) : Spacing.Sm,
       systemMaterialEffect: {
         materialType: hdsMaterial.MaterialType.IMMERSIVE,
         materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
