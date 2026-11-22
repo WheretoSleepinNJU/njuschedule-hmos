@@ -49,7 +49,7 @@ export class SchoolConfig {
   isGrey: boolean = false;
   /** `isGrey3.1.0`：true 表示当前版本置灰不可点。 */
   disabled: boolean = false;
-  /** `pinyin[0].toUpperCase()`；旧版用它做分组索引。 */
+  /** 分组索引：pinyin 首字符为 A-Z 时取大写，否则归入 #。 */
   tagIndex: string = '#';
   /** `extractJsFileOHOS` 的文件名（rawfile 内置脚本按这个名字找）。 */
   toolFileName: string = '';
@@ -81,7 +81,9 @@ export class SchoolConfig {
     config.semesterStartMonday = readText(raw, 'semester_start_monday');
     config.isGrey = readBool(raw, 'isGrey', false);
     config.disabled = readBool(raw, 'isGrey3.1.0', false);
-    config.tagIndex = config.pinyin.length > 0 ? config.pinyin.substring(0, 1).toUpperCase() : '#';
+    const first: string = config.pinyin.length > 0 ? config.pinyin.substring(0, 1).toUpperCase() : '';
+    // 学校列表用 1/2 等数字前缀调整排序（如南京大学），这些不应成为字母分组。
+    config.tagIndex = first.length === 1 && first >= 'A' && first <= 'Z' ? first : '#';
     config.toolFileName = SchoolConfig.fileNameFromUrl(config.extractJsFileOHOS);
 
     // class_time_list 结构是 [{start,end}]，不展开，只保存原始 JSON 文本。
