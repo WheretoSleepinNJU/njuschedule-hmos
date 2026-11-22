@@ -12,6 +12,7 @@ rmSync(outdir, { recursive: true, force: true });
 await build({
   entryPoints: [
     'entry/src/main/ets/common/DateUtils.ets',
+    'entry/src/main/ets/data/ColorAssignment.ets',
     'entry/src/main/ets/data/ShareCodec.ets',
     'entry/src/main/ets/features/import/SemesterStartResolver.ets'
   ].map((file) => path.join(root, file)),

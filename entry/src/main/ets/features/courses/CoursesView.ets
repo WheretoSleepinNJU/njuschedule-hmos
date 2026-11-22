@@ -81,6 +81,7 @@ export struct CoursesView {
     try {
       const pool: number[] = await ColorPool.get();
       const courses: Course[] = await CourseRepository.getAll(tableId);
+      ColorPool.prepare(courses, pool);
       this.groups = CourseFormat.group(courses, pool);
       this.groupsSource.setData(this.groups);
       this.loadError = '';

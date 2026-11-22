@@ -103,6 +103,16 @@ export struct TimetableWeekPage {
     .width(TimetableMetrics.TimeColumnWidth)
   }
 
+  /** 日期列的 ForEach key：颜色/位置/高度/冲突变化时必须重建，否则配色池切换不会热更新。 */
+  private dayKey(blocks: LayoutBlock[], dayIndex: number): string {
+    let key: string = `col-${this.week}-${dayIndex}-${this.classHeight}`;
+    for (let i = 0; i < blocks.length; i++) {
+      const block: LayoutBlock = blocks[i];
+      key += `|${block.key},${block.color},${block.y},${block.h},${block.faded},${block.conflictCount}`;
+    }
+    return key;
+  }
+
   @Builder
   private grid() {
     Stack({ alignContent: Alignment.TopStart }) {
@@ -150,8 +160,7 @@ export struct TimetableWeekPage {
           }
           .layoutWeight(1)
           .height(this.gridHeight)
-        }, (blocks: LayoutBlock[], dayIndex: number) =>
-          `col-${this.week}-${blocks.length}-${this.classHeight}-${dayIndex}`)
+        }, (blocks: LayoutBlock[], dayIndex: number) => this.dayKey(blocks, dayIndex))
       }
       .width('100%')
       .height(this.gridHeight)

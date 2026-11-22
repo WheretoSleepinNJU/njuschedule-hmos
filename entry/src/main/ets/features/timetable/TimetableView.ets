@@ -250,6 +250,7 @@ export struct TimetableView {
       }
       const courses: Course[] = await CourseRepository.getAll(this.store.tableId);
       hilog.info(0x0000, 'NjuTable', 'courses=%{public}d ch=%{public}d', courses.length, this.store.classHeight);
+      ColorPool.prepare(courses, this.pool);
       this.allCourses = courses;
       this.blocksCache.clear();
       this.blocksCacheSignature = '';
@@ -352,7 +353,8 @@ export struct TimetableView {
   }
 
   private blocksSignature(): string {
-    return `${this.allCourses.length}|${this.store.classHeight}|${this.store.showWeekend}|${this.pool.length}`;
+    return `${this.allCourses.length}|${this.store.classHeight}|${this.store.showWeekend}|`
+      + `${ColorPool.currentPalette().id}|${this.pool.join(',')}`;
   }
 
   /** 按周缓存布局块；课高/周末显示/数据变化时整表失效。 */

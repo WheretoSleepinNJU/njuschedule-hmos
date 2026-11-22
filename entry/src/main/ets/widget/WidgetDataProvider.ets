@@ -13,6 +13,7 @@ import { preferences, relationalStore } from '@kit.ArkData';
 import { LegacyConstant } from '../common/Constants';
 import { Course } from '../data/models/Models';
 import { CourseColorPalettes } from '../data/CourseColorPalettes';
+import { ColorAssignment } from '../data/ColorAssignment';
 import { ScheduleModel } from '../data/ScheduleModel';
 import { WidgetPreferences } from './WidgetPreferences';
 
@@ -101,16 +102,18 @@ export class WidgetCardPayload {
   updatedAt: string = '';
 }
 
-/** 与主应用 ColorPool 完全一致的课程取色上下文（色池、配色池预设、随机种子）。 */
+/** 与主应用共用 ColorAssignment 的课程取色上下文（色池、配色池预设、随机种子）。 */
 class WidgetCourseColors {
   private readonly palette: string[];
   private readonly pool: number[];
   private readonly seed: number;
+  private readonly assignments: Map<string, number>;
 
-  constructor(palette: string[], pool: number[], seed: number) {
+  constructor(palette: string[], pool: number[], seed: number, courses: Course[]) {
     this.palette = palette;
     this.pool = pool;
     this.seed = seed;
+    this.assignments = ColorAssignment.build(courses, pool, seed);
   }
 
   resolve(course: Course): string {
@@ -124,14 +127,11 @@ class WidgetCourseColors {
     if (course.courseId < 0 || this.pool.length === 0 || this.palette.length === 0) {
       return this.palette.length > 0 ? this.palette[0] : '#8AD297';
     }
-    let poolIndex: number = 0;
-    if (this.seed === 0) {
-      poolIndex = this.pool[course.courseId % this.pool.length];
-    } else {
-      let mixed: number = Math.imul(course.courseId + 1, 2654435761) + this.seed;
-      mixed = mixed ^ (mixed >>> 15);
-      poolIndex = this.pool[(mixed >>> 0) % this.pool.length];
+    const assigned: number = ColorAssignment.colorOf(this.assignments, course);
+    if (assigned >= 0 && assigned < this.palette.length) {
+      return this.palette[assigned];
     }
+    const poolIndex: number = ColorAssignment.fallbackColor(course, this.pool, this.seed);
     return this.palette[poolIndex >= 0 && poolIndex < this.palette.length ? poolIndex : 0];
   }
 }
@@ -169,7 +169,7 @@ export class WidgetDataProvider {
 
     const courses: Course[] = await WidgetDataProvider.readCourses(context, tableId);
     const periods: ClassPeriodLike[] = await WidgetDataProvider.readPeriods(context, tableId);
-    const colors: WidgetCourseColors = await WidgetDataProvider.readCourseColors(store);
+    const colors: WidgetCourseColors = await WidgetDataProvider.readCourseColors(store, courses);
     payload.periods = WidgetDataProvider.buildPeriods(periods);
     const showWeekendRaw: preferences.ValueType = await store.get('showWeekend', false);
     payload.showWeekend = typeof showWeekendRaw === 'boolean' ? showWeekendRaw : false;
@@ -622,12 +622,13 @@ export class WidgetDataProvider {
     }
   }
 
-  private static async readCourseColors(store: preferences.Preferences): Promise<WidgetCourseColors> {
+  private static async readCourseColors(store: preferences.Preferences,
+    courses: Course[]): Promise<WidgetCourseColors> {
     const paletteId: string = WidgetDataProvider.toStr(await store.get('colorPalette', CourseColorPalettes.DEFAULT_ID));
     const palette: string[] = CourseColorPalettes.get(paletteId).colors;
     const pool: number[] = WidgetDataProvider.parsePool(WidgetDataProvider.toStr(await store.get('colorPool', '')));
     const seed: number = WidgetDataProvider.toInt(await store.get('colorPoolSeed', 0), 0);
-    return new WidgetCourseColors(palette, pool, seed);
+    return new WidgetCourseColors(palette, pool, seed, courses);
   }
 
   private static colStr(resultSet: relationalStore.ResultSet, column: string): string {

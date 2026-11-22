@@ -6,7 +6,7 @@
  * - 水彩：清透水彩色系；
  * - 马卡龙：清甜低饱和。
  *
- * 课程最终颜色 = 当前色池中按 courseId + 随机种子散列取一项。
+ * 课程最终颜色 = 当前色池按课表做多轮不放回分配后的色位。
  */
 import { LegacyCourseColors } from '../common/Constants';
 
