@@ -26,6 +26,7 @@ import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSu
 import { ShellRouter } from '../../common/ShellRouter';
 import { NameDialog } from './NameDialog';
 import { CustomDialogController } from '../../common/ui/CustomDialogController';
+import { Haptics } from '../../common/ui/Haptics';
 import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
 
 /** 课表行高度与行内图标尺寸；拖拽阈值、分隔线缩进和卡片高度统一引用。 */
@@ -166,6 +167,7 @@ export struct ManageTablesPage {
     if (this.draggingId >= 0) {
       return;
     }
+    Haptics.longPress();
     this.orderDirty = false;
     this.getUIContext().animateTo({ curve: Curve.Friction, duration: 180 }, () => {
       this.draggingId = table.id;

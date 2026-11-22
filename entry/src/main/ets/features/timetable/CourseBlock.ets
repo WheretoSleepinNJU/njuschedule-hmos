@@ -9,6 +9,7 @@
 import { AppStore } from '../../app/AppStore';
 import { Course } from '../../data/models/Models';
 import { CourseBlockColors, FontSize, Radius } from '../../common/design/Tokens';
+import { Haptics } from '../../common/ui/Haptics';
 
 @ReusableV2
 @ComponentV2
@@ -162,6 +163,7 @@ export struct CourseBlock {
       this.onTap();
     })
     .gesture(LongPressGesture({ repeat: false }).onAction(() => {
+      Haptics.longPress();
       this.onLongPress();
     }))
   }

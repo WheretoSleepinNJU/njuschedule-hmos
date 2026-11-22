@@ -6,6 +6,7 @@ import { AppStore } from '../../app/AppStore';
 import { Colors, FontSize, Radius, Spacing } from '../../common/design/Tokens';
 import { BackgroundImage, CustomBackground } from '../../data/BackgroundImage';
 import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
+import { Haptics } from '../../common/ui/Haptics';
 
 const THUMB_WIDTH: number = 72;
 const THUMB_HEIGHT: number = 108;
@@ -91,7 +92,7 @@ export struct CustomBackgroundCard {
 
   // 触发方式由框架传入；长按和右键共用同一菜单，保留参数以匹配 CustomBuilderT<ResponseType>。
   @Builder
-  private menu(_responseType: ResponseType): void {
+  private menu(responseType: ResponseType): void {
     Menu() {
       MenuItem({ content: '重命名' })
         .onClick(this.onRename)
@@ -100,6 +101,12 @@ export struct CustomBackgroundCard {
         .onClick(this.onDelete)
     }
     .menuItemDivider(menuItemDividerStyle())
+    // 以菜单真正出现为时机振动；右键菜单不振动。
+    .onAppear(() => {
+      if (responseType === ResponseType.LongPress) {
+        Haptics.longPress();
+      }
+    })
   }
 
   build() {
