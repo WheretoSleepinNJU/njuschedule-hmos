@@ -159,6 +159,7 @@ export struct CourseBlock {
     .height(this.heightPx)
     .borderRadius(Radius.Sm)
     .clip(true)
+    .clickEffect({ level: ClickEffectLevel.LIGHT })
     .onClick(() => {
       this.onTap();
     })
