@@ -47,6 +47,10 @@
     {
       "name": "calendar_permission_reason",
       "value": "用于将课程导入「呢喃课表」系统日历账户"
+    },
+    {
+      "name": "smart_reach_reason",
+      "value": "用于识别左右手握持状态，使课表页浮动按钮跟随握持手侧显示"
     }
   ]
 }

@@ -20,6 +20,14 @@
         "name": "ohos.permission.VIBRATE"
       },
       {
+        "name": "ohos.permission.DETECT_GESTURE",
+        "reason": "$string:smart_reach_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
+      },
+      {
         "name": "ohos.permission.READ_CALENDAR",
         "reason": "$string:calendar_permission_reason",
         "usedScene": {

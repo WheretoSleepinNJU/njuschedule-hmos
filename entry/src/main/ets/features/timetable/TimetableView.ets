@@ -13,7 +13,9 @@
  * 展示零件与数据源见 TimetableViewParts.ets，四个半模态内容见 TimetableSheets.ets。
  */
 import { Feedback } from '../../common/ui/Feedback';
+import { curves } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { motion } from '@kit.MultimodalAwarenessKit';
 import { image } from '@kit.ImageKit';
 import { AppState } from '../../app/AppState';
 import { AppStore } from '../../app/AppStore';
@@ -43,6 +45,9 @@ import {
 import { LayoutBlock, TimetableWeekPage } from './TimetableWeekPage';
 import { CourseListSheetContent, DetailSheetContent, WeekPickerSheetContent } from './TimetableSheets';
 
+/** 浮动操作组的固定宽度（自由时间按钮含外扩徽标）。 */
+const FLOATING_ACTIONS_WIDTH: number = 64;
+
 @ComponentV2
 export struct TimetableView {
   /** V2 全局 Store（主题色 / 背景图 / 课表与周次 / 显示配置）。 */
@@ -71,6 +76,18 @@ export struct TimetableView {
 
   /** 自由时间课程半模态开关（由右下角时钟按钮打开）。 */
   @Local freeCourseSheetShown: boolean = false;
+  /** 智感握姿：浮动按钮吸附在右手侧还是左手侧。 */
+  @Local isFloatingRight: boolean = true;
+  /** 智感握姿订阅状态，避免页面复用时重复注册。 */
+  private smartReachBound: boolean = false;
+  private readonly holdingHandCallback: Callback<motion.HoldingHandStatus> =
+    (status: motion.HoldingHandStatus): void => {
+      if (status === motion.HoldingHandStatus.LEFT_HAND_HELD) {
+        this.setFloatingSide(false);
+      } else if (status === motion.HoldingHandStatus.RIGHT_HAND_HELD) {
+        this.setFloatingSide(true);
+      }
+    };
 
   @Local loading: boolean = true;
   @Local periods: ClassPeriod[] = [];
@@ -97,13 +114,71 @@ export struct TimetableView {
     this.todayWeekday = DateUtils.weekdayOneBased(new Date());
     this.loadBackground();
     this.reload();
+    if (this.active) {
+      this.bindSmartReach();
+    }
+  }
+
+  aboutToDisappear(): void {
+    this.unbindSmartReach();
   }
 
   @Monitor('active')
   private onActiveChanged(_monitor: IMonitor): void {
+    if (this.active) {
+      this.bindSmartReach();
+      return;
+    }
+    this.unbindSmartReach();
     // 离开课表时先轮播到下一张，返回时代码与图片都已就绪，避免进入瞬间旧图一闪而过。
-    if (!this.active) {
-      this.rotateBackgroundOnLeave();
+    this.rotateBackgroundOnLeave();
+  }
+
+  /** 在界面内平移浮动按钮，而不是从屏幕外侧移入/移出。 */
+  private setFloatingSide(right: boolean): void {
+    if (this.isFloatingRight === right) {
+      return;
+    }
+    this.getUIContext().animateTo({
+      curve: curves.interpolatingSpring(0, 1, 170, 17)
+    }, () => {
+      this.isFloatingRight = right;
+    });
+  }
+
+  /** 距离左侧的位移：右手侧时让 64vp 宽的按钮组右边缘保留 Spacing.Lg。 */
+  private floatingTranslateX(): number {
+    if (!this.isFloatingRight) {
+      return 0;
+    }
+    const width: number = px2vp(this.store.windowWidth);
+    return Math.max(0, width - FLOATING_ACTIONS_WIDTH - Spacing.Lg * 2);
+  }
+
+  private bindSmartReach(): void {
+    if (this.smartReachBound) {
+      return;
+    }
+    try {
+      if (!canIUse('SystemCapability.MultimodalAwareness.Motion')) {
+        return;
+      }
+      motion.on('holdingHandChanged', this.holdingHandCallback);
+      this.smartReachBound = true;
+    } catch (err) {
+      console.warn(`[Timetable] smart reach unavailable: ${JSON.stringify(err)}`);
+    }
+  }
+
+  private unbindSmartReach(): void {
+    if (!this.smartReachBound) {
+      return;
+    }
+    this.smartReachBound = false;
+    try {
+      motion.off('holdingHandChanged', this.holdingHandCallback);
+    } catch (err) {
+      console.warn(`[Timetable] smart reach unbind failed: ${JSON.stringify(err)}`);
     }
   }
 
@@ -505,6 +580,31 @@ export struct TimetableView {
     })
   }
 
+  @Builder
+  private floatingActions() {
+    // 自由时间按钮的徽标向外突出，外层容器比 Home 按钮宽 12vp；
+    // 统一右对齐后两个圆形按钮的中心线才会一致。
+    Column({ space: Spacing.Md }) {
+      if (this.store.tmpWeekIndex !== this.store.weekIndex) {
+        BackToCurrentWeekButton({
+          onTap: (): void => {
+            this.backToCurrentWeek();
+          }
+        })
+      }
+      if (this.store.showFreeClass && this.freeCourses.length > 0) {
+        FreeCourseEntryButton({
+          count: this.freeCourses.length,
+          onTap: (): void => {
+            this.freeCourseSheetShown = true;
+          }
+        })
+      }
+    }
+    .width(FLOATING_ACTIONS_WIDTH)
+    .alignItems(HorizontalAlign.End)
+  }
+
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       // 背景图（若有）+ 半透明遮罩，保证网格与文字可读
@@ -614,26 +714,13 @@ export struct TimetableView {
       // 右下角浮动按钮：回到本周（仅划离本周时显示）在自由时间课程入口上方
       if (this.store.tmpWeekIndex !== this.store.weekIndex ||
         (this.store.showFreeClass && this.freeCourses.length > 0)) {
-        Column({ space: Spacing.Md }) {
-          if (this.store.tmpWeekIndex !== this.store.weekIndex) {
-            BackToCurrentWeekButton({
-              onTap: (): void => {
-                this.backToCurrentWeek();
-              }
-            })
-          }
-          if (this.store.showFreeClass && this.freeCourses.length > 0) {
-            FreeCourseEntryButton({
-              count: this.freeCourses.length,
-              onTap: (): void => {
-                this.freeCourseSheetShown = true;
-              }
-            })
-          }
+        Column() {
+          this.floatingActions()
         }
         .width('100%')
-        .alignItems(HorizontalAlign.End)
-        .padding({ right: Spacing.Lg })
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: Spacing.Lg })
+        .translate({ x: this.floatingTranslateX() })
         .margin({ bottom: px2vp(this.store.windowBottomInset) + 88 })
         .hitTestBehavior(HitTestMode.Transparent)
       }
