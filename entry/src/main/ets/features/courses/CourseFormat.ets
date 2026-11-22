@@ -9,6 +9,7 @@
  * 展示口径统一走 `features/timetable/WeeksFormat`（周次摘要 / 节次 / 星期 / 来源），
  * 这里只补组合逻辑，避免两个模块各写一套文案。
  */
+import { i18n, intl } from '@kit.LocalizationKit';
 import { Course } from '../../data/models/Models';
 import { LegacyConfig, LegacyConstant } from '../../common/Constants';
 import { ColorPool } from '../../data/ColorPool';
@@ -30,6 +31,8 @@ export class CourseGroup {
   representativeId: number = 0;
   /** 来源类型（取第一个时段），用于来源徽标。 */
   importType: number = LegacyConstant.ADD_MANUALLY;
+  /** 右侧字母索引分组：A-Z，无法归类时为 #。 */
+  indexLetter: string = '#';
   sessions: Course[] = [];
 }
 
@@ -49,6 +52,8 @@ export class CourseFormat {
   static group(courses: Course[], pool: number[]): CourseGroup[] {
     const meetingGroups: Course[][] = CourseGroups.collect(courses);
     const groups: CourseGroup[] = [];
+    const indexUtil: i18n.IndexUtil = i18n.getInstance('zh-CN');
+    const collator: intl.Collator = new intl.Collator();
     for (let i = 0; i < meetingGroups.length; i++) {
       const sessions: Course[] = meetingGroups[i];
       const first: Course = sessions[0];
@@ -57,6 +62,7 @@ export class CourseFormat {
       group.representativeId = first.id;
       group.importType = first.importType;
       group.color = ColorPool.resolve(first, pool);
+      group.indexLetter = CourseFormat.indexLetterOf(first.name, indexUtil);
       group.sessions = sessions;
       groups.push(group);
     }
@@ -64,10 +70,26 @@ export class CourseFormat {
       CourseFormat.summarize(groups[i]);
     }
     groups.sort((a: CourseGroup, b: CourseGroup): number => {
-      const byName: number = a.name.localeCompare(b.name);
+      // 先按索引字母排序（# 置顶），再由 Collator 按本地语言习惯排序同字母课程。
+      const rankA: number = a.indexLetter === '#' ? 0 : a.indexLetter.charCodeAt(0) - 64;
+      const rankB: number = b.indexLetter === '#' ? 0 : b.indexLetter.charCodeAt(0) - 64;
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+      const byName: number = collator.compare(a.name, b.name);
       return byName !== 0 ? byName : a.representativeId - b.representativeId;
     });
     return groups;
+  }
+
+  /** 官方 IndexUtil：中文课程名取拼音首字母；非 A-Z 归入 #。 */
+  private static indexLetterOf(name: string, indexUtil: i18n.IndexUtil): string {
+    try {
+      const letter: string = indexUtil.getIndex(name).trim().toUpperCase();
+      return letter.length === 1 && letter >= 'A' && letter <= 'Z' ? letter : '#';
+    } catch (err) {
+      return '#';
+    }
   }
 
   private static summarize(group: CourseGroup): void {
