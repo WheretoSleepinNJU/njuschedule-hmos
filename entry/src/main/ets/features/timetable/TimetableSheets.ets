@@ -8,34 +8,25 @@
  * - WeekPickerSheetContent：切换课表 + 课程周数。
  */
 import { AppStore } from '../../app/AppStore';
-import { SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI';
-import { hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { hdsTitleBarBottomBar, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import {
   HdsNavDestination,
   HdsNavDestinationTitleMode,
   HdsNavigation,
   HdsNavigationMenuContentOptions,
   HdsNavigationTitleBarOptions,
-  IconStyleMode,
-  hdsMaterial,
-  ScrollEffectType
+  IconStyleMode
 } from '@kit.UIDesignKit';
 import { ClassPeriod, LegacyConfig } from '../../common/Constants';
-import { Colors, FontSize, HdsMetrics, Radius, Spacing, TimetableMetrics } from '../../common/design/Tokens';
+import { CapsuleMetrics, Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { IS_2IN1 } from '../../common/DeviceType';
 import { ColorPool } from '../../data/ColorPool';
 import { Course, CourseTable } from '../../data/models/Models';
 import { WeeksFormat } from './WeeksFormat';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
+import { ImmersiveCapsuleChip } from '../../common/ui/ImmersiveCapsuleChip';
 import { SheetBackCoordinator } from '../../common/ui/SheetOptions';
-
-/** 未选中课表胶囊的系统材质；选中项按主题色单独生成。 */
-const TABLE_CAPSULE_MATERIAL: uiMaterial.ImmersiveMaterial = new uiMaterial.ImmersiveMaterial({
-  style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-  interactive: true,
-  lightEffect: {},
-  applyShadow: false
-});
 
 /**
  * 半模态统一外壳：HDS 标题栏（左关闭 / 标题 / 右菜单）+ 统一滚动与 edge effect。
@@ -102,24 +93,9 @@ export struct HdsSheetFrame {
     if (this.menu !== undefined) {
       options.content!.menu = this.menu;
     }
-    if (this.bottomBarHeight > 0) {
-      // 胶囊常驻标题栏，并让标题栏用沉浸光感材质；不再作为正文里的普通 Row。
-      options.style!.scrollEffectOpts = {
-        enableScrollEffect: true,
-        scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR
-      };
-      options.style!.systemMaterialEffect = {
-        materialType: hdsMaterial.MaterialType.IMMERSIVE,
-        materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-      };
-      options.content!.bottomBuilder = {
-        builder: () => {
-          if (this.bottomBar !== undefined) {
-            this.bottomBar();
-          }
-        },
-        height: this.bottomBarHeight
-      };
+    if (this.bottomBarHeight > 0 && this.bottomBar !== undefined) {
+      // 胶囊行并入标题栏自定义区域，不再作为正文里的普通 Row。
+      hdsTitleBarBottomBar(options, this.bottomBarHeight, this.bottomBar);
     }
     return options;
   }
@@ -567,41 +543,17 @@ export struct WeekPickerSheetContent {
     };
   }
 
-  private selectedCapsuleMaterial(): uiMaterial.ImmersiveMaterial {
-    return new uiMaterial.ImmersiveMaterial({
-      style: uiMaterial.ImmersiveStyle.THIN,
-      materialColor: this.store.accentSoft,
-      interactive: true,
-      lightEffect: {},
-      applyShadow: false
-    });
-  }
-
   @Builder
   private tableCapsules() {
     Scroll() {
       Row({ space: Spacing.Sm }) {
         ForEach(this.tables, (table: CourseTable) => {
-          Button({ type: ButtonType.Capsule }) {
-            Text(table.name)
-              .fontSize(FontSize.BodySm)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(table.id === this.selectedTableId ?
-                this.store.accentDisplay : Colors.TextSecondary)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .constraintSize({ maxWidth: TimetableMetrics.TableCapsuleMaxWidth })
-          }
-          .padding({ left: Spacing.Lg, right: Spacing.Lg, top: Spacing.Sm, bottom: Spacing.Sm })
-          // 材质不支持时回退到实色；支持时 systemMaterial 会覆盖背景。
-          .backgroundColor(table.id === this.selectedTableId ?
-            this.store.accentDisplay : Colors.SurfaceHigh)
-          .borderRadius(Radius.Round)
-          .systemMaterial(table.id === this.selectedTableId
-            ? this.selectedCapsuleMaterial() : TABLE_CAPSULE_MATERIAL)
-          .accessibilityText(table.name)
-          .onClick(() => {
-            this.onSelectTable(table.id);
+          ImmersiveCapsuleChip({
+            label: table.name,
+            selected: table.id === this.selectedTableId,
+            onTap: () => {
+              this.onSelectTable(table.id);
+            }
           })
         }, (table: CourseTable) => `sheet-table-${table.id}`)
       }
@@ -659,7 +611,7 @@ export struct WeekPickerSheetContent {
     HdsSheetFrame({
       title: '切换课表',
       menu: this.menuOptions(),
-      bottomBarHeight: TimetableMetrics.TableCapsuleBarHeight,
+      bottomBarHeight: CapsuleMetrics.BarHeight,
       bottomBar: () => {
         this.tableCapsules();
       },

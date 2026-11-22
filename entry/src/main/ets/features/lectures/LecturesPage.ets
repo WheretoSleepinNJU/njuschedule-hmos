@@ -4,11 +4,15 @@
  *
  * 数据/接口在 `data/Lecture.ets`；加入课表后的周次按讲座开始日期自动换算。
  */
-import { HdsNavDestination, HdsNavigationMenuContentOptions, HdsNavigationTitleBarOptions } from '@kit.UIDesignKit';
+import {
+  HdsNavDestination,
+  HdsNavigationMenuContentOptions,
+  HdsNavigationTitleBarOptions
+} from '@kit.UIDesignKit';
 import { AppState } from '../../app/AppState';
 import { DateUtils } from '../../common/DateUtils';
 import { LegacyConfig, LegacyConstant } from '../../common/Constants';
-import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
+import { CapsuleMetrics, Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { AppStore } from '../../app/AppStore';
 import { CourseRepository } from '../../data/CourseRepository';
@@ -16,9 +20,10 @@ import { Lecture, LectureApi, LecturePage } from '../../data/Lecture';
 import { Course } from '../../data/models/Models';
 import { WeekUtil } from '../../data/WeekUtil';
 import { EmptyState } from '../../common/ui/EmptyState';
-import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsTitleBarBottomBar, hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
 import { ArrayDataSource } from '../../common/ui/ArrayDataSource';
 import { SettingsItemGroup } from '../../common/ui/SettingsListItems';
+import { ImmersiveCapsuleChip } from '../../common/ui/ImmersiveCapsuleChip';
 
 @ComponentV2
 export struct LecturesPage {
@@ -299,37 +304,45 @@ export struct LecturesPage {
   }
 
   @Builder
-  private tagChips() {
+  private tagCapsulesBar() {
     Scroll() {
       Row({ space: Spacing.Sm }) {
-        this.tagChip('全部', '')
+        ImmersiveCapsuleChip({
+          label: '全部',
+          selected: this.selectedTags.length === 0,
+          onTap: () => {
+            this.toggleTag('');
+          }
+        })
         ForEach(this.tags, (tag: string) => {
-          this.tagChip(tag, tag)
+          ImmersiveCapsuleChip({
+            label: tag,
+            selected: this.selectedTags.includes(tag),
+            onTap: () => {
+              this.toggleTag(tag);
+            }
+          })
         }, (tag: string) => `tag-${tag}`)
       }
+      .height('100%')
+      .alignItems(VerticalAlign.Center)
+      .justifyContent(FlexAlign.Center)
+      // 内容不足一屏时居中；校区多到超出一屏时仍保持完整横向滚动。
+      .constraintSize({ minWidth: '100%' })
       .padding({ left: Spacing.Md, right: Spacing.Md })
     }
+    .width('100%')
+    .height('100%')
+    .align(Alignment.Start)
     .scrollable(ScrollDirection.Horizontal)
     .scrollBar(BarState.Off)
-    .width('100%')
-    .height(40)
+    .edgeEffect(EdgeEffect.Spring)
   }
 
-  @Builder
-  private tagChip(label: string, tag: string) {
-    Text(label)
-      .fontSize(FontSize.BodySm)
-      .fontColor(tag === '' ?
-        (this.selectedTags.length === 0 ? this.store.accentOn : Colors.TextSecondary) :
-        (this.selectedTags.includes(tag) ? this.store.accentOn : Colors.TextSecondary))
-      .backgroundColor(tag === '' ?
-        (this.selectedTags.length === 0 ? this.store.accentDisplay : Colors.SurfaceHigh) :
-        (this.selectedTags.includes(tag) ? this.store.accentDisplay : Colors.SurfaceHigh))
-      .borderRadius(Radius.Round)
-      .padding({ left: Spacing.Md, right: Spacing.Md, top: 6, bottom: 6 })
-      .onClick(() => {
-        this.toggleTag(tag);
-      })
+  /** 标题栏 + 吸附胶囊行占用的顶部高度。 */
+  private contentTopPadding(): number {
+    return HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) +
+      CapsuleMetrics.BarHeight + Spacing.Sm;
   }
 
   @Builder
@@ -446,7 +459,12 @@ export struct LecturesPage {
         }
       }]
     };
-    return hdsSubPageTitleBar('讲座', '南大讲座信息，可一键加入课表', menu);
+    const options: HdsNavigationTitleBarOptions =
+      hdsSubPageTitleBar('讲座', '南大讲座信息，可一键加入课表', menu);
+    hdsTitleBarBottomBar(options, CapsuleMetrics.BarHeight, () => {
+      this.tagCapsulesBar();
+    });
+    return options;
   }
 
   build() {
@@ -461,7 +479,7 @@ export struct LecturesPage {
           }
           .width('100%')
           .layoutWeight(1)
-          .padding({ top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) })
+          .padding({ top: this.contentTopPadding() })
           .justifyContent(FlexAlign.Center)
         } else if (this.errorText !== '') {
           Column() {
@@ -477,20 +495,16 @@ export struct LecturesPage {
           }
           .width('100%')
           .layoutWeight(1)
-          .padding({ top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) })
+          .padding({ top: this.contentTopPadding() })
           .justifyContent(FlexAlign.Center)
         } else {
           List({ space: Spacing.Md, scroller: this.scroller }) {
+            // 用透明 ListItem 占位而不是 List.padding：保证滚动内容能进入标题栏下方，
+            // 否则标题栏拿不到可模糊的内容，透明模糊会退化。
             ListItem() {
-              Column() {
-                this.tagChips()
-              }
-              .width('100%')
-              .padding({
-                left: Spacing.Md,
-                right: Spacing.Md,
-                top: HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Sm
-              })
+              Row()
+                .width('100%')
+                .height(this.contentTopPadding())
             }
             LazyForEach(this.lecturesSource, (lecture: Lecture) => {
               ListItem() {

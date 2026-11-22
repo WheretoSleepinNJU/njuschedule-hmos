@@ -16,7 +16,8 @@
  * 页面滚动内容顶部要预留 `HdsMetrics.contentTopInset(px2vp(store.windowTopInset))`，
  * 让内容从标题栏下方开始、继续滚动时进入标题栏下方产生模糊。
  */
-import { hdsMaterial, HdsNavigationMenuContentOptions, HdsNavigationTitle, HdsNavigationTitleBarOptions, ScrollEffectType } from '@kit.UIDesignKit';
+import { hdsMaterial, HdsNavigationMenuContentOptions, HdsNavigationTitle, HdsNavigationTitleBarOptions,
+  ScrollEffectType } from '@kit.UIDesignKit';
 import { ShellRouter } from '../ShellRouter';
 
 /** 生成标准子页面标题栏配置：系统渐变模糊 + 自适应光感材质（与主 HdsNavigation 一致）。 */
@@ -45,6 +46,21 @@ export function hdsSubPageTitleBar(title: string, subtitle: string = '',
     options.content!.menu = menu;
   }
   return options;
+}
+
+/**
+ * 给标准 HDS 标题栏追加 bottomBar 自定义区域。
+ *
+ * 不强制 IMMERSIVE 材质或前景色：hdsSubPageTitleBar 已使用官方推荐的
+ * ADAPTIVE 材质 + GRADIENT_BLUR，由系统按设备能力自适应并自动处理前景色。
+ * 参考：HDS 沉浸光感指南「推荐使用系统自适应的沉浸光感」。
+ */
+export function hdsTitleBarBottomBar(options: HdsNavigationTitleBarOptions,
+  height: number, content: () => void): void {
+  options.content!.bottomBuilder = {
+    builder: content,
+    height: height
+  };
 }
 
 /**

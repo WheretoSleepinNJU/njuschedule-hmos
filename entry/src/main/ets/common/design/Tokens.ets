@@ -99,10 +99,12 @@ export class TimetableMetrics {
   static readonly MaxClassHeight: number = 80;
   static readonly CourseBlockGap: number = 2;
   static readonly CourseBlockRadius: number = 6;
-  /** 切换课表半模态中单个课表名胶囊的最大宽度。 */
-  static readonly TableCapsuleMaxWidth: number = 220;
-  /** 切换课表半模态标题栏内胶囊行高度。 */
-  static readonly TableCapsuleBarHeight: number = 44;
+}
+
+/** 标题栏吸附胶囊的通用尺寸。 */
+export class CapsuleMetrics {
+  static readonly MaxWidth: number = 220;
+  static readonly BarHeight: number = 44;
 }
 
 /**
