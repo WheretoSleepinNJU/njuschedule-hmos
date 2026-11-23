@@ -30,7 +30,7 @@
 
 ## 2. 工具链与常用命令
 
-HarmonyOS 26 SDK（API 26）+ DevEco Command Line Tools（`devecocli`）：
+HarmonyOS 26 SDK（API 26）+ DevEco Command Line Tools（`devecocli`）。`targetSdkVersion`: `26.0.0`；`compatibleSdkVersion`: `26.0.0`：
 
 ```bash
 devecocli build [--build-mode release]

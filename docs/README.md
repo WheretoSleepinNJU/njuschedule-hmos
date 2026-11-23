@@ -10,7 +10,9 @@
 | --- | --- |
 | 应用名 | 呢喃课表（英文：NJU Schedule NEXT） |
 | 包名 | `com.njuschedulenext.jesse`（保持不变，避免破坏升级与本地数据） |
-| 平台 / SDK | HarmonyOS 26（API 26），Stage 模型，phone / tablet / 2in1 |
+| 平台 / SDK | HarmonyOS 26（API 26），Stage 模型 |
+| 版本配置 | `targetSdkVersion`: `26.0.0`；`compatibleSdkVersion`: `26.0.0` |
+| 适配设备 | phone / tablet / 2in1 |
 | UI | ArkTS / ArkUI 原生重写；**仅状态管理 V2** |
 | 上游 | Flutter 版「南哪课表」（idealclover，Apache-2.0） |
 | 数据 | 全部本地：关系型数据库 `course.db` + preferences；无账号、无自建服务器 |

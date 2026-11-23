@@ -64,6 +64,8 @@
 ## 技术栈与结构
 
 - HarmonyOS 26 / API 26，Stage 模型，ArkTS 严格模式
+- `targetSdkVersion`: `26.0.0`；`compatibleSdkVersion`: `26.0.0`
+- 适配设备：phone / tablet / 2in1
 - ArkUI **状态管理 V2**：`@ComponentV2` / `@Local` / `@Param` / `@Event` / `@ObservedV2` / `@Trace`，全局 `AppStore` + `AppStorageV2`
 - HDS 系统组件（`HdsNavigation` / `HdsTabs` / `HdsNavDestination`）与 ArkData（`relationalStore` / `preferences`）
 - `entry/src/main/ets/` 按 `app / common / data / widget / features / pages` 分层；详细命令与目录约定见 [docs/README.md](docs/README.md)

@@ -7,6 +7,7 @@
 ### 前置需求
 
 - **DevEco Command Line Tools**（`devecocli`）与 **HarmonyOS 26 SDK（API 26）**
+- `targetSdkVersion`: `26.0.0`；`compatibleSdkVersion`: `26.0.0`
 - 一台 HarmonyOS 真机或模拟器
   - 模拟器可安装未签名 HAP；真机安装需要本机签名（签名材料不入库）
 - 建议保证可访问 GitHub 与 HarmonyOS 官方文档，便于查阅 API 与最佳实践
