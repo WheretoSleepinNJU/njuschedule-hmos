@@ -5,14 +5,23 @@
  *   Feedback.toast(this.getUIContext(), '已保存');
  *   Feedback.confirmDanger(this.getUIContext(), '删除课程', `确定删除「${name}」吗？`, '删除', () => this.deleteCourse());
  */
-import { UIContext } from '@kit.ArkUI';
+import { UIContext, uiMaterial } from '@kit.ArkUI';
 import { Colors } from '../design/Tokens';
+
+/** 系统 Toast 的沉浸光感材质；API 26 的 ShowToastOptions.systemMaterial。 */
+const TOAST_MATERIAL: uiMaterial.ImmersiveMaterial = new uiMaterial.ImmersiveMaterial({
+  colorInvert: true
+});
 
 export class Feedback {
   /** 系统 Toast（默认 1.5s）。 */
   static toast(ctx: UIContext, message: string, duration: number = 1500): void {
     try {
-      ctx.getPromptAction().showToast({ message: message, duration: duration });
+      ctx.getPromptAction().showToast({
+        message: message,
+        duration: duration,
+        systemMaterial: TOAST_MATERIAL
+      });
     } catch (err) {
       console.warn(`[Feedback] toast failed: ${JSON.stringify(err)}`);
     }
