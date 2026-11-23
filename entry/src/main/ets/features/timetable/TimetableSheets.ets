@@ -158,7 +158,7 @@ export struct CourseInfoCard {
   }
 
   build() {
-    SettingsItemGroup() {
+    SettingsItemGroup({ surfaceColor: $r('sys.color.comp_background_list_card') }) {
       Column({ space: Spacing.Sm }) {
         Row({ space: Spacing.Sm }) {
           Row()
@@ -240,7 +240,7 @@ export struct CourseDetailBody {
 
   build() {
     Column({ space: Spacing.Lg }) {
-      SettingsItemGroup() {
+      SettingsItemGroup({ surfaceColor: $r('sys.color.comp_background_list_card') }) {
         Column({ space: Spacing.Sm }) {
           Row({ space: Spacing.Md }) {
             Row() {
@@ -589,7 +589,7 @@ export struct WeekPickerSheetContent {
               .height(44)
               .textAlign(TextAlign.Center)
               .backgroundColor(value === this.selectedWeek ?
-                this.store.accentDisplay : Colors.SurfaceHigh)
+                this.store.accentDisplay : $r('sys.color.comp_background_list_card'))
               .borderRadius(Radius.Md)
               .onClick(() => {
                 this.onSelectWeek(value);

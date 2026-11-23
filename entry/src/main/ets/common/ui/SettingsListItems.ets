@@ -12,6 +12,8 @@ import { PRESSED_SURFACE } from './PressableSurface';
 export struct SettingsItemGroup {
   /** 可选分类标题，显示在卡片上方。 */
   @Param title: string = '';
+  /** 卡片背景；默认使用应用表面色。 */
+  @Param surfaceColor: ResourceColor = Colors.Surface;
   @BuilderParam content: () => void;
 
   build() {
@@ -29,7 +31,7 @@ export struct SettingsItemGroup {
       .width('100%')
       .padding(4)
       .borderRadius(Radius.Xxl)
-      .backgroundColor(Colors.Surface)
+      .backgroundColor(this.surfaceColor)
     }
     .width('100%')
   }
