@@ -11,7 +11,6 @@
  *
  * 外壳（`pages/Index.ets`，Lead 维护）负责标题栏，本页只输出内容。
  */
-import { LengthMetrics } from '@kit.ArkUI';
 import { AppState } from '../../app/AppState';
 import { Course } from '../../data/models/Models';
 import { ArrayDataSource } from '../../common/ui/ArrayDataSource';
@@ -32,13 +31,8 @@ import { CourseDeleteFlow } from './CourseDeleteFlow';
 import { Feedback } from '../../common/ui/Feedback';
 import { Haptics } from '../../common/ui/Haptics';
 
-/** 右侧字母索引：无法归类的课程放 #。 */
-const COURSE_INDEX_LETTERS: string[] = ['#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 /** 课程卡片长按阈值。 */
 const COURSE_LONG_PRESS_MS: number = 1000;
-/** 索引跳转期间暂停滚动联动的时间上限。 */
-const INDEX_JUMP_GUARD_MS: number = 1000;
 
 @ComponentV2
 export struct CoursesView {
@@ -58,14 +52,6 @@ export struct CoursesView {
   @Local loadError: string = '';
   /** 课程 Tab 是否激活：切回时重新读取配色池。 */
   @Param active: boolean = true;
-  /** 右侧字母索引当前选中项。 */
-  @Local selectedLetterIndex: number = 0;
-  /** 只有触摸索引条时才允许字母弹窗，普通列表滚动不显示。 */
-  @Local indexPopupVisible: boolean = false;
-  private indexJumping: boolean = false;
-  /** 每个索引字母对应的第一门课在 groups 中的位置，-1 表示没有。 */
-  private firstGroupByLetter: number[] = [];
-
   aboutToAppear(): void {
     this.reload();
   }
@@ -103,76 +89,13 @@ export struct CoursesView {
       ColorPool.prepare(courses, pool);
       this.groups = CourseFormat.group(courses, pool);
       this.groupsSource.setData(this.groups);
-      this.rebuildLetterIndex();
-      this.selectedLetterIndex = this.groups.length > 0 ?
-        this.letterIndex(this.groups[0].indexLetter) : 0;
-      this.indexPopupVisible = false;
       this.loadError = '';
     } catch (err) {
       this.groups = [];
       this.groupsSource.setData(this.groups);
-      this.firstGroupByLetter = [];
       this.loadError = '课程加载失败，请重试';
     }
     this.loaded = true;
-  }
-
-  private letterIndex(letter: string): number {
-    const index: number = COURSE_INDEX_LETTERS.indexOf(letter);
-    return index >= 0 ? index : 0;
-  }
-
-  private rebuildLetterIndex(): void {
-    const first: number[] = [];
-    for (let i = 0; i < COURSE_INDEX_LETTERS.length; i++) {
-      first.push(-1);
-    }
-    for (let i = 0; i < this.groups.length; i++) {
-      const position: number = this.letterIndex(this.groups[i].indexLetter);
-      if (first[position] < 0) {
-        first[position] = i;
-      }
-    }
-    this.firstGroupByLetter = first;
-  }
-
-  /** 点击索引后跳到该字母下第一门课；没有时顺延到下一个有内容的字母。 */
-  private firstGroupIndexForLetter(letter: string): number {
-    const start: number = this.letterIndex(letter);
-    for (let i = start; i < this.firstGroupByLetter.length; i++) {
-      if (this.firstGroupByLetter[i] >= 0) {
-        return this.firstGroupByLetter[i];
-      }
-    }
-    return -1;
-  }
-
-  private onIndexSelect(index: number): void {
-    this.selectedLetterIndex = index;
-    const target: number = this.firstGroupIndexForLetter(COURSE_INDEX_LETTERS[index]);
-    if (target < 0) {
-      return;
-    }
-    this.indexJumping = true;
-    // List 第 0 项是顶部留白，课程组从 1 开始；负 offset 让目标停在标题栏下方，
-    // 而不是顶到列表最上沿被标题栏遮住。
-    const topOffset: number = HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md;
-    this.scroller.scrollToIndex(target + 1, true, ScrollAlign.START, {
-      extraOffset: LengthMetrics.vp(-topOffset)
-    });
-    setTimeout(() => {
-      this.indexJumping = false;
-    }, INDEX_JUMP_GUARD_MS);
-  }
-
-  private syncIndexFromScroll(start: number): void {
-    if (this.indexJumping) {
-      return;
-    }
-    const groupIndex: number = start - 1;
-    if (groupIndex >= 0 && groupIndex < this.groups.length) {
-      this.selectedLetterIndex = this.letterIndex(this.groups[groupIndex].indexLetter);
-    }
   }
 
   private navStack(): NavPathStack {
@@ -361,66 +284,31 @@ export struct CoursesView {
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       } else {
-        Row() {
-          List({ space: Spacing.Md, scroller: this.scroller }) {
-            // 顶部留白必须位于滚动内容内（而不是 List 的 padding），
-            // 否则 HDS bindToScrollable 的标题栏动态模糊不会随滚动触发。
-            ListItem() {
-              Row()
-                .width('100%')
-                .height(HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md)
-            }
-            LazyForEach(this.groupsSource, (group: CourseGroup) => {
-              ListItem() {
-                this.groupCard(group)
-              }
-            }, (group: CourseGroup) => `${group.representativeId}-${group.name}`)
-            ListItem() {
-              Row()
-                .width('100%')
-                .height(120)
-            }
+        List({ space: Spacing.Md, scroller: this.scroller }) {
+          // 顶部留白必须位于滚动内容内（而不是 List 的 padding），
+          // 否则 HDS bindToScrollable 的标题栏动态模糊不会随滚动触发。
+          ListItem() {
+            Row()
+              .width('100%')
+              .height(HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md)
           }
-          .layoutWeight(1)
-          .height('100%')
-          .cachedCount(2)
-          .scrollBar(BarState.Off)
-          .edgeEffect(EdgeEffect.Spring)
-          .onScrollIndex((start: number, _end: number, _center: number) => {
-            this.syncIndexFromScroll(start);
-          })
-          .onScrollStop(() => {
-            this.indexJumping = false;
-          })
-
-          AlphabetIndexer({ arrayValue: COURSE_INDEX_LETTERS, selected: this.selectedLetterIndex })
-            .width(20)
-            .height('70%')
-            .itemSize(16)
-            .selectedColor(this.store.accentDisplay)
-            .selectedBackgroundColor(this.store.accentSoft)
-            .color(Colors.TextTertiary)
-            .popupColor(this.store.accentDisplay)
-            .selectedFont({ size: 12, weight: FontWeight.Medium })
-            .font({ size: 10, weight: FontWeight.Medium })
-            .usingPopup(this.indexPopupVisible)
-            .autoCollapse(true)
-            .alignStyle(IndexerAlign.Right)
-            .margin({ right: Spacing.Xs })
-            .onTouch((event: TouchEvent) => {
-              if (event.type === TouchType.Down) {
-                this.indexPopupVisible = true;
-              } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                this.indexPopupVisible = false;
-              }
-            })
-            .onSelect((index: number) => {
-              this.onIndexSelect(index);
-            })
+          LazyForEach(this.groupsSource, (group: CourseGroup) => {
+            ListItem() {
+              this.groupCard(group)
+            }
+          }, (group: CourseGroup) => `${group.representativeId}-${group.name}`)
+          ListItem() {
+            Row()
+              .width('100%')
+              .height(120)
+          }
         }
         .width('100%')
+        .height('100%')
+        .cachedCount(2)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
         .layoutWeight(1)
-        .alignItems(VerticalAlign.Center)
       }
 
     }

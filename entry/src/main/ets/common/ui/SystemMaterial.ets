@@ -15,6 +15,9 @@ export const DIALOG_MATERIAL: uiMaterial.ImmersiveMaterial = new uiMaterial.Imme
   style: uiMaterial.ImmersiveStyle.ULTRA_THICK
 });
 
+/** 标题栏搜索框材质，官方示例使用默认 ImmersiveMaterial。 */
+export const SEARCH_MATERIAL: uiMaterial.ImmersiveMaterial = new uiMaterial.ImmersiveMaterial({});
+
 /** 菜单与 Toast 材质。 */
 export const REGULAR_MATERIAL: uiMaterial.ImmersiveMaterial = new uiMaterial.ImmersiveMaterial({
   style: uiMaterial.ImmersiveStyle.REGULAR

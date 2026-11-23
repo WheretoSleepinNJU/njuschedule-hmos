@@ -11,13 +11,12 @@
  * （动态模糊 / 返回键 / 安全区由 HDS 处理），本页只负责内容。
  */
 import { resolveNavStack } from '../../common/NavStackResolver';
-import { LengthMetrics } from '@kit.ArkUI';
-import { HdsNavDestination } from '@kit.UIDesignKit';
+import { HdsNavDestination, HdsNavigationTitleBarOptions } from '@kit.UIDesignKit';
 import { AppState } from '../../app/AppState';
-import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
+import { Colors, FontSize, HdsMetrics, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
 import { AppStore } from '../../app/AppStore';
-import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
+import { hdsSubPageBackPressed, hdsSubPageTitleBar, hdsTitleBarBottomBar } from '../../common/ui/HdsSubPage';
 import { EmptyState } from '../../common/ui/EmptyState';
 import { DemoData } from '../../data/DemoData';
 import { ShellRouter } from '../../common/ShellRouter';
@@ -25,11 +24,11 @@ import { ImportWebParam } from './ImportParams';
 import { SchoolConfig } from './SchoolConfig';
 import { SchoolRepository } from './SchoolRepository';
 import { SettingsItemDivider, SettingsItemGroup, SettingsRow } from '../../common/ui/SettingsListItems';
+import { SEARCH_MATERIAL } from '../../common/ui/SystemMaterial';
 
 const ROUTE_IMPORT_WEB: string = 'import-web';
-/** 学校列表上方固定项：顶部留白、搜索框、快速开始。 */
-const SCHOOL_LIST_HEADER_COUNT: number = 3;
-const SCHOOL_INDEX_JUMP_GUARD_MS: number = 1000;
+/** 标题栏搜索框区域高度。 */
+const TITLE_SEARCH_HEIGHT: number = 52;
 
 class SchoolLetterGroup {
   letter: string = '#';
@@ -54,9 +53,6 @@ export struct ImportView {
   @Local loading: boolean = true;
   @Local loadError: string = '';
   @Local demoBusy: boolean = false;
-  @Local selectedLetterIndex: number = 0;
-  @Local indexPopupVisible: boolean = false;
-  private indexJumping: boolean = false;
   /** 分组内容版本：变化时强制 ForEach 重建 ListItemGroup，避免大 key 拼接。 */
   private letterGroupsVersion: number = 0;
 
@@ -79,8 +75,6 @@ export struct ImportView {
       const list: SchoolConfig[] = await SchoolRepository.loadAll(forceReload);
       this.schools = SchoolRepository.sortedByPinyin(list);
       this.rebuildLetterGroups();
-      this.selectedLetterIndex = 0;
-      this.indexPopupVisible = false;
     } catch (err) {
       this.schools = [];
       this.letterGroups = [];
@@ -113,32 +107,6 @@ export struct ImportView {
     });
     this.letterGroups = groups;
     this.letterGroupsVersion += 1;
-  }
-
-  private indexLetters(): string[] {
-    return this.letterGroups.map((group: SchoolLetterGroup) => group.letter);
-  }
-
-  private onIndexSelect(index: number): void {
-    this.selectedLetterIndex = index;
-    this.indexJumping = true;
-    const topOffset: number = HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md;
-    this.scroller.scrollToIndex(SCHOOL_LIST_HEADER_COUNT + index, true, ScrollAlign.START, {
-      extraOffset: LengthMetrics.vp(-topOffset)
-    });
-    setTimeout(() => {
-      this.indexJumping = false;
-    }, SCHOOL_INDEX_JUMP_GUARD_MS);
-  }
-
-  private syncIndexFromScroll(start: number): void {
-    if (this.indexJumping) {
-      return;
-    }
-    const groupIndex: number = start - SCHOOL_LIST_HEADER_COUNT;
-    if (groupIndex >= 0 && groupIndex < this.letterGroups.length) {
-      this.selectedLetterIndex = groupIndex;
-    }
   }
 
   private openSchool(school: SchoolConfig): void {
@@ -199,19 +167,31 @@ export struct ImportView {
   }
 
   @Builder
-  private searchBox() {
-    Search({ value: this.keyword, placeholder: '搜索学校名称或拼音' })
-      .width('100%')
-      .height(44)
-      .backgroundColor(Colors.Surface)
-      .borderRadius(Radius.Md)
-      .placeholderColor(Colors.TextTertiary)
-      .textFont({ size: FontSize.Body })
-      .onChange((value: string) => {
-        this.keyword = value;
-        this.selectedLetterIndex = 0;
-        this.rebuildLetterGroups(value);
-      })
+  private titleBarSearch() {
+    Column() {
+      Search({ value: this.keyword, placeholder: '搜索学校名称或拼音' })
+        .width('100%')
+        .height(40)
+        .backgroundColor(Color.Transparent)
+        .systemMaterial(SEARCH_MATERIAL)
+        .textFont({ size: FontSize.Body })
+        .onChange((value: string) => {
+          this.keyword = value;
+          this.rebuildLetterGroups(value);
+        })
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: Spacing.Md, right: Spacing.Md, top: Spacing.Xs, bottom: Spacing.Xs })
+  }
+
+  private titleBarOptions(): HdsNavigationTitleBarOptions {
+    const options: HdsNavigationTitleBarOptions =
+      hdsSubPageTitleBar('教务导入', '选择学校并登录教务系统，进入课表页后自动导入');
+    hdsTitleBarBottomBar(options, TITLE_SEARCH_HEIGHT, () => {
+      this.titleBarSearch();
+    });
+    return options;
   }
 
   @Builder
@@ -263,120 +243,77 @@ export struct ImportView {
   build() {
     HdsNavDestination() {
       Column() {
-        Row() {
-          List({ space: Spacing.Md, scroller: this.scroller }) {
-            // 顶部留白放在滚动内容里，标题栏才能照常采样并做模糊。
-            ListItem() {
-              Row()
-                .width('100%')
-                .height(HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) + Spacing.Md)
-            }
-            ListItem() {
-              this.searchBox()
-            }
-
-            this.quickStartSection()
-
-            if (this.loading) {
-              ListItem() {
-                Column({ space: Spacing.Sm }) {
-                  LoadingProgress()
-                    .width(30)
-                    .height(30)
-                    .color(this.store.accentDisplay)
-                  Text('正在读取学校列表…')
-                    .fontSize(FontSize.BodySm)
-                    .fontColor(Colors.TextTertiary)
-                }
-                .width('100%')
-                .height(160)
-                .justifyContent(FlexAlign.Center)
-              }
-            } else if (this.loadError !== '') {
-              ListItem() {
-                EmptyState({
-                  title: '学校列表加载失败',
-                  description: this.loadError,
-                  icon: $r('sys.symbol.exclamationmark_circle'),
-                  actionText: '重新加载',
-                  onAction: () => {
-                    this.loadSchools(true);
-                  }
-                })
-              }
-            } else if (this.letterGroups.length === 0) {
-              ListItem() {
-                EmptyState({
-                  title: '没有匹配的学校',
-                  description: '换个关键字试试，或清空搜索框查看全部学校',
-                  icon: $r('sys.symbol.magnifyingglass')
-                })
-              }
-            } else {
-              this.schoolList()
-            }
+        List({ space: Spacing.Md, scroller: this.scroller }) {
+          // 顶部留白放在滚动内容里，标题栏才能照常采样并做模糊。
+          ListItem() {
+            Row()
+              .width('100%')
+              .height(HdsMetrics.contentTopInset(px2vp(this.store.windowTopInset)) +
+                TITLE_SEARCH_HEIGHT + Spacing.Md)
           }
-          .constraintSize({ maxWidth: 800 })
-          .layoutWeight(1)
-          .height('100%')
-          .padding({
-            left: Spacing.Md,
-            right: Spacing.Md,
-            bottom: Spacing.Xxxl
-          })
-          .clip(false)
-          .cachedCount(3, true)
-          .scrollBar(BarState.Off)
-          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-          .sticky(StickyStyle.Header)
-          .onScrollIndex((start: number, _end: number, _center: number) => {
-            this.syncIndexFromScroll(start);
-          })
-          .onScrollStop(() => {
-            this.indexJumping = false;
-          })
 
-          if (this.letterGroups.length > 0) {
-            AlphabetIndexer({
-              arrayValue: this.indexLetters(),
-              selected: this.selectedLetterIndex
-            })
-              .width(20)
-              .height('70%')
-              .itemSize(16)
-              .selectedColor(this.store.accentDisplay)
-              .selectedBackgroundColor(this.store.accentSoft)
-              .color(Colors.TextTertiary)
-              .popupColor(this.store.accentDisplay)
-              .selectedFont({ size: 12, weight: FontWeight.Medium })
-              .font({ size: 10, weight: FontWeight.Medium })
-              .usingPopup(this.indexPopupVisible)
-              .autoCollapse(true)
-              .alignStyle(IndexerAlign.Right)
-              .margin({ right: Spacing.Xs })
-              .onTouch((event: TouchEvent) => {
-                if (event.type === TouchType.Down) {
-                  this.indexPopupVisible = true;
-                } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                  this.indexPopupVisible = false;
+          this.quickStartSection()
+
+          if (this.loading) {
+            ListItem() {
+              Column({ space: Spacing.Sm }) {
+                LoadingProgress()
+                  .width(30)
+                  .height(30)
+                  .color(this.store.accentDisplay)
+                Text('正在读取学校列表…')
+                  .fontSize(FontSize.BodySm)
+                  .fontColor(Colors.TextTertiary)
+              }
+              .width('100%')
+              .height(160)
+              .justifyContent(FlexAlign.Center)
+            }
+          } else if (this.loadError !== '') {
+            ListItem() {
+              EmptyState({
+                title: '学校列表加载失败',
+                description: this.loadError,
+                icon: $r('sys.symbol.exclamationmark_circle'),
+                actionText: '重新加载',
+                onAction: () => {
+                  this.loadSchools(true);
                 }
               })
-              .onSelect((index: number) => {
-                this.onIndexSelect(index);
+            }
+          } else if (this.letterGroups.length === 0) {
+            ListItem() {
+              EmptyState({
+                title: '没有匹配的学校',
+                description: '换个关键字试试，或清空搜索框查看全部学校',
+                icon: $r('sys.symbol.magnifyingglass')
               })
+            }
+          } else {
+            this.schoolList()
           }
         }
         .width('100%')
-        .constraintSize({ maxWidth: 840 })
+        .constraintSize({ maxWidth: 800 })
         .layoutWeight(1)
-        .alignItems(VerticalAlign.Center)
+        .height('100%')
+        .padding({
+          left: Spacing.Md,
+          right: Spacing.Md,
+          bottom: Spacing.Xxxl
+        })
+        .clip(false)
+        .cachedCount(3, true)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+        .sticky(StickyStyle.Header)
       }
       .width('100%')
       .height('100%')
       .alignItems(HorizontalAlign.Center)
       .backgroundColor(Colors.Background)
     }
-    .titleBar(hdsSubPageTitleBar('教务导入', '选择学校并登录教务系统，进入课表页后自动导入'))
+    .titleBar(this.titleBarOptions())
     .onBackPressed(hdsSubPageBackPressed)
     .bindToScrollable([this.scroller])
     .onReady((ctx: NavDestinationContext) => {
