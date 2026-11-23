@@ -12,6 +12,7 @@ import { readVersionName } from '../../common/AppVersion';
 import { DailyLuck } from '../../common/DailyLuck';
 import { openUrl } from '../../common/ui/OpenLink';
 import { Feedback } from '../../common/ui/Feedback';
+import { DIALOG_MATERIAL } from '../../common/ui/SystemMaterial';
 import { pushPageOnce } from '../../common/NavStackResolver';
 import { AppStore } from '../../app/AppStore';
 import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
@@ -63,6 +64,7 @@ export struct AboutPage {
       title: '今日人品',
       message: `今日人品值：${DailyLuck.today()}`,
       autoCancel: true,
+      systemMaterial: DIALOG_MATERIAL,
       confirm: {
         value: '好',
         fontColor: this.store.accentDisplay,

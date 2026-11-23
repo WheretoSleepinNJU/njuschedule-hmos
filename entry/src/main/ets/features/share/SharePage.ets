@@ -17,6 +17,7 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Colors, FontSize, HdsMetrics, Radius, Spacing } from '../../common/design/Tokens';
 import { Feedback } from '../../common/ui/Feedback';
+import { REGULAR_MATERIAL } from '../../common/ui/SystemMaterial';
 import { AppStore } from '../../app/AppStore';
 import { AppState } from '../../app/AppState';
 import { hdsSubPageBackPressed, hdsSubPageTitleBar } from '../../common/ui/HdsSubPage';
@@ -419,6 +420,7 @@ export struct SharePage {
         })
         .bindMenu(this.actionsMenuOpen, this.actionMenuItems(), {
           placement: Placement.BottomRight,
+          systemMaterial: REGULAR_MATERIAL,
           onDisappear: () => {
             this.actionsMenuOpen = false;
           }

@@ -5,6 +5,7 @@
  * 这里只负责 dialogId 的保存与异常处理，避免各页面重复同一套开/关代码。
  */
 import { UIContext } from '@kit.ArkUI';
+import { DIALOG_MATERIAL } from './SystemMaterial';
 
 export class CustomDialogController {
   private dialogId: number = -1;
@@ -30,7 +31,8 @@ export class CustomDialogController {
       this.dialogId = await ctx.getPromptAction().openCustomDialog({
         builder: builder,
         autoCancel: autoCancel,
-        alignment: DialogAlignment.Center
+        alignment: DialogAlignment.Center,
+        systemMaterial: DIALOG_MATERIAL
       });
     } catch (err) {
       console.error(`[CustomDialog] open failed: ${JSON.stringify(err)}`);

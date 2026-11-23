@@ -117,7 +117,7 @@ export struct HdsSheetFrame {
     .titleBar(this.titleBarOptions())
     .titleMode(HdsNavDestinationTitleMode.MODAL)
     .bindToScrollable([this.scroller])
-    .backgroundColor(Colors.Background)
+    .backgroundColor(Color.Transparent)
     .width('100%')
     .height(this.fillHeight ? '100%' : 'auto')
   }
@@ -128,7 +128,7 @@ export struct HdsSheetFrame {
     }
     .navDestination(this.destination)
     .hideNavBar(true)
-    .backgroundColor(Colors.Background)
+    .backgroundColor(Color.Transparent)
     .width('100%')
     .height(this.fillHeight ? '100%' : 'auto')
   }

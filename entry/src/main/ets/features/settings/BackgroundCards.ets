@@ -4,6 +4,7 @@
  */
 import { AppStore } from '../../app/AppStore';
 import { Colors, FontSize, Radius, Spacing } from '../../common/design/Tokens';
+import { REGULAR_MATERIAL } from '../../common/ui/SystemMaterial';
 import { BackgroundImage, CustomBackground } from '../../data/BackgroundImage';
 import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
 import { Haptics } from '../../common/ui/Haptics';
@@ -126,7 +127,8 @@ export struct CustomBackgroundCard {
       .bindContextMenuWithResponse(this.menu, {
         preview: MenuPreviewMode.IMAGE,
         previewBorderRadius: Radius.Md,
-        previewAnimationOptions: { scale: [1, 1.05] }
+        previewAnimationOptions: { scale: [1, 1.05] },
+        systemMaterial: REGULAR_MATERIAL
       })
 
       Text(this.item.name)

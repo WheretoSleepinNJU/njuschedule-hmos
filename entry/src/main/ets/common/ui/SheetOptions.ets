@@ -5,6 +5,7 @@
  */
 import { Colors } from '../design/Tokens';
 import { BreakpointName } from '../design/Breakpoints';
+import { DIALOG_MATERIAL } from './SystemMaterial';
 
 /**
  * 半模态形态按官方断点选择：
@@ -30,7 +31,7 @@ export class SheetBackCoordinator {
 }
 
 /**
- * 内容型半模态：FIT_CONTENT + 可拖动关闭 + 统一遮罩/背景。
+ * 内容型半模态：FIT_CONTENT + 可拖动关闭 + 统一遮罩/系统材质。
  *
  * 显隐状态由 bindSheet 的 $$ 双向绑定维护；不在 onDisappear 里重复置 false，
  * 否则关闭动画结束时的旧回调可能覆盖刚发起的新一次打开。
@@ -52,6 +53,6 @@ export function contentSheetOptions(breakpoint: string,
       }
       action.dismiss();
     },
-    backgroundColor: Colors.Background
+    systemMaterial: DIALOG_MATERIAL
   };
 }

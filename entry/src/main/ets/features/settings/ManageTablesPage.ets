@@ -27,6 +27,7 @@ import { ShellRouter } from '../../common/ShellRouter';
 import { NameDialog } from './NameDialog';
 import { CustomDialogController } from '../../common/ui/CustomDialogController';
 import { Haptics } from '../../common/ui/Haptics';
+import { REGULAR_MATERIAL } from '../../common/ui/SystemMaterial';
 import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
 
 /** 课表行高度与行内图标尺寸；拖拽阈值、分隔线缩进和卡片高度统一引用。 */
@@ -89,7 +90,7 @@ struct CourseTableCard {
           .fontColor([Colors.TextTertiary])
       }
       .padding(Spacing.Sm)
-      .bindMenu(this.tableMenu)
+      .bindMenu(this.tableMenu, { systemMaterial: REGULAR_MATERIAL })
     }
     .width('100%')
     .constraintSize({ minHeight: TABLE_ROW_HEIGHT })
@@ -560,6 +561,7 @@ export struct ManageTablesPage {
           })
           .bindMenu(this.addMenuOpen, this.addMenuItems(), {
             placement: Placement.BottomRight,
+            systemMaterial: REGULAR_MATERIAL,
             onDisappear: () => {
               this.addMenuOpen = false;
             }

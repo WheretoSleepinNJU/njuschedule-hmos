@@ -25,6 +25,7 @@ import { CourseEditParam } from '../common/RouteParams';
 import { AppState } from '../app/AppState';
 import { AppStore } from '../app/AppStore';
 import { HdsTabPage } from '../common/ui/HdsTabPage';
+import { REGULAR_MATERIAL } from '../common/ui/SystemMaterial';
 import { ShellRouter } from '../common/ShellRouter';
 import { DesktopSideBar } from '../common/ui/DesktopSideBar';
 
@@ -466,6 +467,7 @@ struct Index {
           })
           .bindMenu(this.coursesMenuOpen, this.courseMenuItems(), {
             placement: Placement.BottomRight,
+            systemMaterial: REGULAR_MATERIAL,
             onDisappear: () => {
               this.coursesMenuOpen = false;
             }

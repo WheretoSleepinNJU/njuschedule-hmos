@@ -1,14 +1,17 @@
 /**
- * TextPickerDialog 强调色适配。
+ * TextPickerDialog 强调色与材质适配。
  *
  * 确认按钮/选中项使用应用强调色，取消按钮使用次要文字色；
- * 其余背景、材质、文字样式全部保持系统默认。
+ * 背景使用系统沉浸材质，其余文字样式保持系统默认。
  */
 import { AppStore } from '../../app/AppStore';
 import { Colors } from '../design/Tokens';
+import { DIALOG_MATERIAL } from './SystemMaterial';
 
-/** 给 TextPickerDialogOptions 应用强调色（原地修改并返回）。 */
-export function applyTextPickerAccent(store: AppStore, options: TextPickerDialogOptions): TextPickerDialogOptions {
+/** 给 TextPickerDialogOptionsExt 应用强调色和系统材质（原地修改并返回）。 */
+export function applyTextPickerAccent(store: AppStore,
+  options: TextPickerDialogOptionsExt): TextPickerDialogOptionsExt {
+  options.systemMaterial = DIALOG_MATERIAL;
   options.acceptButtonStyle = {
     fontColor: store.accentDisplay
   };

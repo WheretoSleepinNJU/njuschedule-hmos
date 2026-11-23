@@ -10,6 +10,7 @@ import { Colors, FontSize, Spacing } from '../../common/design/Tokens';
 import { applyTextPickerAccent } from '../../common/ui/TextPickerStyle';
 import { SettingsItemDivider, SettingsRow } from '../../common/ui/SettingsListItems';
 import { menuItemDividerStyle } from '../../common/ui/MenuDivider';
+import { REGULAR_MATERIAL } from '../../common/ui/SystemMaterial';
 
 const MAX_SWITCH_DAYS: number = 365;
 /** 切换时机选项（下标与 switchModeIndex 一致）。 */
@@ -116,7 +117,7 @@ export struct BackgroundSwitchTiming {
             .fontSize(FontSize.Body)
             .fontColor([Colors.TextTertiary])
         }
-        .bindMenu(this.switchModeMenu())
+        .bindMenu(this.switchModeMenu(), { systemMaterial: REGULAR_MATERIAL })
       }
       .width('100%')
       .constraintSize({ minHeight: 56 })
